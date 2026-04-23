@@ -27,3 +27,11 @@ export const estimatorSchema = z.object({
 });
 
 export type EstimatorValues = z.infer<typeof estimatorSchema>;
+
+export const brickEstimatorSchema = z.object({
+  wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
+  wallThicknessIn: z.enum(['5', '10'], { required_error: "দেয়ালের পুরুত্ব নির্বাচন করুন" }),
+});
+
+export type BrickEstimatorValues = z.infer<typeof brickEstimatorSchema>;

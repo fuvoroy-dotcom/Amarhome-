@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2 } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -28,13 +28,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { estimatorSchema, type EstimatorValues } from "@/app/lib/schemas";
+import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues } from "@/app/lib/schemas";
 import { getConstructionAdvice } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-type Results = {
+type StructuralResults = {
   cement: number;
   sand: number;
   chips: number;
@@ -43,15 +45,20 @@ type Results = {
   totalRodWeight: number;
 };
 
+type BrickResults = {
+    bricks: number;
+    cement: number;
+    sand: number;
+}
+
 export default function EstimatorClient() {
-  const [results, setResults] = useState<Results | null>(null);
+  const [structuralResults, setStructuralResults] = useState<StructuralResults | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiAdvice, setAiAdvice] = useState("");
   const [isAiLoading, startAiTransition] = useTransition();
   const { toast } = useToast();
 
-
-  const form = useForm<EstimatorValues>({
+  const structuralForm = useForm<EstimatorValues>({
     resolver: zodResolver(estimatorSchema),
     defaultValues: {
       baseLengthFt: 5,
@@ -104,7 +111,7 @@ export default function EstimatorClient() {
     const ringLenBeam = ((beamHeightIn / 12) + (beamWidthIn / 12)) * 2;
     const ringWeight = ((ringCountCol * ringLenCol * columnCount) + (ringCountBeam * ringLenBeam)) * ringRodFactor;
 
-    setResults({
+    setStructuralResults({
       cement: cementBags,
       sand: sandCFT,
       chips: chipsCFT,
@@ -115,7 +122,7 @@ export default function EstimatorClient() {
   }
 
   const handleGetAdvice = () => {
-    const values = form.getValues();
+    const values = structuralForm.getValues();
     const validation = estimatorSchema.safeParse(values);
     if (!validation.success) {
       toast({
@@ -143,129 +150,264 @@ export default function EstimatorClient() {
     });
   };
 
+  const [brickResults, setBrickResults] = useState<BrickResults | null>(null);
+  const brickForm = useForm<BrickEstimatorValues>({
+      resolver: zodResolver(brickEstimatorSchema),
+      defaultValues: {
+          wallLengthFt: 10,
+          wallHeightFt: 10,
+          wallThicknessIn: '5',
+      }
+  });
+
+  function calculateBricks(data: BrickEstimatorValues) {
+      const { wallLengthFt, wallHeightFt, wallThicknessIn } = data;
+      const area = wallLengthFt * wallHeightFt;
+      let bricks = 0;
+      let cement = 0;
+      let sand = 0;
+
+      if (wallThicknessIn === '5') {
+          bricks = area * 5;
+          cement = (area / 100) * 0.6;
+          sand = (area / 100) * 3;
+      } else { // 10 inch
+          bricks = area * 10;
+          cement = (area / 100) * 1.2;
+          sand = (area / 100) * 6;
+      }
+
+      setBrickResults({
+          bricks: Math.ceil(bricks),
+          cement: Math.ceil(cement),
+          sand: parseFloat(sand.toFixed(1)),
+      });
+  }
+
   return (
     <>
     <div className="w-full max-w-6xl">
         <Card className="w-full overflow-hidden shadow-2xl border-border/40">
             <div className="bg-primary p-5 text-primary-foreground text-center">
                 <h1 className="text-3xl font-bold">পূর্ণাঙ্গ কনস্ট্রাকশন ক্যালকুলেটর</h1>
-                <p className="text-primary-foreground/80 text-sm mt-1">বেস, কলাম ও বিমের সমন্বিত ও আলাদা হিসাব</p>
+                <p className="text-primary-foreground/80 text-sm mt-1">বেস, কলাম, বিম এবং ইটের সমন্বিত হিসাব</p>
             </div>
             
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(calculateMaterials)} className="p-4 md:p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        {/* Dimensions Column */}
-                        <div className="space-y-4">
-                            <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
-                                <Building className="w-5 h-5" />
-                                কাঠামোর মাপ (Dimensions)
-                            </h2>
-                            <div className="bg-card p-4 rounded-xl space-y-6 border">
-                                <DimensionInputGroup form={form} title="বেসের মাপ (ফুট/ইঞ্চি)" fields={[
-                                    {name: "baseLengthFt", placeholder: "লম্বা (ফুট)"},
-                                    {name: "baseWidthFt", placeholder: "চওড়া (ফুট)"},
-                                    {name: "baseThicknessIn", placeholder: "পুরুত্ব (ইঞ্চি)"},
-                                ]} gridCols={3} />
-                                <div>
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">কলাম</p>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name="columnCount"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="সংখ্যা (টি)" {...field} className="text-sm" />
-                                                    </FormControl>
-                                                    <FormMessage className="text-xs" />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="columnLengthIn"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="দৈর্ঘ্য (ইঞ্চি)" {...field} className="text-sm" />
-                                                    </FormControl>
-                                                    <FormMessage className="text-xs" />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="columnWidthIn"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="প্রস্থ (ইঞ্চি)" {...field} className="text-sm" />
-                                                    </FormControl>
-                                                    <FormMessage className="text-xs" />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-                                    <FormField
-                                        control={form.control}
-                                        name="columnHeightFt"
-                                        render={({ field }) => (
-                                            <FormItem className="mt-2">
-                                                <FormControl>
-                                                    <Input type="number" placeholder="মোট উচ্চতা (ফুট)" {...field} className="w-full text-sm" />
-                                                </FormControl>
-                                                <FormMessage className="text-xs" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-                                <DimensionInputGroup form={form} title="বিমের মাপ (ইঞ্চি/ফুট)" fields={[
-                                    {name: "beamHeightIn", placeholder: "উচ্চতা (ইঞ্চি)"},
-                                    {name: "beamWidthIn", placeholder: "প্রস্থ (ইঞ্চি)"},
-                                ]} gridCols={2} singleField={{name: "beamLengthFt", placeholder: "মোট দৈর্ঘ্য (ফুট)"}} />
-                            </div>
-                        </div>
-
-                        {/* Steel Settings Column */}
-                        <div className="space-y-4">
-                            <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
-                                <Cog className="w-5 h-5" />
-                                রড সেটিংস (Steel)
-                            </h2>
-                            <div className="bg-card p-4 rounded-xl space-y-6 border">
-                                <SteelInputGroup form={form} />
-                            </div>
-                            <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
-                                হিসাব করুন
-                            </Button>
-                        </div>
-                        
-                        {/* Results Column */}
-                        <div className="space-y-4">
-                            <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
-                                <BarChartBig className="w-5 h-5" />
-                                ফলাফল (Result)
-                            </h2>
-                            {results ? (
+            <Tabs defaultValue="structural" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 rounded-none h-auto">
+                    <TabsTrigger value="structural" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <Building className="mr-2 h-5 w-5" />
+                        স্ট্রাকচার
+                    </TabsTrigger>
+                    <TabsTrigger value="brick" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <Layers className="mr-2 h-5 w-5" />
+                        ইট গাঁথুনি
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="structural" className="p-0">
+                    <Form {...structuralForm}>
+                        <form onSubmit={structuralForm.handleSubmit(calculateMaterials)} className="p-4 md:p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                
                                 <div className="space-y-4">
-                                    <ResultDisplay results={results} />
-                                    <Button onClick={handleGetAdvice} variant="outline" className="w-full font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-[0.98]">
-                                        <BrainCircuit className="mr-2 h-5 w-5" />
-                                        AI থেকে পরামর্শ নিন
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <Building className="w-5 h-5" />
+                                        কাঠামোর মাপ (Dimensions)
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <DimensionInputGroup form={structuralForm} title="বেসের মাপ (ফুট/ইঞ্চি)" fields={[
+                                            {name: "baseLengthFt", placeholder: "লম্বা (ফুট)"},
+                                            {name: "baseWidthFt", placeholder: "চওড়া (ফুট)"},
+                                            {name: "baseThicknessIn", placeholder: "পুরুত্ব (ইঞ্চি)"},
+                                        ]} gridCols={3} />
+                                        <div>
+                                            <p className="text-xs font-bold text-muted-foreground uppercase mb-2">কলাম</p>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <FormField
+                                                    control={structuralForm.control}
+                                                    name="columnCount"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input type="number" placeholder="সংখ্যা (টি)" {...field} className="text-sm" />
+                                                            </FormControl>
+                                                            <FormMessage className="text-xs" />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={structuralForm.control}
+                                                    name="columnLengthIn"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input type="number" placeholder="দৈর্ঘ্য (ইঞ্চি)" {...field} className="text-sm" />
+                                                            </FormControl>
+                                                            <FormMessage className="text-xs" />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={structuralForm.control}
+                                                    name="columnWidthIn"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input type="number" placeholder="প্রস্থ (ইঞ্চি)" {...field} className="text-sm" />
+                                                            </FormControl>
+                                                            <FormMessage className="text-xs" />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <FormField
+                                                control={structuralForm.control}
+                                                name="columnHeightFt"
+                                                render={({ field }) => (
+                                                    <FormItem className="mt-2">
+                                                        <FormControl>
+                                                            <Input type="number" placeholder="মোট উচ্চতা (ফুট)" {...field} className="w-full text-sm" />
+                                                        </FormControl>
+                                                        <FormMessage className="text-xs" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <DimensionInputGroup form={structuralForm} title="বিমের মাপ (ইঞ্চি/ফুট)" fields={[
+                                            {name: "beamHeightIn", placeholder: "উচ্চতা (ইঞ্চি)"},
+                                            {name: "beamWidthIn", placeholder: "প্রস্থ (ইঞ্চি)"},
+                                        ]} gridCols={2} singleField={{name: "beamLengthFt", placeholder: "মোট দৈর্ঘ্য (ফুট)"}} />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <Cog className="w-5 h-5" />
+                                        রড সেটিংস (Steel)
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <SteelInputGroup form={structuralForm} />
+                                    </div>
+                                    <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                                        হিসাব করুন
                                     </Button>
-                                    <p className="text-[10px] text-muted-foreground text-center">* ১:১.৫:৩ মিক্স রেশিও ধরে হিসেবকৃত।</p>
                                 </div>
-                            ) : (
-                                <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
-                                    <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
+                                
+                                <div className="space-y-4">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <BarChartBig className="w-5 h-5" />
+                                        ফলাফল (Result)
+                                    </h2>
+                                    {structuralResults ? (
+                                        <div className="space-y-4">
+                                            <ResultDisplay results={structuralResults} />
+                                            <Button onClick={handleGetAdvice} variant="outline" className="w-full font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                                                <BrainCircuit className="mr-2 h-5 w-5" />
+                                                AI থেকে পরামর্শ নিন
+                                            </Button>
+                                            <p className="text-[10px] text-muted-foreground text-center">* ১:১.৫:৩ মিক্স রেশিও ধরে হিসেবকৃত।</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
+                                            <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </form>
-            </Form>
+                            </div>
+                        </form>
+                    </Form>
+                </TabsContent>
+                <TabsContent value="brick" className="p-0">
+                    <Form {...brickForm}>
+                        <form onSubmit={brickForm.handleSubmit(calculateBricks)} className="p-4 md:p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2 space-y-6">
+                                     <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <Layers className="w-5 h-5" />
+                                        দেয়ালের মাপ (Wall Dimensions)
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <FormField control={brickForm.control} name="wallLengthFt" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>দেয়ালের দৈর্ঘ্য (ফুট)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="যেমন: ১২" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>দেয়ালের উচ্চতা (ফুট)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="যেমন: ১০" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                        </div>
+                                        <FormField control={brickForm.control} name="wallThicknessIn" render={({ field }) => (
+                                            <FormItem className="space-y-3">
+                                            <FormLabel>দেয়ালের পুরুত্ব (ইঞ্চি)</FormLabel>
+                                            <FormControl>
+                                                <RadioGroup
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                                className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 pt-2"
+                                                >
+                                                <FormItem className="flex items-center space-x-2">
+                                                    <FormControl><RadioGroupItem value="5" id="t5" /></FormControl>
+                                                    <FormLabel htmlFor="t5" className="font-normal text-base">৫"</FormLabel>
+                                                </FormItem>
+                                                <FormItem className="flex items-center space-x-2">
+                                                    <FormControl><RadioGroupItem value="10" id="t10" /></FormControl>
+                                                    <FormLabel htmlFor="t10" className="font-normal text-base">১০"</FormLabel>
+                                                </FormItem>
+                                                </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    </div>
+                                    <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                                        ইটের হিসাব করুন
+                                    </Button>
+                                </div>
+                                <div className="space-y-4">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <BarChartBig className="w-5 h-5" />
+                                        ফলাফল (Result)
+                                    </h2>
+                                    {brickResults ? (
+                                        <div className="space-y-4">
+                                            <div className="bg-card p-5 rounded-2xl border-2 shadow-inner">
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    <div className="text-center p-3 bg-orange-400/10 rounded-lg border border-orange-500/30">
+                                                        <span className="text-xs text-orange-600 font-bold uppercase">ইট (সংখ্যা)</span>
+                                                        <p className="text-4xl font-black text-slate-800">{brickResults.bricks}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="p-3 bg-muted/50 rounded-lg text-center">
+                                                            <span className="text-[10px] text-muted-foreground uppercase font-bold">সিমেন্ট (ব্যাগ)</span>
+                                                            <p className="text-xl font-bold text-primary">{brickResults.cement}</p>
+                                                        </div>
+                                                        <div className="p-3 bg-muted/50 rounded-lg text-center">
+                                                            <span className="text-[10px] text-muted-foreground uppercase font-bold">বালু (CFT)</span>
+                                                            <p className="text-xl font-bold text-primary">{brickResults.sand}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground text-center">* দেয়ালের ক্ষেত্রফল অনুযায়ী আনুমানিক হিসাব।</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
+                                            <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
+                    </Form>
+                </TabsContent>
+            </Tabs>
         </Card>
     </div>
     <Dialog open={isAiModalOpen} onOpenChange={setIsAiModalOpen}>
@@ -395,7 +537,7 @@ const SteelInputGroup = ({form}: any) => (
 );
 
 
-const ResultDisplay = ({ results }: { results: Results }) => (
+const ResultDisplay = ({ results }: { results: StructuralResults }) => (
   <div className="bg-card p-5 rounded-2xl border-2 shadow-inner">
       <div className="grid grid-cols-1 gap-4">
           <div className="text-center p-3 bg-accent/10 rounded-lg">
