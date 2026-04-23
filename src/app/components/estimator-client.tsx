@@ -161,6 +161,7 @@ export default function EstimatorClient() {
       defaultValues: {
           calculationType: 'wall',
           wallLengthFt: 10,
+          wallWidthFt: 10,
           wallHeightFt: 10,
           wallThicknessIn: '5',
           roomCount: 1,
