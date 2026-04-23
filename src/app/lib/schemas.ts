@@ -5,6 +5,7 @@ export const estimatorSchema = z.object({
   baseWidthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   baseThicknessIn: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   
+  columnCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(1, "কলামের সংখ্যা কমপক্ষে ১ হতে হবে"),
   columnLengthIn: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   columnWidthIn: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   columnHeightFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),

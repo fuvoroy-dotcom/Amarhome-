@@ -33,6 +33,7 @@ const AiConstructionAdvisoryInputSchema = z.object({
   baseWidthFt: z.number().describe('Width of the foundation base in feet.'),
   baseThicknessIn: z.number().describe('Thickness of the foundation base in inches.'),
 
+  columnCount: z.number().describe('Number of columns.'),
   columnLengthIn: z.number().describe('Length of the column cross-section in inches.'),
   columnWidthIn: z.number().describe('Width of the column cross-section in inches.'),
   columnHeightFt: z.number().describe('Total height of the column in feet.'),
@@ -80,10 +81,11 @@ Analyze the following structural elements and their specifications, then offer a
 - Base Mesh Width-wise Rods: {{{baseRodWidthCount}}}
 
 ### Column:
-- Cross-section Length: {{{columnLengthIn}}} inches
-- Cross-section Width: {{{columnWidthIn}}} inches
-- Total Height: {{{columnHeightFt}}} feet
-- Main Reinforcement Rods: {{{columnRodCount}}}
+- Number of Columns: {{{columnCount}}}
+- Cross-section Length (per column): {{{columnLengthIn}}} inches
+- Cross-section Width (per column): {{{columnWidthIn}}} inches
+- Total Height (per column): {{{columnHeightFt}}} feet
+- Main Reinforcement Rods (per column): {{{columnRodCount}}}
 
 ### Beam:
 - Cross-section Height: {{{beamHeightIn}}} inches

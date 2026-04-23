@@ -57,6 +57,7 @@ export default function EstimatorClient() {
       baseLengthFt: 5,
       baseWidthFt: 5,
       baseThicknessIn: 18,
+      columnCount: 1,
       columnLengthIn: 12,
       columnWidthIn: 10,
       columnHeightFt: 32,
@@ -76,14 +77,14 @@ export default function EstimatorClient() {
   function calculateMaterials(data: EstimatorValues) {
     const { 
         baseLengthFt, baseWidthFt, baseThicknessIn,
-        columnLengthIn, columnWidthIn, columnHeightFt,
+        columnCount, columnLengthIn, columnWidthIn, columnHeightFt,
         beamHeightIn, beamWidthIn, beamLengthFt,
         columnRodCount, beamRodCount, mainRodFactor,
         ringGapIn, ringRodFactor, baseRodLongitudinalCount, baseRodWidthCount
     } = data;
 
     const baseVol = baseLengthFt * baseWidthFt * (baseThicknessIn / 12);
-    const colVol = (columnLengthIn / 12) * (columnWidthIn / 12) * columnHeightFt;
+    const colVol = (columnLengthIn / 12) * (columnWidthIn / 12) * columnHeightFt * columnCount;
     const beamVol = (beamHeightIn / 12) * (beamWidthIn / 12) * beamLengthFt;
     const totalWetVol = baseVol + colVol + beamVol;
     
@@ -95,13 +96,13 @@ export default function EstimatorClient() {
     const chipsCFT = (dryVol / ratioSum) * 3;
 
     const baseRodWeight = ((baseRodLongitudinalCount * baseWidthFt) + (baseRodWidthCount * baseLengthFt)) * mainRodFactor;
-    const mainRodWeight = ((columnRodCount * columnHeightFt) + (beamRodCount * beamLengthFt)) * mainRodFactor + baseRodWeight;
+    const mainRodWeight = ((columnRodCount * columnHeightFt * columnCount) + (beamRodCount * beamLengthFt)) * mainRodFactor + baseRodWeight;
 
     const ringCountCol = (columnHeightFt * 12) / ringGapIn;
     const ringCountBeam = (beamLengthFt * 12) / ringGapIn;
     const ringLenCol = ((columnLengthIn / 12) + (columnWidthIn / 12)) * 2;
     const ringLenBeam = ((beamHeightIn / 12) + (beamWidthIn / 12)) * 2;
-    const ringWeight = ((ringCountCol * ringLenCol) + (ringCountBeam * ringLenBeam)) * ringRodFactor;
+    const ringWeight = ((ringCountCol * ringLenCol * columnCount) + (ringCountBeam * ringLenBeam)) * ringRodFactor;
 
     setResults({
       cement: cementBags,
@@ -167,10 +168,59 @@ export default function EstimatorClient() {
                                     {name: "baseWidthFt", placeholder: "চওড়া (ফুট)"},
                                     {name: "baseThicknessIn", placeholder: "পুরুত্ব (ইঞ্চি)"},
                                 ]} gridCols={3} />
-                                <DimensionInputGroup form={form} title="কলামের মাপ (ইঞ্চি/ফুট)" fields={[
-                                    {name: "columnLengthIn", placeholder: "দৈর্ঘ্য (ইঞ্চি)"},
-                                    {name: "columnWidthIn", placeholder: "প্রস্থ (ইঞ্চি)"},
-                                ]} gridCols={2} singleField={{name: "columnHeightFt", placeholder: "মোট উচ্চতা (ফুট)"}} />
+                                <div>
+                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">কলাম</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="columnCount"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="সংখ্যা (টি)" {...field} className="text-sm" />
+                                                    </FormControl>
+                                                    <FormMessage className="text-xs" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="columnLengthIn"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="দৈর্ঘ্য (ইঞ্চি)" {...field} className="text-sm" />
+                                                    </FormControl>
+                                                    <FormMessage className="text-xs" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="columnWidthIn"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="প্রস্থ (ইঞ্চি)" {...field} className="text-sm" />
+                                                    </FormControl>
+                                                    <FormMessage className="text-xs" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="columnHeightFt"
+                                        render={({ field }) => (
+                                            <FormItem className="mt-2">
+                                                <FormControl>
+                                                    <Input type="number" placeholder="মোট উচ্চতা (ফুট)" {...field} className="w-full text-sm" />
+                                                </FormControl>
+                                                <FormMessage className="text-xs" />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                                 <DimensionInputGroup form={form} title="বিমের মাপ (ইঞ্চি/ফুট)" fields={[
                                     {name: "beamHeightIn", placeholder: "উচ্চতা (ইঞ্চি)"},
                                     {name: "beamWidthIn", placeholder: "প্রস্থ (ইঞ্চি)"},
