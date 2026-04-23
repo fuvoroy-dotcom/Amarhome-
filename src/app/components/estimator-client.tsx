@@ -3,11 +3,10 @@
 import React, { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -28,13 +27,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues } from "@/app/lib/schemas";
+import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues } from "@/app/lib/schemas";
 import { getConstructionAdvice } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+
 
 type StructuralResults = {
   cement: number;
@@ -59,6 +61,16 @@ type PlasterResults = {
     cement: number;
     sand: number;
 }
+
+type FullHouseResults = {
+    totalCement: number;
+    totalSand: number;
+    totalChips: number;
+    totalRodWeight: number;
+    totalBricks: number;
+    totalTiles: number;
+};
+
 
 export default function EstimatorClient() {
   const [structuralResults, setStructuralResults] = useState<StructuralResults | null>(null);
@@ -278,6 +290,132 @@ export default function EstimatorClient() {
       });
   }
 
+  const [fullHouseResults, setFullHouseResults] = useState<FullHouseResults | null>(null);
+    const fullHouseForm = useForm<FullHouseEstimatorValues>({
+        resolver: zodResolver(fullHouseEstimatorSchema),
+        defaultValues: {
+            floorCount: 1,
+            totalAreaSqFt: 1000,
+            roomCount: 3,
+            bathroomCount: 2,
+            kitchenCount: 1,
+            avgRoomLengthFt: 12,
+            avgRoomWidthFt: 10,
+            floorHeightFt: 10,
+            columnCountPerFloor: 10,
+            slabThicknessIn: 5,
+            wallThicknessIn: '5',
+            tileFloors: true,
+            tileBathroomWalls: true,
+            bathroomWallTileHeightFt: 7,
+            plasterInterior: true,
+            plasterExterior: true,
+            mainRodFactor: 0.48,
+            ringRodFactor: 0.12,
+            ringGapIn: 7,
+        }
+    });
+
+    function calculateFullHouse(data: FullHouseEstimatorValues) {
+        const {
+            floorCount, totalAreaSqFt, roomCount, bathroomCount, 
+            avgRoomLengthFt, avgRoomWidthFt, floorHeightFt, columnCountPerFloor,
+            slabThicknessIn, wallThicknessIn, tileFloors, tileBathroomWalls,
+            bathroomWallTileHeightFt, plasterInterior, plasterExterior,
+            mainRodFactor, ringRodFactor, ringGapIn
+        } = data;
+
+        // --- STRUCTURAL CALCULATION (ASSUMPTIONS) ---
+        // Foundation: 1.5ft avg thickness
+        const foundationVol = totalAreaSqFt * 1.5; 
+        // Columns: 12"x12" avg size
+        const totalColumns = columnCountPerFloor * floorCount;
+        const columnVol = (12/12) * (12/12) * floorHeightFt * totalColumns; 
+        // Beams: length is ~2.5x sqrt of area, 10"x12" avg size
+        const beamLengthPerFloor = Math.sqrt(totalAreaSqFt) * 2.5;
+        const totalBeamLength = beamLengthPerFloor * floorCount;
+        const beamVol = (10/12) * (12/12) * totalBeamLength;
+        // Slabs
+        const totalSlabArea = totalAreaSqFt * floorCount;
+        const slabVol = totalSlabArea * (slabThicknessIn / 12);
+        
+        const totalWetVol = foundationVol + columnVol + beamVol + slabVol;
+        const dryVol = totalWetVol * 1.5;
+        const ratioSum = 5.5; // 1:1.5:3
+
+        const structuralCement = (dryVol / ratioSum) / 1.25;
+        const structuralSand = (dryVol / ratioSum) * 1.5;
+        const structuralChips = (dryVol / ratioSum) * 3;
+
+        // --- ROD CALCULATION (ASSUMPTIONS) ---
+        // Foundation: rods @ 6" c/c both ways
+        const foundationRodLength = (Math.sqrt(totalAreaSqFt) / 0.5) * Math.sqrt(totalAreaSqFt) * 2;
+        const foundationRodWeight = foundationRodLength * mainRodFactor;
+        // Columns: 6 rods/column
+        const columnRodLength = totalColumns * floorHeightFt * 6;
+        // Beams: 6 rods/beam
+        const beamRodLength = totalBeamLength * 6;
+        // Slabs: rods @ 6" c/c both ways (simplified)
+        const slabRodLength = (totalSlabArea / 0.5) * 2;
+        const totalMainRodWeight = (columnRodLength + beamRodLength + slabRodLength) * mainRodFactor + foundationRodWeight;
+        // Rings: for 12x12 col and 10x12 beam
+        const ringCountCol = ringGapIn > 0 ? (floorHeightFt * 12) / ringGapIn : 0;
+        const ringLenCol = ((12 / 12) + (12 / 12)) * 2;
+        const totalRingWeightCol = ringCountCol * ringLenCol * totalColumns * ringRodFactor;
+        const ringCountBeam = ringGapIn > 0 ? (totalBeamLength * 12) / ringGapIn : 0;
+        const ringLenBeam = ((10 / 12) + (12 / 12)) * 2;
+        const totalRingWeightBeam = ringCountBeam * ringLenBeam * ringRodFactor;
+        const totalRingRodWeight = totalRingWeightCol + totalRingWeightBeam;
+        const totalRodWeight = totalMainRodWeight + totalRingRodWeight;
+
+        // --- BRICK CALCULATION (ASSUMPTIONS) ---
+        const perimeter = Math.sqrt(totalAreaSqFt) * 4;
+        const exteriorWallArea = perimeter * floorHeightFt * floorCount;
+        // Interior walls: simplified based on room count
+        const interiorWallLength = (avgRoomLengthFt * 1.5 + avgRoomWidthFt) * roomCount * floorCount;
+        const interiorWallArea = interiorWallLength * floorHeightFt;
+        const totalWallArea = exteriorWallArea + interiorWallArea;
+        const bricksPerSft = wallThicknessIn === '5' ? 5 : 10;
+        const brickCementPer100Sft = wallThicknessIn === '5' ? 0.6 : 1.2;
+        const brickSandPer100Sft = wallThicknessIn === '5' ? 3 : 6;
+        const totalBricks = totalWallArea * bricksPerSft;
+        const masonryCement = (totalWallArea / 100) * brickCementPer100Sft;
+        const masonrySand = (totalWallArea / 100) * brickSandPer100Sft;
+        
+        // --- PLASTER CALCULATION (ASSUMPTIONS) ---
+        let plasterArea = 0;
+        if (plasterExterior) plasterArea += exteriorWallArea; // Outside
+        if (plasterInterior) plasterArea += (exteriorWallArea + interiorWallArea) * 2; // Inside walls both sides
+        const plasterWetVol = plasterArea * (0.5 / 12); // 0.5" thickness
+        const plasterDryVol = plasterWetVol * 1.33;
+        const plasterRatioSum = 5; // 1:4
+        const plasterCement = ((plasterDryVol / plasterRatioSum) * 1) / 1.25;
+        const plasterSand = (plasterDryVol / plasterRatioSum) * 4;
+        
+        // --- TILE CALCULATION (ASSUMPTIONS) ---
+        let totalTiles = 0;
+        // Assume 12"x12" tiles (1 sft)
+        if (tileFloors) {
+            const floorArea = totalAreaSqFt * floorCount;
+            totalTiles += floorArea;
+        }
+        if (tileBathroomWalls) {
+            // Assume avg bathroom perimeter of (8+6)*2 = 28ft
+            const bathroomWallArea = 28 * bathroomWallTileHeightFt * bathroomCount * floorCount;
+            totalTiles += bathroomWallArea;
+        }
+        totalTiles = totalTiles * 1.1; // 10% wastage
+
+        setFullHouseResults({
+            totalCement: Math.ceil(structuralCement + masonryCement + plasterCement),
+            totalSand: parseFloat((structuralSand + masonrySand + plasterSand).toFixed(1)),
+            totalChips: parseFloat(structuralChips.toFixed(1)),
+            totalRodWeight: parseFloat(totalRodWeight.toFixed(1)),
+            totalBricks: Math.ceil(totalBricks),
+            totalTiles: Math.ceil(totalTiles),
+        });
+    }
+
   return (
     <>
     <div className="w-full max-w-6xl">
@@ -288,7 +426,7 @@ export default function EstimatorClient() {
             </div>
             
             <Tabs defaultValue="structural" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 rounded-none h-auto">
+                <TabsList className="grid w-full grid-cols-5 rounded-none h-auto">
                     <TabsTrigger value="structural" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Building className="mr-2 h-5 w-5" />
                         স্ট্রাকচার
@@ -304,6 +442,10 @@ export default function EstimatorClient() {
                     <TabsTrigger value="tile" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Home className="mr-2 h-5 w-5" />
                         টাইলস
+                    </TabsTrigger>
+                    <TabsTrigger value="fullHouse" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <ClipboardList className="mr-2 h-5 w-5" />
+                        পূর্ণাঙ্গ বাড়ি
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="structural" className="p-0">
@@ -825,6 +967,96 @@ export default function EstimatorClient() {
                         </form>
                     </Form>
                 </TabsContent>
+                <TabsContent value="fullHouse" className="p-0">
+                    <Form {...fullHouseForm}>
+                        <form onSubmit={fullHouseForm.handleSubmit(calculateFullHouse)} className="p-4 md:p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2 space-y-6">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <ClipboardList className="w-5 h-5" />
+                                        বাড়ির তথ্য (House Details)
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={fullHouseForm.control} name="floorCount" render={({ field }) => (
+                                                <FormItem><FormLabel>ফ্লোর সংখ্যা</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="totalAreaSqFt" render={({ field }) => (
+                                                <FormItem><FormLabel>প্রতি ফ্লোরের ক্ষেত্রফল (বর্গফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                             <FormField control={fullHouseForm.control} name="roomCount" render={({ field }) => (
+                                                <FormItem><FormLabel>রুম (প্রতি ফ্লোর)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                             <FormField control={fullHouseForm.control} name="bathroomCount" render={({ field }) => (
+                                                <FormItem><FormLabel>বাথরুম (প্রতি ফ্লোর)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                             <FormField control={fullHouseForm.control} name="avgRoomLengthFt" render={({ field }) => (
+                                                <FormItem><FormLabel>গড় দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="avgRoomWidthFt" render={({ field }) => (
+                                                <FormItem><FormLabel>গড় প্রস্থ (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            <FormField control={fullHouseForm.control} name="floorHeightFt" render={({ field }) => (
+                                                <FormItem><FormLabel>ফ্লোরের উচ্চতা (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="columnCountPerFloor" render={({ field }) => (
+                                                <FormItem><FormLabel>কলাম (প্রতি ফ্লোর)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="slabThicknessIn" render={({ field }) => (
+                                                <FormItem><FormLabel>ছাদের পুরুত্ব (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                             <FormField control={fullHouseForm.control} name="wallThicknessIn" render={({ field }) => (
+                                                <FormItem><FormLabel>দেয়ালের পুরুত্ব</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="5">৫ ইঞ্চি</SelectItem>
+                                                            <SelectItem value="10">১০ ইঞ্চি</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )} />
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center pt-4">
+                                            <FormField control={fullHouseForm.control} name="tileFloors" render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center space-x-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><Label className="font-normal">ফ্লোর টাইলস</Label></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="tileBathroomWalls" render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center space-x-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><Label className="font-normal">বাথরুম টাইলস</Label></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="plasterInterior" render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center space-x-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><Label className="font-normal">ভিতরের প্লাস্টার</Label></FormItem>
+                                            )} />
+                                            <FormField control={fullHouseForm.control} name="plasterExterior" render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center space-x-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><Label className="font-normal">বাইরের প্লাস্টার</Label></FormItem>
+                                            )} />
+                                        </div>
+                                    </div>
+                                    <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                                        পূর্ণাঙ্গ বাড়ির হিসাব করুন
+                                    </Button>
+                                </div>
+                                <div className="space-y-4">
+                                     <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <BarChartBig className="w-5 h-5" />
+                                        ফলাফল (Result)
+                                    </h2>
+                                    {fullHouseResults ? (
+                                       <FullHouseResultDisplay results={fullHouseResults} />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
+                                            <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
+                    </Form>
+                </TabsContent>
             </Tabs>
         </Card>
     </div>
@@ -886,5 +1118,27 @@ const ResultDisplay = ({ results }: { results: StructuralResults }) => (
               </div>
           </div>
       </div>
+  </div>
+);
+
+const ResultBox = ({ label, value }: { label: string, value: number | string }) => (
+    <div className="p-3 bg-muted/50 rounded-lg text-center">
+        <span className="text-[10px] text-muted-foreground uppercase font-bold">{label}</span>
+        <p className="text-2xl font-bold text-primary">{value}</p>
+    </div>
+);
+
+const FullHouseResultDisplay = ({ results }: { results: FullHouseResults }) => (
+  <div className="bg-card p-5 rounded-2xl border-2 shadow-inner space-y-4">
+      <h3 className="text-xl font-bold text-center text-primary">পূর্ণাঙ্গ বাড়ির আনুমানিক হিসাব</h3>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <ResultBox label="মোট সিমেন্ট (ব্যাগ)" value={results.totalCement} />
+          <ResultBox label="মোট বালু (CFT)" value={results.totalSand} />
+          <ResultBox label="মোট খোয়া (CFT)" value={results.totalChips} />
+          <ResultBox label="মোট রড (কেজি)" value={results.totalRodWeight} />
+          <ResultBox label="মোট ইট (সংখ্যা)" value={results.totalBricks} />
+          <ResultBox label="মোট টাইলস (সংখ্যা)" value={results.totalTiles} />
+      </div>
+       <p className="text-[10px] text-muted-foreground text-center">* এটি একটি সাধারণ মানের কাজের জন্য আনুমানিক হিসাব। স্থান ও উপকরণ ভেদে পরিমাণ ও খরচ পরিবর্তিত হতে পারে।</p>
   </div>
 );
