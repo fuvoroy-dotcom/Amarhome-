@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const estimatorSchema = z.object({
+  baseCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(1, "বেসের সংখ্যা কমপক্ষে ১ হতে হবে"),
   baseLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   baseWidthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   baseThicknessIn: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
@@ -30,19 +31,40 @@ export type EstimatorValues = z.infer<typeof estimatorSchema>;
 
 export const brickEstimatorSchema = z.object({
   calculationType: z.enum(['wall', 'room']),
+  roomCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(1, "রুমের সংখ্যা কমপক্ষে ১ হতে হবে").optional(),
   wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
   wallWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে").optional(),
   wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
   wallThicknessIn: z.enum(['5', '10'], { required_error: "দেয়ালের পুরুত্ব নির্বাচন করুন" }),
-}).refine(data => {
+}).superRefine((data, ctx) => {
     if (data.calculationType === 'room') {
-        return !!data.wallWidthFt;
+        if (!data.wallWidthFt) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "রুমের প্রস্থ প্রয়োজন।",
+                path: ["wallWidthFt"],
+            });
+        }
+        if (!data.roomCount) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "রুমের সংখ্যা প্রয়োজন।",
+                path: ["roomCount"],
+            });
+        }
     }
-    return true;
-}, {
-    message: "রুমের প্রস্থ প্রয়োজন।",
-    path: ["wallWidthFt"],
 });
 
 
 export type BrickEstimatorValues = z.infer<typeof brickEstimatorSchema>;
+
+
+export const tileEstimatorSchema = z.object({
+  floorLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  floorWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+  tileLengthIn: z.coerce.number().min(1, "টাইলসের দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  tileWidthIn: z.coerce.number().min(1, "টাইলসের প্রস্থ কমপক্ষে ১ হতে হবে"),
+  wastagePercent: z.coerce.number().min(0, "অপচয় ০ এর কম হতে পারে না").max(100, "অপচয় ১০০ এর বেশি হতে পারে না").default(10),
+});
+
+export type TileEstimatorValues = z.infer<typeof tileEstimatorSchema>;

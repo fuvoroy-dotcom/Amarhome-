@@ -29,6 +29,7 @@ function getRingRodDescription(factor: number): string {
 }
 
 const AiConstructionAdvisoryInputSchema = z.object({
+  baseCount: z.number().describe('Number of foundation bases.'),
   baseLengthFt: z.number().describe('Length of the foundation base in feet.'),
   baseWidthFt: z.number().describe('Width of the foundation base in feet.'),
   baseThicknessIn: z.number().describe('Thickness of the foundation base in inches.'),
@@ -74,6 +75,7 @@ Analyze the following structural elements and their specifications, then offer a
 ## Structural Dimensions and Specifications:
 
 ### Foundation Base:
+- Number of Bases: {{{baseCount}}}
 - Length: {{{baseLengthFt}}} feet
 - Width: {{{baseWidthFt}}} feet
 - Thickness: {{{baseThicknessIn}}} inches
