@@ -34,32 +34,33 @@ export const estimatorSchema = z.object({
 
 export type EstimatorValues = z.infer<typeof estimatorSchema>;
 
-export const brickEstimatorSchema = z.object({
-  calculationType: z.enum(['wall', 'room']),
-  roomCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(1, "রুমের সংখ্যা কমপক্ষে ১ হতে হবে").optional(),
-  wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
-  wallWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে").optional(),
-  wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
-  wallThicknessIn: z.enum(['5', '10'], { required_error: "দেয়ালের পুরুত্ব নির্বাচন করুন" }),
-}).superRefine((data, ctx) => {
-    if (data.calculationType === 'room') {
-        if (!data.wallWidthFt) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "রুমের প্রস্থ প্রয়োজন।",
-                path: ["wallWidthFt"],
-            });
-        }
-        if (!data.roomCount) {
-             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "রুমের সংখ্যা প্রয়োজন।",
-                path: ["roomCount"],
-            });
-        }
-    }
+const roomSchema = z.object({
+    length: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+    width: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
 });
 
+export const brickEstimatorSchema = z.object({
+  calculationType: z.enum(['wall', 'rooms']),
+  wallLengthFt: z.coerce.number().min(1, "প্রাচীরের দৈর্ঘ্য কমপক্ষে ১ হতে হবে").optional(),
+  wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
+  wallThicknessIn: z.enum(['5', '10'], { required_error: "দেয়ালের পুরুত্ব নির্বাচন করুন" }),
+  rooms: z.array(roomSchema).optional(),
+}).superRefine((data, ctx) => {
+    if (data.calculationType === 'wall' && !data.wallLengthFt) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "প্রাচীরের দৈর্ঘ্য প্রয়োজন।",
+            path: ["wallLengthFt"],
+        });
+    }
+    if (data.calculationType === 'rooms' && (!data.rooms || data.rooms.length < 1)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "কমপক্ষে একটি রুম যোগ করুন।",
+            path: ["rooms"],
+        });
+    }
+});
 
 export type BrickEstimatorValues = z.infer<typeof brickEstimatorSchema>;
 

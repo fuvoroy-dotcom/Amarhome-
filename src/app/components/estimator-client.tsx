@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -184,24 +184,28 @@ export default function EstimatorClient() {
   const brickForm = useForm<BrickEstimatorValues>({
       resolver: zodResolver(brickEstimatorSchema),
       defaultValues: {
-          calculationType: 'wall',
+          calculationType: 'rooms',
           wallLengthFt: 10,
-          wallWidthFt: 10,
           wallHeightFt: 10,
           wallThicknessIn: '5',
-          roomCount: 1,
+          rooms: [{ length: 12, width: 10 }],
       }
   });
   const brickCalculationType = brickForm.watch('calculationType');
+  const { fields, append, remove } = useFieldArray({
+    control: brickForm.control,
+    name: "rooms"
+  });
 
   function calculateBricks(data: BrickEstimatorValues) {
-      const { calculationType, wallLengthFt, wallWidthFt, wallHeightFt, wallThicknessIn, roomCount } = data;
+      const { calculationType, wallLengthFt, wallHeightFt, wallThicknessIn, rooms } = data;
       
-      const roomMultiplier = calculationType === 'room' && roomCount ? roomCount : 1;
-      
-      const totalLength = calculationType === 'room' && wallWidthFt 
-          ? (wallLengthFt + wallWidthFt) * 2 
-          : wallLengthFt;
+      let totalLength = 0;
+      if (calculationType === 'wall' && wallLengthFt) {
+          totalLength = wallLengthFt;
+      } else if (calculationType === 'rooms' && rooms) {
+          totalLength = rooms.reduce((acc, room) => acc + (room.length + room.width) * 2, 0);
+      }
 
       const area = totalLength * wallHeightFt;
       let bricks = 0;
@@ -219,9 +223,9 @@ export default function EstimatorClient() {
       }
 
       setBrickResults({
-          bricks: Math.ceil(bricks * roomMultiplier),
-          cement: Math.ceil(cement * roomMultiplier),
-          sand: parseFloat((sand * roomMultiplier).toFixed(1)),
+          bricks: Math.ceil(bricks),
+          cement: Math.ceil(cement),
+          sand: parseFloat(sand.toFixed(1)),
       });
   }
   
@@ -648,11 +652,11 @@ export default function EstimatorClient() {
                                                 >
                                                 <FormItem className="flex items-center space-x-2">
                                                     <FormControl><RadioGroupItem value="wall" id="type_wall" /></FormControl>
-                                                    <FormLabel htmlFor="type_wall" className="font-normal text-base">প্রচীর</FormLabel>
+                                                    <FormLabel htmlFor="type_wall" className="font-normal text-base">একক প্রাচীর</FormLabel>
                                                 </FormItem>
                                                 <FormItem className="flex items-center space-x-2">
-                                                    <FormControl><RadioGroupItem value="room" id="type_room" /></FormControl>
-                                                    <FormLabel htmlFor="type_room" className="font-normal text-base">রুম</FormLabel>
+                                                    <FormControl><RadioGroupItem value="rooms" id="type_rooms" /></FormControl>
+                                                    <FormLabel htmlFor="type_rooms" className="font-normal text-base">একাধিক রুম</FormLabel>
                                                 </FormItem>
                                                 </RadioGroup>
                                             </FormControl>
@@ -660,42 +664,86 @@ export default function EstimatorClient() {
                                             </FormItem>
                                         )} />
                                         
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            <FormField control={brickForm.control} name="wallLengthFt" render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>{brickCalculationType === 'room' ? 'রুমের দৈর্ঘ্য (ফুট)' : 'প্রাচীরের দৈর্ঘ্য (ফুট)'}</FormLabel>
-                                                    <FormControl><Input type="number" {...field} /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )} />
-                                            
-                                            {brickCalculationType === 'room' && (
-                                                <>
-                                                <FormField control={brickForm.control} name="wallWidthFt" render={({ field }) => (
+                                        {brickCalculationType === 'wall' && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <FormField control={brickForm.control} name="wallLengthFt" render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>রুমের প্রস্থ (ফুট)</FormLabel>
+                                                        <FormLabel>প্রাচীরের দৈর্ঘ্য (ফুট)</FormLabel>
+                                                        <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>প্রাচীরের উচ্চতা (ফুট)</FormLabel>
                                                         <FormControl><Input type="number" {...field} /></FormControl>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )} />
-                                                <FormField control={brickForm.control} name="roomCount" render={({ field }) => (
+                                            </div>
+                                        )}
+
+                                        {brickCalculationType === 'rooms' && (
+                                            <>
+                                                <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>রুমের সংখ্যা (টি)</FormLabel>
+                                                        <FormLabel>রুমের গড় উচ্চতা (ফুট)</FormLabel>
                                                         <FormControl><Input type="number" {...field} /></FormControl>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )} />
-                                                </>
-                                            )}
-                                            
-                                            <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>{brickCalculationType === 'room' ? 'রুমের উচ্চতা (ফুট)' : 'প্রাচীরের উচ্চতা (ফুট)'}</FormLabel>
-                                                    <FormControl><Input type="number" {...field} /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )} />
-                                        </div>
+                                                <div className="space-y-3">
+                                                    <Label>রুমের মাপ (দৈর্ঘ্য ও প্রস্থ ফুট হিসাবে)</Label>
+                                                    {fields.map((item, index) => (
+                                                        <div key={item.id} className="flex items-end gap-2 p-2 border rounded-md bg-muted/50">
+                                                            <p className="text-sm font-medium text-muted-foreground pt-7">{index + 1}.</p>
+                                                            <FormField
+                                                                control={brickForm.control}
+                                                                name={`rooms.${index}.length`}
+                                                                render={({ field }) => (
+                                                                    <FormItem className="flex-1">
+                                                                        <FormLabel className="text-xs">দৈর্ঘ্য (ফুট)</FormLabel>
+                                                                        <FormControl><Input type="number" placeholder="_._" {...field} /></FormControl>
+                                                                        <FormMessage className="text-xs" />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                            <FormField
+                                                                control={brickForm.control}
+                                                                name={`rooms.${index}.width`}
+                                                                render={({ field }) => (
+                                                                    <FormItem className="flex-1">
+                                                                        <FormLabel className="text-xs">প্রস্থ (ফুট)</FormLabel>
+                                                                        <FormControl><Input type="number" placeholder="." {...field} /></FormControl>
+                                                                        <FormMessage className="text-xs" />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                onClick={() => remove(index)}
+                                                                disabled={fields.length <= 1}
+                                                                className="shrink-0"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                     <FormMessage>{brickForm.formState.errors.rooms?.root?.message || brickForm.formState.errors.rooms?.message}</FormMessage>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => append({ length: 12, width: 10 })}
+                                                    className="w-full"
+                                                >
+                                                    নতুন রুম যোগ করুন
+                                                </Button>
+                                            </>
+                                        )}
+
 
                                         <FormField control={brickForm.control} name="wallThicknessIn" render={({ field }) => (
                                             <FormItem className="space-y-3">
