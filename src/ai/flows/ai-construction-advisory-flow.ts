@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { AiConstructionAdvisoryInputSchema } from '@/app/lib/schemas';
 
 // Helper function to map rod factor to descriptive string for the prompt
 function getRodDescription(factor: number): string {
@@ -28,35 +29,6 @@ function getRingRodDescription(factor: number): string {
   }
 }
 
-const AiConstructionAdvisoryInputSchema = z.object({
-  baseCount: z.number().describe('Number of foundation bases.'),
-  baseLengthFt: z.number().describe('Length of the foundation base in feet.'),
-  baseWidthFt: z.number().describe('Width of the foundation base in feet.'),
-  baseThicknessIn: z.number().describe('Thickness of the foundation base in inches.'),
-
-  columnCount: z.number().describe('Number of columns.'),
-  columnLengthIn: z.number().describe('Length of the column cross-section in inches.'),
-  columnWidthIn: z.number().describe('Width of the column cross-section in inches.'),
-  columnHeightFt: z.number().describe('Total height of the column in feet.'),
-  columnRodCount: z.number().describe('Number of main steel reinforcement rods in the column.'),
-
-  beamHeightIn: z.number().describe('Height of the beam cross-section in inches.'),
-  beamWidthIn: z.number().describe('Width of the beam cross-section in inches.'),
-  beamLengthFt: z.number().describe('Total length of the beam in feet.'),
-  beamRodCount: z.number().describe('Number of main steel reinforcement rods in the beam.'),
-  
-  slabLengthFt: z.number().describe('Length of the roof slab in feet.'),
-  slabWidthFt: z.number().describe('Width of the roof slab in feet.'),
-  slabThicknessIn: z.number().describe('Thickness of the roof slab in inches.'),
-  slabRodGapIn: z.number().describe('Gap between main and extra top rods in the slab in inches.'),
-
-  mainRodFactor: z.number().describe('Weight per foot factor for the main steel reinforcement rods.'),
-  ringRodFactor: z.number().describe('Weight per foot factor for the ring steel reinforcement rods.'),
-  ringGapIn: z.number().describe('Gap between ring (stirrup) reinforcements in inches.'),
-
-  baseRodLongitudinalCount: z.number().describe('Number of longitudinal reinforcement rods in the foundation base mesh.'),
-  baseRodWidthCount: z.number().describe('Number of width-wise reinforcement rods in the foundation base mesh.'),
-});
 export type AiConstructionAdvisoryInput = z.infer<typeof AiConstructionAdvisoryInputSchema>;
 
 const AiConstructionAdvisoryOutputSchema = z.object({

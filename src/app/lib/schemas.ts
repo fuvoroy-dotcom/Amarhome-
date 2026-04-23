@@ -15,11 +15,6 @@ export const estimatorSchema = z.object({
   beamWidthIn: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   beamLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
 
-  slabLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
-  slabWidthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
-  slabThicknessIn: z.coerce.number().min(2, "ন্যূনতম পুরুত্ব ২ ইঞ্চি").max(12, "সর্বোচ্চ পুরুত্ব ১২ ইঞ্চি"),
-  slabRodGapIn: z.coerce.number().min(1, "রডের গ্যাপ কমপক্ষে ১ ইঞ্চি হতে হবে"),
-
   columnRodCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(0, "মান শূন্যের কম হতে পারে না"),
   beamRodCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(0, "মান শূন্যের কম হতে পারে না"),
   
@@ -33,6 +28,16 @@ export const estimatorSchema = z.object({
 });
 
 export type EstimatorValues = z.infer<typeof estimatorSchema>;
+
+export const slabEstimatorSchema = z.object({
+    slabLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+    slabWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+    slabThicknessIn: z.coerce.number().min(2, "ন্যূনতম পুরুত্ব ২ ইঞ্চি").max(12, "সর্বোচ্চ পুরুত্ব ১২ ইঞ্চি"),
+    slabRodGapIn: z.coerce.number().min(1, "রডের গ্যাপ কমপক্ষে ১ ইঞ্চি হতে হবে"),
+    mainRodFactor: z.coerce.number(),
+});
+export type SlabEstimatorValues = z.infer<typeof slabEstimatorSchema>;
+
 
 const roomSchema = z.object({
     length: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
@@ -64,13 +69,16 @@ export const brickEstimatorSchema = z.object({
 
 export type BrickEstimatorValues = z.infer<typeof brickEstimatorSchema>;
 
+const singleWallSchema = z.object({
+    length: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+    height: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
+});
 
 export const tileEstimatorSchema = z.object({
-  calculationType: z.enum(['floor', 'wall']),
+  calculationType: z.enum(['floor', 'walls']),
   floorLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে").optional(),
   floorWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে").optional(),
-  wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে").optional(),
-  wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে").optional(),
+  walls: z.array(singleWallSchema).optional(),
   tileLengthIn: z.coerce.number().min(1, "টাইলসের দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
   tileWidthIn: z.coerce.number().min(1, "টাইলসের প্রস্থ কমপক্ষে ১ হতে হবে"),
   wastagePercent: z.coerce.number().min(0, "অপচয় ০ এর কম হতে পারে না").max(100, "অপচয় ১০০ এর বেশি হতে পারে না").default(10),
@@ -82,13 +90,13 @@ export const tileEstimatorSchema = z.object({
         if (!data.floorWidthFt) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ফ্লোরের প্রস্থ প্রয়োজন।", path: ["floorWidthFt"] });
         }
-    } else { // wall
-        if (!data.wallLengthFt) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "দেয়ালের দৈর্ঘ্য প্রয়োজন।", path: ["wallLengthFt"] });
-        }
-        if (!data.wallHeightFt) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "দেয়ালের উচ্চতা প্রয়োজন।", path: ["wallHeightFt"] });
-        }
+    }
+    if (data.calculationType === 'walls' && (!data.walls || data.walls.length < 1)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "কমপক্ষে একটি দেয়াল যোগ করুন।",
+            path: ["walls"],
+        });
     }
 });
 
@@ -139,3 +147,34 @@ export const fullHouseEstimatorSchema = z.object({
 });
 
 export type FullHouseEstimatorValues = z.infer<typeof fullHouseEstimatorSchema>;
+
+
+export const AiConstructionAdvisoryInputSchema = z.object({
+  baseCount: z.number().describe('Number of foundation bases.'),
+  baseLengthFt: z.number().describe('Length of the foundation base in feet.'),
+  baseWidthFt: z.number().describe('Width of the foundation base in feet.'),
+  baseThicknessIn: z.number().describe('Thickness of the foundation base in inches.'),
+
+  columnCount: z.number().describe('Number of columns.'),
+  columnLengthIn: z.number().describe('Length of the column cross-section in inches.'),
+  columnWidthIn: z.number().describe('Width of the column cross-section in inches.'),
+  columnHeightFt: z.number().describe('Total height of the column in feet.'),
+  columnRodCount: z.number().describe('Number of main steel reinforcement rods in the column.'),
+
+  beamHeightIn: z.number().describe('Height of the beam cross-section in inches.'),
+  beamWidthIn: z.number().describe('Width of the beam cross-section in inches.'),
+  beamLengthFt: z.number().describe('Total length of the beam in feet.'),
+  beamRodCount: z.number().describe('Number of main steel reinforcement rods in the beam.'),
+  
+  slabLengthFt: z.number().describe('Length of the roof slab in feet.'),
+  slabWidthFt: z.number().describe('Width of the roof slab in feet.'),
+  slabThicknessIn: z.number().describe('Thickness of the roof slab in inches.'),
+  slabRodGapIn: z.number().describe('Gap between main and extra top rods in the slab in inches.'),
+
+  mainRodFactor: z.number().describe('Weight per foot factor for the main steel reinforcement rods.'),
+  ringRodFactor: z.number().describe('Weight per foot factor for the ring steel reinforcement rods.'),
+  ringGapIn: z.number().describe('Gap between ring (stirrup) reinforcements in inches.'),
+
+  baseRodLongitudinalCount: z.number().describe('Number of longitudinal reinforcement rods in the foundation base mesh.'),
+  baseRodWidthCount: z.number().describe('Number of width-wise reinforcement rods in the foundation base mesh.'),
+});
