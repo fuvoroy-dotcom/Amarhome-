@@ -113,6 +113,10 @@ export default function EstimatorClient() {
     },
   });
 
+  const includeBase = structuralForm.watch('includeBase');
+  const includeColumn = structuralForm.watch('includeColumn');
+  const includeBeam = structuralForm.watch('includeBeam');
+
   function calculateMaterials(data: EstimatorValues) {
     const { 
         includeBase, includeColumn, includeBeam,
@@ -589,18 +593,18 @@ export default function EstimatorClient() {
                                             <FormLabel className="font-bold text-muted-foreground">বেস / ভিত্তি</FormLabel>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="baseCount" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">বেসের সংখ্যা (টি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">বেসের সংখ্যা (টি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBase} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                  <FormField control={structuralForm.control} name="baseThicknessIn" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">পুরুত্ব (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">পুরুত্ব (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBase} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="baseLengthFt" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">লম্বা (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">লম্বা (ফুট)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBase} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                 <FormField control={structuralForm.control} name="baseWidthFt" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">চওড়া (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">চওড়া (ফুট)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBase} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                         </div>
@@ -609,18 +613,18 @@ export default function EstimatorClient() {
                                             <FormLabel className="font-bold text-muted-foreground">কলাম</FormLabel>
                                              <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="columnCount" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">কলামের সংখ্যা (টি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">কলামের সংখ্যা (টি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeColumn} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                  <FormField control={structuralForm.control} name="columnHeightFt" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">মোট উচ্চতা (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">মোট উচ্চতা (ফুট)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeColumn} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="columnLengthIn" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">দৈর্ঘ্য (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">দৈর্ঘ্য (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeColumn} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                 <FormField control={structuralForm.control} name="columnWidthIn" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">প্রস্থ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">প্রস্থ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeColumn} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                         </div>
@@ -628,14 +632,14 @@ export default function EstimatorClient() {
                                         <div className="space-y-3">
                                             <FormLabel className="font-bold text-muted-foreground">বিম</FormLabel>
                                             <FormField control={structuralForm.control} name="beamLengthFt" render={({ field }) => (
-                                                <FormItem><FormLabel className="text-xs">মোট দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                <FormItem><FormLabel className="text-xs">মোট দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBeam} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                             )} />
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="beamHeightIn" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">উচ্চতা (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">উচ্চতা (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBeam} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                 <FormField control={structuralForm.control} name="beamWidthIn" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">প্রস্থ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">প্রস্থ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBeam} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                         </div>
@@ -652,10 +656,10 @@ export default function EstimatorClient() {
                                             <FormLabel className="font-bold text-muted-foreground">রডের সংখ্যা (টি)</FormLabel>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="columnRodCount" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">কলাম রড</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">কলাম রড</FormLabel><FormControl><Input type="number" {...field} disabled={!includeColumn} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                 <FormField control={structuralForm.control} name="beamRodCount" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">বিম রড</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">বিম রড</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBeam} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                         </div>
@@ -664,10 +668,10 @@ export default function EstimatorClient() {
                                             <FormLabel className="font-bold text-muted-foreground">বেসের জালি (রড সংখ্যা)</FormLabel>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="baseRodLongitudinalCount" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">লম্বালম্বি রড</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">লম্বালম্বি রড</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBase} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                                 <FormField control={structuralForm.control} name="baseRodWidthCount" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">আড়াআড়ি রড</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">আড়াআড়ি রড</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBase} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                         </div>
@@ -701,7 +705,7 @@ export default function EstimatorClient() {
                                                     </FormItem>
                                                 )} />
                                                 <FormField control={structuralForm.control} name="ringGapIn" render={({ field }) => (
-                                                    <FormItem><FormLabel className="text-xs">রিং গ্যাপ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                    <FormItem><FormLabel className="text-xs">রিং গ্যাপ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeColumn && !includeBeam} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
                                         </div>
