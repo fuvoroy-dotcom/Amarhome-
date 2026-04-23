@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues } from "@/app/lib/schemas";
+import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues } from "@/app/lib/schemas";
 import { getConstructionAdvice } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -55,6 +55,11 @@ type TileResults = {
     tiles: number;
 }
 
+type PlasterResults = {
+    cement: number;
+    sand: number;
+}
+
 export default function EstimatorClient() {
   const [structuralResults, setStructuralResults] = useState<StructuralResults | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -76,6 +81,10 @@ export default function EstimatorClient() {
       beamHeightIn: 12,
       beamWidthIn: 10,
       beamLengthFt: 12,
+      slabLengthFt: 20,
+      slabWidthFt: 15,
+      slabThicknessIn: 5,
+      slabRodGapIn: 6,
       columnRodCount: 8,
       beamRodCount: 6,
       mainRodFactor: 0.48,
@@ -91,6 +100,7 @@ export default function EstimatorClient() {
         baseCount, baseLengthFt, baseWidthFt, baseThicknessIn,
         columnCount, columnLengthIn, columnWidthIn, columnHeightFt,
         beamHeightIn, beamWidthIn, beamLengthFt,
+        slabLengthFt, slabWidthFt, slabThicknessIn, slabRodGapIn,
         columnRodCount, beamRodCount, mainRodFactor,
         ringGapIn, ringRodFactor, baseRodLongitudinalCount, baseRodWidthCount
     } = data;
@@ -98,7 +108,8 @@ export default function EstimatorClient() {
     const baseVol = baseLengthFt * baseWidthFt * (baseThicknessIn / 12) * baseCount;
     const colVol = (columnLengthIn / 12) * (columnWidthIn / 12) * columnHeightFt * columnCount;
     const beamVol = (beamHeightIn / 12) * (beamWidthIn / 12) * beamLengthFt;
-    const totalWetVol = baseVol + colVol + beamVol;
+    const slabVol = slabLengthFt * slabWidthFt * (slabThicknessIn / 12);
+    const totalWetVol = baseVol + colVol + beamVol + slabVol;
     
     const dryVol = totalWetVol * 1.5;
     const ratioSum = 5.5; // 1 + 1.5 + 3
@@ -108,10 +119,12 @@ export default function EstimatorClient() {
     const chipsCFT = (dryVol / ratioSum) * 3;
 
     const baseRodWeight = ((baseRodLongitudinalCount * baseWidthFt) + (baseRodWidthCount * baseLengthFt)) * mainRodFactor * baseCount;
-    const mainRodWeight = ((columnRodCount * columnHeightFt * columnCount) + (beamRodCount * beamLengthFt)) * mainRodFactor + baseRodWeight;
+    const slabRodLength = slabRodGapIn > 0 ? ((slabWidthFt / (slabRodGapIn / 12)) * slabLengthFt + (slabLengthFt / (slabRodGapIn / 12)) * slabWidthFt) : 0;
+    const slabRodWeight = slabRodLength * mainRodFactor;
+    const mainRodWeight = ((columnRodCount * columnHeightFt * columnCount) + (beamRodCount * beamLengthFt)) * mainRodFactor + baseRodWeight + slabRodWeight;
 
-    const ringCountCol = (columnHeightFt * 12) / ringGapIn;
-    const ringCountBeam = (beamLengthFt * 12) / ringGapIn;
+    const ringCountCol = ringGapIn > 0 ? (columnHeightFt * 12) / ringGapIn : 0;
+    const ringCountBeam = ringGapIn > 0 ? (beamLengthFt * 12) / ringGapIn : 0;
     const ringLenCol = ((columnLengthIn / 12) + (columnWidthIn / 12)) * 2;
     const ringLenBeam = ((beamHeightIn / 12) + (beamWidthIn / 12)) * 2;
     const ringWeight = ((ringCountCol * ringLenCol * columnCount) + (ringCountBeam * ringLenBeam)) * ringRodFactor;
@@ -167,7 +180,7 @@ export default function EstimatorClient() {
           roomCount: 1,
       }
   });
-  const calculationType = brickForm.watch('calculationType');
+  const brickCalculationType = brickForm.watch('calculationType');
 
   function calculateBricks(data: BrickEstimatorValues) {
       const { calculationType, wallLengthFt, wallWidthFt, wallHeightFt, wallThicknessIn, roomCount } = data;
@@ -204,29 +217,64 @@ export default function EstimatorClient() {
   const tileForm = useForm<TileEstimatorValues>({
       resolver: zodResolver(tileEstimatorSchema),
       defaultValues: {
+          calculationType: 'floor',
           floorLengthFt: 12,
           floorWidthFt: 10,
+          wallLengthFt: 12,
+          wallHeightFt: 10,
           tileLengthIn: 12,
           tileWidthIn: 12,
           wastagePercent: 10,
       }
   });
+  const tileCalculationType = tileForm.watch('calculationType');
 
   function calculateTiles(data: TileEstimatorValues) {
-      const { floorLengthFt, floorWidthFt, tileLengthIn, tileWidthIn, wastagePercent } = data;
-      const floorArea = floorLengthFt * floorWidthFt;
+      const { calculationType, floorLengthFt, floorWidthFt, wallLengthFt, wallHeightFt, tileLengthIn, tileWidthIn, wastagePercent } = data;
+      
+      const floorArea = calculationType === 'floor' && floorLengthFt && floorWidthFt ? floorLengthFt * floorWidthFt : 0;
+      const wallArea = calculationType === 'wall' && wallLengthFt && wallHeightFt ? wallLengthFt * wallHeightFt : 0;
+      const totalArea = floorArea + wallArea;
+
       const tileArea = (tileLengthIn / 12) * (tileWidthIn / 12);
       
-      if (tileArea === 0) {
+      if (tileArea === 0 || totalArea === 0) {
           setTileResults({ tiles: 0 });
           return;
       }
 
-      const tilesNeeded = floorArea / tileArea;
+      const tilesNeeded = totalArea / tileArea;
       const totalTiles = Math.ceil(tilesNeeded * (1 + wastagePercent / 100));
 
       setTileResults({
           tiles: totalTiles
+      });
+  }
+
+  const [plasterResults, setPlasterResults] = useState<PlasterResults | null>(null);
+  const plasterForm = useForm<PlasterEstimatorValues>({
+      resolver: zodResolver(plasterEstimatorSchema),
+      defaultValues: {
+          wallLengthFt: 12,
+          wallHeightFt: 10,
+          plasterThicknessIn: 0.5,
+          plasterSides: '2',
+      }
+  });
+
+  function calculatePlaster(data: PlasterEstimatorValues) {
+      const { wallLengthFt, wallHeightFt, plasterThicknessIn, plasterSides } = data;
+      const area = wallLengthFt * wallHeightFt * parseInt(plasterSides);
+      const wetVol = area * (plasterThicknessIn / 12);
+      const dryVol = wetVol * 1.33; // Mortar dry volume factor
+      const ratioSum = 5; // 1:4 ratio
+      const cementCFT = (dryVol / ratioSum) * 1;
+      const cementBags = Math.ceil(cementCFT / 1.25);
+      const sandCFT = (dryVol / ratioSum) * 4;
+
+      setPlasterResults({
+          cement: cementBags,
+          sand: parseFloat(sandCFT.toFixed(1)),
       });
   }
 
@@ -236,18 +284,22 @@ export default function EstimatorClient() {
         <Card className="w-full overflow-hidden shadow-2xl border-border/40">
             <div className="bg-primary p-5 text-primary-foreground text-center">
                 <h1 className="text-3xl font-bold">পূর্ণাঙ্গ কনস্ট্রাকশন ক্যালকুলেটর</h1>
-                <p className="text-primary-foreground/80 text-sm mt-1">বেস, কলাম, বিম, ইট এবং টাইলস এর সমন্বিত হিসাব</p>
+                <p className="text-primary-foreground/80 text-sm mt-1">স্ট্রাকচার, গাঁথুনি, প্লাস্টার ও টাইলসের সমন্বিত হিসাব</p>
             </div>
             
             <Tabs defaultValue="structural" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 rounded-none h-auto">
+                <TabsList className="grid w-full grid-cols-4 rounded-none h-auto">
                     <TabsTrigger value="structural" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Building className="mr-2 h-5 w-5" />
                         স্ট্রাকচার
                     </TabsTrigger>
                     <TabsTrigger value="brick" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Layers className="mr-2 h-5 w-5" />
-                        ইট গাঁথুনি
+                        গাঁথুনি
+                    </TabsTrigger>
+                    <TabsTrigger value="plaster" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <Paintbrush className="mr-2 h-5 w-5" />
+                        প্লাস্টার
                     </TabsTrigger>
                     <TabsTrigger value="tile" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Home className="mr-2 h-5 w-5" />
@@ -320,6 +372,20 @@ export default function EstimatorClient() {
                                                 )} />
                                             </div>
                                         </div>
+                                         <div className="space-y-3">
+                                            <FormLabel className="font-bold text-muted-foreground">ছাদ / স্ল্যাব</FormLabel>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <FormField control={structuralForm.control} name="slabLengthFt" render={({ field }) => (
+                                                    <FormItem><FormLabel className="text-xs">দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                )} />
+                                                <FormField control={structuralForm.control} name="slabWidthFt" render={({ field }) => (
+                                                    <FormItem><FormLabel className="text-xs">প্রস্থ (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                                )} />
+                                            </div>
+                                             <FormField control={structuralForm.control} name="slabThicknessIn" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">পুরুত্ব (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -354,10 +420,10 @@ export default function EstimatorClient() {
                                         </div>
                                         
                                         <div className="space-y-3">
-                                            <FormLabel className="font-bold text-muted-foreground">রডের ব্যাস ও রিং</FormLabel>
+                                            <FormLabel className="font-bold text-muted-foreground">রডের ব্যাস ও গ্যাপ</FormLabel>
                                             <FormField control={structuralForm.control} name="mainRodFactor" render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-xs">প্রধান রড</FormLabel>
+                                                    <FormLabel className="text-xs">প্রধান রড (বেস, কলাম, বিম, ছাদ)</FormLabel>
                                                     <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
                                                         <FormControl><SelectTrigger><SelectValue placeholder="প্রধান রড..." /></SelectTrigger></FormControl>
                                                         <SelectContent>
@@ -385,6 +451,9 @@ export default function EstimatorClient() {
                                                     <FormItem><FormLabel className="text-xs">রিং গ্যাপ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
                                                 )} />
                                             </div>
+                                             <FormField control={structuralForm.control} name="slabRodGapIn" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ছাদের রডের গ্যাপ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
                                         </div>
                                     </div>
                                     <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
@@ -452,13 +521,13 @@ export default function EstimatorClient() {
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             <FormField control={brickForm.control} name="wallLengthFt" render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>{calculationType === 'room' ? 'রুমের দৈর্ঘ্য (ফুট)' : 'প্রাচীরের দৈর্ঘ্য (ফুট)'}</FormLabel>
+                                                    <FormLabel>{brickCalculationType === 'room' ? 'রুমের দৈর্ঘ্য (ফুট)' : 'প্রাচীরের দৈর্ঘ্য (ফুট)'}</FormLabel>
                                                     <FormControl><Input type="number" {...field} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )} />
                                             
-                                            {calculationType === 'room' && (
+                                            {brickCalculationType === 'room' && (
                                                 <>
                                                 <FormField control={brickForm.control} name="wallWidthFt" render={({ field }) => (
                                                     <FormItem>
@@ -479,7 +548,7 @@ export default function EstimatorClient() {
                                             
                                             <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>{calculationType === 'room' ? 'রুমের উচ্চতা (ফুট)' : 'প্রাচীরের উচ্চতা (ফুট)'}</FormLabel>
+                                                    <FormLabel>{brickCalculationType === 'room' ? 'রুমের উচ্চতা (ফুট)' : 'প্রাচীরের উচ্চতা (ফুট)'}</FormLabel>
                                                     <FormControl><Input type="number" {...field} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -550,6 +619,90 @@ export default function EstimatorClient() {
                         </form>
                     </Form>
                 </TabsContent>
+                <TabsContent value="plaster" className="p-0">
+                    <Form {...plasterForm}>
+                        <form onSubmit={plasterForm.handleSubmit(calculatePlaster)} className="p-4 md:p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2 space-y-6">
+                                     <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <Paintbrush className="w-5 h-5" />
+                                        প্লাস্টারের মাপ (Plaster Dimensions)
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <FormField control={plasterForm.control} name="wallLengthFt" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>দেয়ালের দৈর্ঘ্য (ফুট)</FormLabel>
+                                                    <FormControl><Input type="number" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={plasterForm.control} name="wallHeightFt" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>দেয়ালের উচ্চতা (ফুট)</FormLabel>
+                                                    <FormControl><Input type="number" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                        </div>
+                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <FormField control={plasterForm.control} name="plasterThicknessIn" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>প্লাস্টারের পুরুত্ব (ইঞ্চি)</FormLabel>
+                                                    <FormControl><Input type="number" step="0.25" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={plasterForm.control} name="plasterSides" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>দেয়ালের পাশ</FormLabel>
+                                                     <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="1">১ পাশ</SelectItem>
+                                                            <SelectItem value="2">২ পাশ</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                        </div>
+                                    </div>
+                                    <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                                        প্লাস্টারের হিসাব করুন
+                                    </Button>
+                                </div>
+                                <div className="space-y-4">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <BarChartBig className="w-5 h-5" />
+                                        ফলাফল (Result)
+                                    </h2>
+                                    {plasterResults ? (
+                                        <div className="space-y-4">
+                                            <div className="bg-card p-5 rounded-2xl border-2 shadow-inner">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-bold">সিমেন্ট (ব্যাগ)</span>
+                                                        <p className="text-2xl font-bold text-primary">{plasterResults.cement}</p>
+                                                    </div>
+                                                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-bold">বালু (CFT)</span>
+                                                        <p className="text-2xl font-bold text-primary">{plasterResults.sand}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground text-center">* ১:৪ মিক্স রেশিও ধরে আনুমানিক হিসাব।</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
+                                            <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
+                    </Form>
+                </TabsContent>
                  <TabsContent value="tile" className="p-0">
                     <Form {...tileForm}>
                         <form onSubmit={tileForm.handleSubmit(calculateTiles)} className="p-4 md:p-6">
@@ -560,22 +713,65 @@ export default function EstimatorClient() {
                                         টাইলসের মাপ (Tile Dimensions)
                                     </h2>
                                     <div className="bg-card p-4 rounded-xl space-y-6 border">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <FormField control={tileForm.control} name="floorLengthFt" render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>ফ্লোরের দৈর্ঘ্য (ফুট)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="যেমন: ১২" {...field} /></FormControl>
-                                                    <FormMessage />
+                                        <FormField control={tileForm.control} name="calculationType" render={({ field }) => (
+                                            <FormItem className="space-y-3">
+                                            <FormLabel>হিসাবের ধরণ</FormLabel>
+                                            <FormControl>
+                                                <RadioGroup
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                                className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 pt-2"
+                                                >
+                                                <FormItem className="flex items-center space-x-2">
+                                                    <FormControl><RadioGroupItem value="floor" id="type_floor" /></FormControl>
+                                                    <FormLabel htmlFor="type_floor" className="font-normal text-base">ফ্লোর</FormLabel>
                                                 </FormItem>
-                                            )} />
-                                            <FormField control={tileForm.control} name="floorWidthFt" render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>ফ্লোরের প্রস্থ (ফুট)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="যেমন: ১০" {...field} /></FormControl>
-                                                    <FormMessage />
+                                                <FormItem className="flex items-center space-x-2">
+                                                    <FormControl><RadioGroupItem value="wall" id="type_wall_tile" /></FormControl>
+                                                    <FormLabel htmlFor="type_wall_tile" className="font-normal text-base">দেয়াল</FormLabel>
                                                 </FormItem>
-                                            )} />
-                                        </div>
+                                                </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        
+                                        {tileCalculationType === 'floor' ? (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <FormField control={tileForm.control} name="floorLengthFt" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>ফ্লোরের দৈর্ঘ্য (ফুট)</FormLabel>
+                                                        <FormControl><Input type="number" placeholder="যেমন: ১২" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={tileForm.control} name="floorWidthFt" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>ফ্লোরের প্রস্থ (ফুট)</FormLabel>
+                                                        <FormControl><Input type="number" placeholder="যেমন: ১০" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <FormField control={tileForm.control} name="wallLengthFt" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>দেয়ালের দৈর্ঘ্য (ফুট)</FormLabel>
+                                                        <FormControl><Input type="number" placeholder="যেমন: ১২" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={tileForm.control} name="wallHeightFt" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>দেয়ালের উচ্চতা (ফুট)</FormLabel>
+                                                        <FormControl><Input type="number" placeholder="যেমন: ৮" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                            </div>
+                                        )}
+                                        
                                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             <FormField control={tileForm.control} name="tileLengthIn" render={({ field }) => (
                                                 <FormItem>

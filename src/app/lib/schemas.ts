@@ -15,6 +15,11 @@ export const estimatorSchema = z.object({
   beamWidthIn: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   beamLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
 
+  slabLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
+  slabWidthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
+  slabThicknessIn: z.coerce.number().min(2, "ন্যূনতম পুরুত্ব ২ ইঞ্চি").max(12, "সর্বোচ্চ পুরুত্ব ১২ ইঞ্চি"),
+  slabRodGapIn: z.coerce.number().min(1, "রডের গ্যাপ কমপক্ষে ১ ইঞ্চি হতে হবে"),
+
   columnRodCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(0, "মান শূন্যের কম হতে পারে না"),
   beamRodCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(0, "মান শূন্যের কম হতে পারে না"),
   
@@ -60,11 +65,40 @@ export type BrickEstimatorValues = z.infer<typeof brickEstimatorSchema>;
 
 
 export const tileEstimatorSchema = z.object({
-  floorLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
-  floorWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+  calculationType: z.enum(['floor', 'wall']),
+  floorLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে").optional(),
+  floorWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে").optional(),
+  wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে").optional(),
+  wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে").optional(),
   tileLengthIn: z.coerce.number().min(1, "টাইলসের দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
   tileWidthIn: z.coerce.number().min(1, "টাইলসের প্রস্থ কমপক্ষে ১ হতে হবে"),
   wastagePercent: z.coerce.number().min(0, "অপচয় ০ এর কম হতে পারে না").max(100, "অপচয় ১০০ এর বেশি হতে পারে না").default(10),
+}).superRefine((data, ctx) => {
+    if (data.calculationType === 'floor') {
+        if (!data.floorLengthFt) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ফ্লোরের দৈর্ঘ্য প্রয়োজন।", path: ["floorLengthFt"] });
+        }
+        if (!data.floorWidthFt) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ফ্লোরের প্রস্থ প্রয়োজন।", path: ["floorWidthFt"] });
+        }
+    } else { // wall
+        if (!data.wallLengthFt) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "দেয়ালের দৈর্ঘ্য প্রয়োজন।", path: ["wallLengthFt"] });
+        }
+        if (!data.wallHeightFt) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "দেয়ালের উচ্চতা প্রয়োজন।", path: ["wallHeightFt"] });
+        }
+    }
 });
 
 export type TileEstimatorValues = z.infer<typeof tileEstimatorSchema>;
+
+
+export const plasterEstimatorSchema = z.object({
+  wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
+  plasterThicknessIn: z.coerce.number().min(0.25, "পুরুত্ব কমপক্ষে ০.২৫ ইঞ্চি হতে হবে").max(2, "পুরুত্ব ২ ইঞ্চির বেশি হতে পারে না"),
+  plasterSides: z.enum(['1', '2']),
+});
+
+export type PlasterEstimatorValues = z.infer<typeof plasterEstimatorSchema>;

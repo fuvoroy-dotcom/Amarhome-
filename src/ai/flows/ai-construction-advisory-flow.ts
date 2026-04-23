@@ -44,6 +44,11 @@ const AiConstructionAdvisoryInputSchema = z.object({
   beamWidthIn: z.number().describe('Width of the beam cross-section in inches.'),
   beamLengthFt: z.number().describe('Total length of the beam in feet.'),
   beamRodCount: z.number().describe('Number of main steel reinforcement rods in the beam.'),
+  
+  slabLengthFt: z.number().describe('Length of the roof slab in feet.'),
+  slabWidthFt: z.number().describe('Width of the roof slab in feet.'),
+  slabThicknessIn: z.number().describe('Thickness of the roof slab in inches.'),
+  slabRodGapIn: z.number().describe('Gap between main and extra top rods in the slab in inches.'),
 
   mainRodFactor: z.number().describe('Weight per foot factor for the main steel reinforcement rods.'),
   ringRodFactor: z.number().describe('Weight per foot factor for the ring steel reinforcement rods.'),
@@ -95,6 +100,12 @@ Analyze the following structural elements and their specifications, then offer a
 - Total Length: {{{beamLengthFt}}} feet
 - Main Reinforcement Rods: {{{beamRodCount}}}
 
+### Roof Slab:
+- Length: {{{slabLengthFt}}} feet
+- Width: {{{slabWidthFt}}} feet
+- Thickness: {{{slabThicknessIn}}} inches
+- Rod Gap: {{{slabRodGapIn}}} inches
+
 ### Steel Reinforcement Details:
 - Main Rod: {{{mainRodDescription}}}
 - Ring (Stirrup) Rod: {{{ringRodDescription}}}
@@ -104,7 +115,7 @@ Analyze the following structural elements and their specifications, then offer a
 ## Your Expert Advice:
 
 Consider the typical construction practices for residential or small commercial buildings when giving advice.
-Provide advice in a structured manner, starting with general observations, then addressing each component (Foundation, Columns, Beams, Reinforcement), and finally offering overall best practices.
+Provide advice in a structured manner, starting with general observations, then addressing each component (Foundation, Columns, Beams, Roof Slab, Reinforcement), and finally offering overall best practices.
 Keep the advice concise, practical, and focused on structural integrity and material efficiency.
 `
 });
