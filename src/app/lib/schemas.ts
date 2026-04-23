@@ -29,9 +29,20 @@ export const estimatorSchema = z.object({
 export type EstimatorValues = z.infer<typeof estimatorSchema>;
 
 export const brickEstimatorSchema = z.object({
+  calculationType: z.enum(['wall', 'room']),
   wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  wallWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে").optional(),
   wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
   wallThicknessIn: z.enum(['5', '10'], { required_error: "দেয়ালের পুরুত্ব নির্বাচন করুন" }),
+}).refine(data => {
+    if (data.calculationType === 'room') {
+        return !!data.wallWidthFt;
+    }
+    return true;
+}, {
+    message: "রুমের প্রস্থ প্রয়োজন।",
+    path: ["wallWidthFt"],
 });
+
 
 export type BrickEstimatorValues = z.infer<typeof brickEstimatorSchema>;

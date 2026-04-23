@@ -154,15 +154,23 @@ export default function EstimatorClient() {
   const brickForm = useForm<BrickEstimatorValues>({
       resolver: zodResolver(brickEstimatorSchema),
       defaultValues: {
+          calculationType: 'wall',
           wallLengthFt: 10,
+          wallWidthFt: 10,
           wallHeightFt: 10,
           wallThicknessIn: '5',
       }
   });
+  const calculationType = brickForm.watch('calculationType');
 
   function calculateBricks(data: BrickEstimatorValues) {
-      const { wallLengthFt, wallHeightFt, wallThicknessIn } = data;
-      const area = wallLengthFt * wallHeightFt;
+      const { calculationType, wallLengthFt, wallWidthFt, wallHeightFt, wallThicknessIn } = data;
+      
+      const totalLength = calculationType === 'room' && wallWidthFt 
+          ? (wallLengthFt + wallWidthFt) * 2 
+          : wallLengthFt;
+
+      const area = totalLength * wallHeightFt;
       let bricks = 0;
       let cement = 0;
       let sand = 0;
@@ -327,22 +335,57 @@ export default function EstimatorClient() {
                                         দেয়ালের মাপ (Wall Dimensions)
                                     </h2>
                                     <div className="bg-card p-4 rounded-xl space-y-6 border">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <FormField control={brickForm.control} name="calculationType" render={({ field }) => (
+                                            <FormItem className="space-y-3">
+                                            <FormLabel>হিসাবের ধরণ</FormLabel>
+                                            <FormControl>
+                                                <RadioGroup
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                                className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 pt-2"
+                                                >
+                                                <FormItem className="flex items-center space-x-2">
+                                                    <FormControl><RadioGroupItem value="wall" id="type_wall" /></FormControl>
+                                                    <FormLabel htmlFor="type_wall" className="font-normal text-base">প্রচীর</FormLabel>
+                                                </FormItem>
+                                                <FormItem className="flex items-center space-x-2">
+                                                    <FormControl><RadioGroupItem value="room" id="type_room" /></FormControl>
+                                                    <FormLabel htmlFor="type_room" className="font-normal text-base">রুম</FormLabel>
+                                                </FormItem>
+                                                </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             <FormField control={brickForm.control} name="wallLengthFt" render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>দেয়ালের দৈর্ঘ্য (ফুট)</FormLabel>
+                                                    <FormLabel>{calculationType === 'room' ? 'রুমের দৈর্ঘ্য (ফুট)' : 'প্রাচীরের দৈর্ঘ্য (ফুট)'}</FormLabel>
                                                     <FormControl><Input type="number" placeholder="যেমন: ১২" {...field} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )} />
+                                            
+                                            {calculationType === 'room' && (
+                                                <FormField control={brickForm.control} name="wallWidthFt" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>রুমের প্রস্থ (ফুট)</FormLabel>
+                                                        <FormControl><Input type="number" placeholder="যেমন: ১০" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                            )}
+                                            
                                             <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>দেয়ালের উচ্চতা (ফুট)</FormLabel>
+                                                    <FormLabel>{calculationType === 'room' ? 'রুমের উচ্চতা (ফুট)' : 'প্রাচীরের উচ্চতা (ফুট)'}</FormLabel>
                                                     <FormControl><Input type="number" placeholder="যেমন: ১০" {...field} /></FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )} />
                                         </div>
+
                                         <FormField control={brickForm.control} name="wallThicknessIn" render={({ field }) => (
                                             <FormItem className="space-y-3">
                                             <FormLabel>দেয়ালের পুরুত্ব (ইঞ্চি)</FormLabel>
