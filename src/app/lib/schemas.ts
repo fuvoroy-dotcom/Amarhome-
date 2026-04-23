@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 export const estimatorSchema = z.object({
+  includeBase: z.boolean().default(true),
+  includeColumn: z.boolean().default(true),
+  includeBeam: z.boolean().default(true),
+
   baseCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(1, "বেসের সংখ্যা কমপক্ষে ১ হতে হবে"),
   baseLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),
   baseWidthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না"),

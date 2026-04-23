@@ -89,6 +89,9 @@ export default function EstimatorClient() {
   const structuralForm = useForm<EstimatorValues>({
     resolver: zodResolver(estimatorSchema),
     defaultValues: {
+      includeBase: true,
+      includeColumn: true,
+      includeBeam: true,
       baseCount: 1,
       baseLengthFt: 5,
       baseWidthFt: 5,
@@ -112,6 +115,7 @@ export default function EstimatorClient() {
 
   function calculateMaterials(data: EstimatorValues) {
     const { 
+        includeBase, includeColumn, includeBeam,
         baseCount, baseLengthFt, baseWidthFt, baseThicknessIn,
         columnCount, columnLengthIn, columnWidthIn, columnHeightFt,
         beamHeightIn, beamWidthIn, beamLengthFt,
@@ -119,11 +123,11 @@ export default function EstimatorClient() {
         ringGapIn, ringRodFactor, baseRodLongitudinalCount, baseRodWidthCount
     } = data;
 
-    const baseVol = baseLengthFt * baseWidthFt * (baseThicknessIn / 12) * baseCount;
-    const colVol = (columnLengthIn / 12) * (columnWidthIn / 12) * columnHeightFt * columnCount;
-    const beamVol = (beamHeightIn / 12) * (beamWidthIn / 12) * beamLengthFt;
-    const totalWetVol = baseVol + colVol + beamVol;
-    
+    let totalWetVol = 0;
+    if (includeBase) totalWetVol += baseLengthFt * baseWidthFt * (baseThicknessIn / 12) * baseCount;
+    if (includeColumn) totalWetVol += (columnLengthIn / 12) * (columnWidthIn / 12) * columnHeightFt * columnCount;
+    if (includeBeam) totalWetVol += (beamHeightIn / 12) * (beamWidthIn / 12) * beamLengthFt;
+
     const dryVol = totalWetVol * 1.5;
     const ratioSum = 5.5; // 1 + 1.5 + 3
 
@@ -131,14 +135,22 @@ export default function EstimatorClient() {
     const sandCFT = (dryVol / ratioSum) * 1.5;
     const chipsCFT = (dryVol / ratioSum) * 3;
 
-    const baseRodWeight = ((baseRodLongitudinalCount * baseWidthFt) + (baseRodWidthCount * baseLengthFt)) * mainRodFactor * baseCount;
-    const mainRodWeight = ((columnRodCount * columnHeightFt * columnCount) + (beamRodCount * beamLengthFt)) * mainRodFactor + baseRodWeight;
+    let mainRodWeight = 0;
+    if (includeBase) mainRodWeight += ((baseRodLongitudinalCount * baseWidthFt) + (baseRodWidthCount * baseLengthFt)) * mainRodFactor * baseCount;
+    if (includeColumn) mainRodWeight += (columnRodCount * columnHeightFt * columnCount) * mainRodFactor;
+    if (includeBeam) mainRodWeight += (beamRodCount * beamLengthFt) * mainRodFactor;
 
-    const ringCountCol = ringGapIn > 0 ? (columnHeightFt * 12) / ringGapIn : 0;
-    const ringCountBeam = ringGapIn > 0 ? (beamLengthFt * 12) / ringGapIn : 0;
-    const ringLenCol = ((columnLengthIn / 12) + (columnWidthIn / 12)) * 2;
-    const ringLenBeam = ((beamHeightIn / 12) + (beamWidthIn / 12)) * 2;
-    const ringWeight = ((ringCountCol * ringLenCol * columnCount) + (ringCountBeam * ringLenBeam)) * ringRodFactor;
+    let ringWeight = 0;
+    if (includeColumn && ringGapIn > 0) {
+        const ringCountCol = (columnHeightFt * 12) / ringGapIn;
+        const ringLenCol = ((columnLengthIn / 12) + (columnWidthIn / 12)) * 2;
+        ringWeight += (ringCountCol * ringLenCol * columnCount) * ringRodFactor;
+    }
+    if (includeBeam && ringGapIn > 0) {
+        const ringCountBeam = (beamLengthFt * 12) / ringGapIn;
+        const ringLenBeam = ((beamHeightIn / 12) + (beamWidthIn / 12)) * 2;
+        ringWeight += (ringCountBeam * ringLenBeam) * ringRodFactor;
+    }
 
     setStructuralResults({
       cement: cementBags,
@@ -515,6 +527,63 @@ export default function EstimatorClient() {
                                         কাঠামোর মাপ (Dimensions)
                                     </h2>
                                     <div className="bg-card p-4 rounded-xl space-y-6 border">
+
+                                        <div className="space-y-3">
+                                            <FormLabel className="font-bold text-muted-foreground">হিসাবের অংশ নির্বাচন করুন</FormLabel>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                                <FormField
+                                                    control={structuralForm.control}
+                                                    name="includeBase"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    checked={field.value}
+                                                                    onCheckedChange={field.onChange}
+                                                                />
+                                                            </FormControl>
+                                                            <FormLabel className="font-normal">
+                                                                বেস / ভিত্তি
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={structuralForm.control}
+                                                    name="includeColumn"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    checked={field.value}
+                                                                    onCheckedChange={field.onChange}
+                                                                />
+                                                            </FormControl>
+                                                            <FormLabel className="font-normal">
+                                                                কলাম
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={structuralForm.control}
+                                                    name="includeBeam"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    checked={field.value}
+                                                                    onCheckedChange={field.onChange}
+                                                                />
+                                                            </FormControl>
+                                                            <FormLabel className="font-normal">
+                                                                বিম
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        </div>
                                         
                                         <div className="space-y-3">
                                             <FormLabel className="font-bold text-muted-foreground">বেস / ভিত্তি</FormLabel>
