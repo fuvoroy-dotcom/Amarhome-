@@ -14,8 +14,10 @@ import { AiConstructionAdvisoryInputSchema } from '@/app/lib/schemas';
 // Helper function to map rod factor to descriptive string for the prompt
 function getRodDescription(factor: number): string {
   switch (factor) {
-    case 0.48: return '16 mm (5 Suta)';
+    case 0.12: return '8 mm (2.5 Suta)';
+    case 0.19: return '10 mm (3 Suta)';
     case 0.30: return '12 mm (4 Suta)';
+    case 0.48: return '16 mm (5 Suta)';
     case 0.75: return '20 mm (6 Suta)';
     default: return `${factor} (custom/unknown diameter)`;
   }

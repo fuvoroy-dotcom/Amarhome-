@@ -684,8 +684,10 @@ export default function EstimatorClient() {
                                                     <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
                                                         <FormControl><SelectTrigger><SelectValue placeholder="প্রধান রড..." /></SelectTrigger></FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="0.48">১৬ মিলি (৫ সুতা)</SelectItem>
+                                                            <SelectItem value="0.12">৮ মিলি (২.৫ সুতা)</SelectItem>
+                                                            <SelectItem value="0.19">১০ মিলি (৩ সুতা)</SelectItem>
                                                             <SelectItem value="0.30">১২ মিলি (৪ সুতা)</SelectItem>
+                                                            <SelectItem value="0.48">১৬ মিলি (৫ সুতা)</SelectItem>
                                                             <SelectItem value="0.75">২০ মিলি (৬ সুতা)</SelectItem>
                                                         </SelectContent>
                                                     </Select>
@@ -768,8 +770,10 @@ export default function EstimatorClient() {
                                                     <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
                                                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="0.48">১৬ মিলি (৫ সুতা)</SelectItem>
+                                                            <SelectItem value="0.12">৮ মিলি (২.৫ সুতা)</SelectItem>
+                                                            <SelectItem value="0.19">১০ মিলি (৩ সুতা)</SelectItem>
                                                             <SelectItem value="0.30">১২ মিলি (৪ সুতা)</SelectItem>
+                                                            <SelectItem value="0.48">১৬ মিলি (৫ সুতা)</SelectItem>
                                                             <SelectItem value="0.75">২০ মিলি (৬ সুতা)</SelectItem>
                                                         </SelectContent>
                                                     </Select>
