@@ -62,6 +62,8 @@ type BrickResults = {
 
 type TileResults = {
     tiles: number;
+    cement: number;
+    sand: number;
 }
 
 type PlasterResults = {
@@ -323,15 +325,27 @@ export default function EstimatorClient() {
       const tileArea = (tileLengthIn / 12) * (tileWidthIn / 12);
       
       if (tileArea === 0 || totalArea === 0) {
-          setTileResults({ tiles: 0 });
+          setTileResults({ tiles: 0, cement: 0, sand: 0 });
           return;
       }
 
       const tilesNeeded = totalArea / tileArea;
       const totalTiles = Math.ceil(tilesNeeded * (1 + wastagePercent / 100));
 
+      // Mortar Calculation (1:4 ratio)
+      // Assume 1" (0.0833ft) mortar for floor and 0.5" (0.0416ft) for walls
+      const mortarThicknessFt = calculationType === 'floor' ? 1 / 12 : 0.5 / 12;
+      const wetVol = totalArea * mortarThicknessFt;
+      const dryVol = wetVol * 1.33; // Dry volume factor, same as plaster
+      const ratioSum = 5; // 1:4
+      const cementCFT = (dryVol / ratioSum) * 1;
+      const cementBags = Math.ceil(cementCFT / 1.25);
+      const sandCFT = (dryVol / ratioSum) * 4;
+
       setTileResults({
-          tiles: totalTiles
+          tiles: totalTiles,
+          cement: cementBags,
+          sand: parseFloat(sandCFT.toFixed(1))
       });
   }
 
@@ -1215,8 +1229,18 @@ export default function EstimatorClient() {
                                                     <span className="text-xs text-cyan-600 font-bold uppercase">প্রয়োজনীয় টাইলস (সংখ্যা)</span>
                                                     <p className="text-4xl font-black text-slate-800">{tileResults.tiles}</p>
                                                 </div>
+                                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-bold">সিমেন্ট (ব্যাগ)</span>
+                                                        <p className="text-2xl font-bold text-primary">{tileResults.cement}</p>
+                                                    </div>
+                                                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-bold">বালু (CFT)</span>
+                                                        <p className="text-2xl font-bold text-primary">{tileResults.sand}</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <p className="text-[10px] text-muted-foreground text-center">* অপচয় সহ আনুমানিক হিসাব।</p>
+                                            <p className="text-[10px] text-muted-foreground text-center">* অপচয় সহ আনুমানিক হিসাব। টাইলসের মর্টার ১:৪ অনুপাতে ধরা হয়েছে।</p>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
