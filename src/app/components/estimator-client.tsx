@@ -256,35 +256,39 @@ export default function EstimatorClient() {
   });
 
   function calculateBricks(data: BrickEstimatorValues) {
-      const { calculationType, wallLengthFt, wallHeightFt, wallThicknessIn, rooms } = data;
-      
-      let totalLength = 0;
-      if (calculationType === 'wall' && wallLengthFt) {
-          totalLength = wallLengthFt;
-      } else if (calculationType === 'rooms' && rooms) {
-          totalLength = rooms.reduce((acc, room) => acc + (room.length + room.width) * 2, 0);
-      }
+    const { calculationType, wallLengthFt, wallHeightFt, wallThicknessIn, rooms } = data;
+    
+    let totalLength = 0;
+    if (calculationType === 'wall' && wallLengthFt) {
+        totalLength = wallLengthFt;
+    } else if (calculationType === 'rooms' && rooms) {
+        totalLength = rooms.reduce((acc, room) => acc + (room.length + room.width) * 2, 0);
+    }
 
-      const area = totalLength * wallHeightFt;
-      let bricks = 0;
-      let cement = 0;
-      let sand = 0;
+    const area = totalLength * wallHeightFt;
+    const isFiveInchWall = wallThicknessIn === '5';
+    
+    // Brick Calculation
+    const bricksPerSft = isFiveInchWall ? 5 : 10;
+    const bricks = area * bricksPerSft;
 
-      if (wallThicknessIn === '5') {
-          bricks = area * 5;
-          cement = (area / 100) * 0.6;
-          sand = (area / 100) * 3;
-      } else { // 10 inch
-          bricks = area * 10;
-          cement = (area / 100) * 1.2;
-          sand = (area / 100) * 6;
-      }
+    // Mortar Calculation (assuming 1:4 ratio)
+    const wallVolume = isFiveInchWall ? area * (5/12) : area * (10/12);
+    const wetMortarVolume = wallVolume * 0.30; // Mortar is ~30% of total brickwork volume
+    const dryMortarVolume = wetMortarVolume * 1.33; // Add 33% for dry volume
+    
+    const ratioSum = 5; // 1 part cement + 4 parts sand
+    
+    const cementVolumeCft = (dryMortarVolume / ratioSum) * 1;
+    const cementBags = cementVolumeCft / 1.25; // 1 cement bag = 1.25 cft
+    
+    const sandCft = (dryMortarVolume / ratioSum) * 4;
 
-      setBrickResults({
-          bricks: Math.ceil(bricks),
-          cement: Math.ceil(cement),
-          sand: parseFloat(sand.toFixed(1)),
-      });
+    setBrickResults({
+        bricks: Math.ceil(bricks),
+        cement: Math.ceil(cementBags),
+        sand: parseFloat(sandCft.toFixed(1)),
+    });
   }
   
   const [tileResults, setTileResults] = useState<TileResults | null>(null);
@@ -971,7 +975,7 @@ export default function EstimatorClient() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p className="text-[10px] text-muted-foreground text-center">* দেয়ালের ক্ষেত্রফল অনুযায়ী আনুমানিক হিসাব।</p>
+                                            <p className="text-[10px] text-muted-foreground text-center">* ১:৪ অনুপাতে মর্টার ধরে আনুমানিক হিসাব।</p>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
