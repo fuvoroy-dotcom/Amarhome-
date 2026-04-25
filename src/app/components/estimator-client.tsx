@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues, slabEstimatorSchema, type SlabEstimatorValues, AiConstructionAdvisoryInputSchema } from "@/app/lib/schemas";
+import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues, slabEstimatorSchema, type SlabEstimatorValues, AiConstructionAdvisoryInputSchema, stairEstimatorSchema, type StairEstimatorValues } from "@/app/lib/schemas";
 import { getConstructionAdvice } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -78,6 +78,13 @@ type FullHouseResults = {
     totalRodWeight: number;
     totalBricks: number;
     totalTiles: number;
+};
+
+type StairResults = {
+    cement: number;
+    sand: number;
+    chips: number;
+    totalRodWeight: number;
 };
 
 
@@ -520,6 +527,66 @@ export default function EstimatorClient() {
         });
     }
 
+    const [stairResults, setStairResults] = useState<StairResults | null>(null);
+    const stairForm = useForm<StairEstimatorValues>({
+        resolver: zodResolver(stairEstimatorSchema),
+        defaultValues: {
+            flightCount: 1,
+            waistSlabLengthFt: 10,
+            waistSlabWidthFt: 3.5,
+            waistSlabThicknessIn: 5,
+            stepCountPerFlight: 10,
+            riserHeightIn: 6,
+            treadWidthIn: 10,
+            landingLengthFt: 3.5,
+            landingWidthFt: 7,
+            mainRodFactor: 0.30,
+            distRodFactor: 0.19,
+            distRodGapIn: 6,
+        }
+    });
+
+    function calculateStair(data: StairEstimatorValues) {
+        const {
+            flightCount, waistSlabLengthFt, waistSlabWidthFt, waistSlabThicknessIn,
+            stepCountPerFlight, riserHeightIn, treadWidthIn, landingLengthFt, landingWidthFt,
+            mainRodFactor, distRodFactor, distRodGapIn
+        } = data;
+
+        // Concrete Volume
+        const waistVol = flightCount * waistSlabLengthFt * waistSlabWidthFt * (waistSlabThicknessIn / 12);
+        const stepsVol = flightCount * stepCountPerFlight * 0.5 * (riserHeightIn / 12) * (treadWidthIn / 12) * waistSlabWidthFt;
+        const landingVol = landingLengthFt * landingWidthFt * (waistSlabThicknessIn / 12);
+        const totalWetVol = waistVol + stepsVol + landingVol;
+        const dryVol = totalWetVol * 1.5;
+        const ratioSum = 5.5; // 1:1.5:3
+
+        const cementBags = Math.ceil(((dryVol / ratioSum) * 1) / 1.25);
+        const sandCFT = (dryVol / ratioSum) * 1.5;
+        const chipsCFT = (dryVol / ratioSum) * 3;
+
+        // Rod Calculation
+        const rodGapFt = distRodGapIn > 0 ? distRodGapIn / 12 : 1;
+        const totalFlightLength = waistSlabLengthFt * flightCount;
+
+        const mainRodCount = waistSlabWidthFt / rodGapFt;
+        const mainRodTotalLength = mainRodCount * (totalFlightLength + landingLengthFt);
+        const mainRodWeight = mainRodTotalLength * mainRodFactor;
+
+        const distRodCount = (totalFlightLength + landingLengthFt) / rodGapFt;
+        const distRodTotalLength = distRodCount * waistSlabWidthFt;
+        const distRodWeight = distRodTotalLength * distRodFactor;
+
+        const totalRodWeight = mainRodWeight + distRodWeight;
+
+        setStairResults({
+            cement: cementBags,
+            sand: parseFloat(sandCFT.toFixed(1)),
+            chips: parseFloat(chipsCFT.toFixed(1)),
+            totalRodWeight: parseFloat(totalRodWeight.toFixed(1)),
+        });
+    }
+
   return (
     <>
     <div className="w-full max-w-6xl">
@@ -530,7 +597,7 @@ export default function EstimatorClient() {
             </div>
             
             <Tabs defaultValue="structural" className="w-full">
-                <TabsList className="grid w-full grid-cols-6 rounded-none h-auto">
+                <TabsList className="grid w-full grid-cols-7 rounded-none h-auto">
                     <TabsTrigger value="structural" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Building className="mr-2 h-5 w-5" />
                         স্ট্রাকচার
@@ -538,6 +605,10 @@ export default function EstimatorClient() {
                      <TabsTrigger value="slab" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Grid className="mr-2 h-5 w-5" />
                         ছাদ
+                    </TabsTrigger>
+                    <TabsTrigger value="stair" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <List className="mr-2 h-5 w-5" />
+                        সিঁড়ি
                     </TabsTrigger>
                     <TabsTrigger value="brick" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Layers className="mr-2 h-5 w-5" />
@@ -872,6 +943,110 @@ export default function EstimatorClient() {
                                     </h2>
                                     {slabResults ? (
                                         <SlabResultDisplay results={slabResults} />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
+                                            <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
+                    </Form>
+                </TabsContent>
+                 <TabsContent value="stair" className="p-0">
+                    <Form {...stairForm}>
+                        <form onSubmit={stairForm.handleSubmit(calculateStair)} className="p-4 md:p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="space-y-4">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <List className="w-5 h-5" />
+                                        ফ্লাইট ও ধাপের মাপ
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={stairForm.control} name="flightCount" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ফ্লাইটের সংখ্যা</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                             <FormField control={stairForm.control} name="stepCountPerFlight" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ধাপ (প্রতি ফ্লাইটে)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                             <FormField control={stairForm.control} name="waistSlabLengthFt" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ওয়েস্ট স্ল্যাবের দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                            <FormField control={stairForm.control} name="waistSlabWidthFt" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">প্রস্থ (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                        </div>
+                                        <FormField control={stairForm.control} name="waistSlabThicknessIn" render={({ field }) => (
+                                            <FormItem><FormLabel className="text-xs">ওয়েস্ট স্ল্যাবের পুরুত্ব (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                        )} />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={stairForm.control} name="riserHeightIn" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">রাইজার উচ্চতা (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                            <FormField control={stairForm.control} name="treadWidthIn" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ট্রেড প্রস্থ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <Cog className="w-5 h-5" />
+                                        ল্যান্ডিং ও রড সেটিংস
+                                    </h2>
+                                    <div className="bg-card p-4 rounded-xl space-y-6 border">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={stairForm.control} name="landingLengthFt" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ল্যান্ডিং দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                            <FormField control={stairForm.control} name="landingWidthFt" render={({ field }) => (
+                                                <FormItem><FormLabel className="text-xs">ল্যান্ডিং প্রস্থ (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                            )} />
+                                        </div>
+                                        <FormField control={stairForm.control} name="mainRodFactor" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">প্রধান রড</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="0.30">১২ মিলি (৪ সুতা)</SelectItem>
+                                                        <SelectItem value="0.48">১৬ মিলি (৫ সুতা)</SelectItem>
+                                                        <SelectItem value="0.75">২০ মিলি (৬ সুতা)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={stairForm.control} name="distRodFactor" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">ডিস্ট্রিবিউশন রড</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="0.12">৮ মিলি (২.৫ সুতা)</SelectItem>
+                                                        <SelectItem value="0.19">১০ মিলি (৩ সুতা)</SelectItem>
+                                                        <SelectItem value="0.30">১২ মিলি (৪ সুতা)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )} />
+                                         <FormField control={stairForm.control} name="distRodGapIn" render={({ field }) => (
+                                            <FormItem><FormLabel className="text-xs">ডিস্ট. রডের গ্যাপ (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage className="text-xs" /></FormItem>
+                                        )} />
+                                    </div>
+                                    <Button type="submit" className="w-full font-bold py-3 text-lg rounded-xl shadow-lg transition-transform active:scale-[0.98]">
+                                        সিঁড়ির হিসাব করুন
+                                    </Button>
+                                </div>
+                                <div className="space-y-4">
+                                     <h2 className="font-bold text-lg text-primary border-b pb-2 flex items-center gap-2">
+                                        <BarChartBig className="w-5 h-5" />
+                                        ফলাফল (Result)
+                                    </h2>
+                                    {stairResults ? (
+                                        <StairResultDisplay results={stairResults} />
                                     ) : (
                                         <div className="flex items-center justify-center h-full bg-muted/50 rounded-xl border border-dashed">
                                             <p className="text-muted-foreground p-8 text-center">ফলাফল এখানে দেখানো হবে।</p>
@@ -1472,6 +1647,18 @@ const SlabResultDisplay = ({ results }: { results: SlabResults }) => (
           <ResultBox label="বালু (CFT)" value={results.sand} />
           <ResultBox label="খোয়া (CFT)" value={results.chips} />
           <ResultBox label="রড (কেজি)" value={results.rodWeight} />
+      </div>
+      <p className="text-[10px] text-muted-foreground text-center">* ১:১.৫:৩ মিক্স রেশিও ধরে হিসেবকৃত।</p>
+  </div>
+);
+
+const StairResultDisplay = ({ results }: { results: StairResults }) => (
+  <div className="bg-card p-5 rounded-2xl border-2 shadow-inner space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+          <ResultBox label="সিমেন্ট (ব্যাগ)" value={results.cement} />
+          <ResultBox label="বালু (CFT)" value={results.sand} />
+          <ResultBox label="খোয়া (CFT)" value={results.chips} />
+          <ResultBox label="মোট রড (কেজি)" value={results.totalRodWeight} />
       </div>
       <p className="text-[10px] text-muted-foreground text-center">* ১:১.৫:৩ মিক্স রেশিও ধরে হিসেবকৃত।</p>
   </div>

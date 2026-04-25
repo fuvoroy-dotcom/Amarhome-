@@ -186,3 +186,20 @@ export const AiConstructionAdvisoryInputSchema = z.object({
   baseRodLongitudinalCount: z.number().describe('Number of longitudinal reinforcement rods in the foundation base mesh.'),
   baseRodWidthCount: z.number().describe('Number of width-wise reinforcement rods in the foundation base mesh.'),
 });
+
+export const stairEstimatorSchema = z.object({
+  flightCount: z.coerce.number().int().min(1, "অন্তত একটি ফ্লাইট থাকতে হবে"),
+  waistSlabLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  waistSlabWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+  waistSlabThicknessIn: z.coerce.number().min(3, "পুরুত্ব কমপক্ষে ৩ ইঞ্চি হতে হবে"),
+  stepCountPerFlight: z.coerce.number().int().min(1, "প্রতি ফ্লাইটে অন্তত একটি ধাপ থাকতে হবে"),
+  riserHeightIn: z.coerce.number().min(5, "রাইজার কমপক্ষে ৫ ইঞ্চি হতে হবে").max(8, "রাইজার ৮ ইঞ্চির বেশি হওয়া উচিত নয়"),
+  treadWidthIn: z.coerce.number().min(10, "ট্রেড কমপক্ষে ১০ ইঞ্চি হতে হবে"),
+  landingLengthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না").default(0),
+  landingWidthFt: z.coerce.number().min(0, "মান শূন্যের কম হতে পারে না").default(0),
+  mainRodFactor: z.coerce.number(),
+  distRodFactor: z.coerce.number(),
+  distRodGapIn: z.coerce.number().min(1, "রডের গ্যাপ কমপক্ষে ১ ইঞ্চি হতে হবে"),
+});
+
+export type StairEstimatorValues = z.infer<typeof stairEstimatorSchema>;
