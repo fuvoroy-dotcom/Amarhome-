@@ -33,9 +33,13 @@ export const estimatorSchema = z.object({
 
 export type EstimatorValues = z.infer<typeof estimatorSchema>;
 
+const slabSectionSchema = z.object({
+    length: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+    width: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+});
+
 export const slabEstimatorSchema = z.object({
-    slabLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
-    slabWidthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+    slabs: z.array(slabSectionSchema).min(1, "কমপক্ষে একটি ছাদের অংশ যোগ করুন।"),
     slabThicknessIn: z.coerce.number().min(2, "ন্যূনতম পুরুত্ব ২ ইঞ্চি").max(12, "সর্বোচ্চ পুরুত্ব ১২ ইঞ্চি"),
     slabRodGapIn: z.coerce.number().min(1, "রডের গ্যাপ কমপক্ষে ১ ইঞ্চি হতে হবে"),
     mainRodFactor: z.coerce.number(),

@@ -172,17 +172,23 @@ export default function EstimatorClient() {
   const slabForm = useForm<SlabEstimatorValues>({
     resolver: zodResolver(slabEstimatorSchema),
     defaultValues: {
-        slabLengthFt: 20,
-        slabWidthFt: 15,
+        slabs: [{ length: 20, width: 15 }],
         slabThicknessIn: 5,
         slabRodGapIn: 6,
         mainRodFactor: 0.48,
     }
   });
+  const { fields: slabFields, append: appendSlab, remove: removeSlab } = useFieldArray({
+    control: slabForm.control,
+    name: "slabs"
+  });
+
 
   function calculateSlab(data: SlabEstimatorValues) {
-    const { slabLengthFt, slabWidthFt, slabThicknessIn, slabRodGapIn, mainRodFactor } = data;
-    const slabVol = slabLengthFt * slabWidthFt * (slabThicknessIn / 12);
+    const { slabs, slabThicknessIn, slabRodGapIn, mainRodFactor } = data;
+    
+    const totalArea = slabs.reduce((acc, slab) => acc + (slab.length * slab.width), 0);
+    const slabVol = totalArea * (slabThicknessIn / 12);
     const dryVol = slabVol * 1.5;
     const ratioSum = 5.5; // 1 + 1.5 + 3
 
@@ -190,8 +196,14 @@ export default function EstimatorClient() {
     const sandCFT = (dryVol / ratioSum) * 1.5;
     const chipsCFT = (dryVol / ratioSum) * 3;
     
-    const slabRodLength = slabRodGapIn > 0 ? ((slabWidthFt / (slabRodGapIn / 12)) * slabLengthFt + (slabLengthFt / (slabRodGapIn / 12)) * slabWidthFt) : 0;
-    const slabRodWeight = slabRodLength * mainRodFactor;
+    let totalRodLength = 0;
+    if (slabRodGapIn > 0) {
+        const gapFt = slabRodGapIn / 12;
+        slabs.forEach(slab => {
+            totalRodLength += ((slab.width / gapFt) * slab.length) + ((slab.length / gapFt) * slab.width);
+        });
+    }
+    const slabRodWeight = totalRodLength * mainRodFactor;
 
     setSlabResults({
         cement: cementBags,
@@ -205,13 +217,19 @@ export default function EstimatorClient() {
   const handleGetAdvice = () => {
     const structuralValues = structuralForm.getValues();
     const slabValues = slabForm.getValues();
-
-    const combinedValues = {
-        ...structuralValues,
-        ...slabValues,
-    };
     
-    const validation = AiConstructionAdvisoryInputSchema.safeParse(combinedValues);
+    const firstSlab = slabValues.slabs && slabValues.slabs.length > 0 ? slabValues.slabs[0] : { length: 0, width: 0 };
+
+    const advisoryInput = {
+      ...structuralValues,
+      slabLengthFt: firstSlab.length,
+      slabWidthFt: firstSlab.width,
+      slabThicknessIn: slabValues.slabThicknessIn,
+      slabRodGapIn: slabValues.slabRodGapIn,
+      mainRodFactor: slabValues.mainRodFactor,
+    };
+
+    const validation = AiConstructionAdvisoryInputSchema.safeParse(advisoryInput);
 
     if (!validation.success) {
       toast({
@@ -769,13 +787,54 @@ export default function EstimatorClient() {
                                         ছাদের মাপ ও রড (Slab Dimensions & Steel)
                                     </h2>
                                     <div className="bg-card p-4 rounded-xl space-y-6 border">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <FormField control={slabForm.control} name="slabLengthFt" render={({ field }) => (
-                                                <FormItem><FormLabel>ছাদের দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                            )} />
-                                            <FormField control={slabForm.control} name="slabWidthFt" render={({ field }) => (
-                                                <FormItem><FormLabel>ছাদের প্রস্থ (ফুট)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                            )} />
+                                        <div className="space-y-3">
+                                            <Label>ছাদের অংশ (দৈর্ঘ্য ও প্রস্থ ফুট হিসাবে)</Label>
+                                            {slabFields.map((item, index) => (
+                                                <div key={item.id} className="flex items-end gap-2 p-2 border rounded-md bg-muted/50">
+                                                    <p className="text-sm font-medium text-muted-foreground pt-7">{index + 1}.</p>
+                                                    <FormField
+                                                        control={slabForm.control}
+                                                        name={`slabs.${index}.length`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex-1">
+                                                                <FormLabel className="text-xs">দৈর্ঘ্য (ফুট)</FormLabel>
+                                                                <FormControl><Input type="number" placeholder="দৈর্ঘ্য" {...field} /></FormControl>
+                                                                <FormMessage className="text-xs" />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={slabForm.control}
+                                                        name={`slabs.${index}.width`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex-1">
+                                                                <FormLabel className="text-xs">প্রস্থ (ফুট)</FormLabel>
+                                                                <FormControl><Input type="number" placeholder="প্রস্থ" {...field} /></FormControl>
+                                                                <FormMessage className="text-xs" />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="icon"
+                                                        onClick={() => removeSlab(index)}
+                                                        disabled={slabFields.length <= 1}
+                                                        className="shrink-0"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                            <FormMessage>{slabForm.formState.errors.slabs?.root?.message || slabForm.formState.errors.slabs?.message}</FormMessage>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => appendSlab({ length: 10, width: 10 })}
+                                                className="w-full"
+                                            >
+                                                নতুন ছাদের অংশ যোগ করুন
+                                            </Button>
                                         </div>
                                         <FormField control={slabForm.control} name="slabThicknessIn" render={({ field }) => (
                                             <FormItem><FormLabel>ছাদের পুরুত্ব (ইঞ্চি)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
