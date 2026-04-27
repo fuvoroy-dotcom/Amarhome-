@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -587,6 +587,34 @@ export default function EstimatorClient() {
         });
     }
 
+    const [cftToBrickInput, setCftToBrickInput] = useState<string>("");
+    const [cftToBrickResult, setCftToBrickResult] = useState<number | null>(null);
+
+    const [rodLengthInput, setRodLengthInput] = useState<string>("");
+    const [rodConversionFactor, setRodConversionFactor] = useState<number>(0.48);
+    const [rodWeightResult, setRodWeightResult] = useState<number | null>(null);
+    
+    function calculateCftToBricks() {
+        const cft = parseFloat(cftToBrickInput);
+        if (!isNaN(cft) && cft > 0) {
+            // Standard brickwork calculation: approx 12 bricks per CFT of 10" wall.
+            setCftToBrickResult(Math.ceil(cft * 12));
+        } else {
+            setCftToBrickResult(null);
+            toast({ variant: "destructive", title: "অনুগ্রহ করে একটি সঠিক CFT মান লিখুন।" });
+        }
+    }
+
+    function calculateRodWeight() {
+        const length = parseFloat(rodLengthInput);
+        if (!isNaN(length) && length > 0) {
+            setRodWeightResult(length * rodConversionFactor);
+        } else {
+            setRodWeightResult(null);
+            toast({ variant: "destructive", title: "অনুগ্রহ করে একটি সঠিক দৈর্ঘ্য লিখুন।" });
+        }
+    }
+
   return (
     <>
     <div className="w-full max-w-6xl">
@@ -597,7 +625,7 @@ export default function EstimatorClient() {
             </div>
             
             <Tabs defaultValue="structural" className="w-full">
-                <TabsList className="grid w-full grid-cols-7 rounded-none h-auto">
+                <TabsList className="grid w-full grid-cols-8 rounded-none h-auto">
                     <TabsTrigger value="structural" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Building className="mr-2 h-5 w-5" />
                         স্ট্রাকচার
@@ -625,6 +653,10 @@ export default function EstimatorClient() {
                     <TabsTrigger value="fullHouse" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <ClipboardList className="mr-2 h-5 w-5" />
                         পূর্ণাঙ্গ বাড়ি
+                    </TabsTrigger>
+                    <TabsTrigger value="conversion" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <ArrowRightLeft className="mr-2 h-5 w-5" />
+                        রূপান্তর
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="structural" className="p-0">
@@ -1575,6 +1607,82 @@ export default function EstimatorClient() {
                             </div>
                         </form>
                     </Form>
+                </TabsContent>
+                <TabsContent value="conversion" className="p-4 md:p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card className="shadow-lg border-border/40">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-primary">
+                                    <Layers className="w-5 h-5"/>
+                                    CFT থেকে ইটের সংখ্যা
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="cft-input">ইটের কাজের পরিমাণ (CFT)</Label>
+                                    <Input 
+                                        id="cft-input" 
+                                        type="number" 
+                                        value={cftToBrickInput} 
+                                        onChange={(e) => setCftToBrickInput(e.target.value)}
+                                        placeholder="যেমন: ১০০"
+                                    />
+                                </div>
+                                <Button onClick={calculateCftToBricks} className="w-full">রূপান্তর করুন</Button>
+                                {cftToBrickResult !== null && (
+                                     <div className="!mt-6">
+                                        <div className="text-center p-3 bg-orange-400/10 rounded-lg border border-orange-500/30">
+                                            <span className="text-xs text-orange-600 font-bold uppercase">প্রয়োজনীয় ইট (সংখ্যা)</span>
+                                            <p className="text-4xl font-black text-slate-800">{cftToBrickResult}</p>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground text-center mt-2">* প্রতি CFT তে ১২টি ইট ধরে হিসাব করা হয়েছে (১০" দেয়াল)।</p>
+                                     </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card className="shadow-lg border-border/40">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-primary">
+                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-weight"><circle cx="12" cy="5" r="3"/><path d="M6.5 8.5c.9-2.3 3-4 5.5-4s4.6 1.7 5.5 4"/><path d="M12 8.5v12.5"/><path d="M12 21a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M6 14h2"/><path d="M16 14h2"/></svg>
+                                    রডের দৈর্ঘ্য থেকে ওজন
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="rod-length-input">রডের মোট দৈর্ঘ্য (ফুট)</Label>
+                                    <Input 
+                                        id="rod-length-input" 
+                                        type="number" 
+                                        value={rodLengthInput}
+                                        onChange={(e) => setRodLengthInput(e.target.value)}
+                                        placeholder="যেমন: ৪০"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>রডের ব্যাস</Label>
+                                    <Select onValueChange={(val) => setRodConversionFactor(parseFloat(val))} defaultValue={String(rodConversionFactor)}>
+                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="0.12">৮ মিলি (২.৫ সুতা)</SelectItem>
+                                            <SelectItem value="0.19">১০ মিলি (৩ সুতা)</SelectItem>
+                                            <SelectItem value="0.30">১২ মিলি (৪ সুতা)</SelectItem>
+                                            <SelectItem value="0.48">১৬ মিলি (৫ সুতা)</SelectItem>
+                                            <SelectItem value="0.75">২০ মিলি (৬ সুতা)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button onClick={calculateRodWeight} className="w-full">রূপান্তর করুন</Button>
+                                {rodWeightResult !== null && (
+                                     <div className="!mt-6">
+                                        <div className="text-center p-3 bg-blue-400/10 rounded-lg border border-blue-500/30">
+                                            <span className="text-xs text-blue-600 font-bold uppercase">রডের মোট ওজন (কেজি)</span>
+                                            <p className="text-4xl font-black text-slate-800">{rodWeightResult.toFixed(2)}</p>
+                                        </div>
+                                     </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
             </Tabs>
         </Card>
