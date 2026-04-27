@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -589,6 +589,8 @@ export default function EstimatorClient() {
 
     const [cftToBrickInput, setCftToBrickInput] = useState<string>("");
     const [cftToBrickResult, setCftToBrickResult] = useState<number | null>(null);
+    const [khowaCftToBrickInput, setKhowaCftToBrickInput] = useState<string>("");
+    const [khowaCftToBrickResult, setKhowaCftToBrickResult] = useState<number | null>(null);
 
     const [rodLengthInput, setRodLengthInput] = useState<string>("");
     const [rodConversionFactor, setRodConversionFactor] = useState<number>(0.48);
@@ -601,6 +603,17 @@ export default function EstimatorClient() {
             setCftToBrickResult(Math.ceil(cft * 12));
         } else {
             setCftToBrickResult(null);
+            toast({ variant: "destructive", title: "অনুগ্রহ করে একটি সঠিক CFT মান লিখুন।" });
+        }
+    }
+
+    function calculateKhowaToBricks() {
+        const cft = parseFloat(khowaCftToBrickInput);
+        if (!isNaN(cft) && cft > 0) {
+            // Standard calculation: approx 11 bricks are needed to produce 1 CFT of brick chips.
+            setKhowaCftToBrickResult(Math.ceil(cft * 11));
+        } else {
+            setKhowaCftToBrickResult(null);
             toast({ variant: "destructive", title: "অনুগ্রহ করে একটি সঠিক CFT মান লিখুন।" });
         }
     }
@@ -1609,17 +1622,17 @@ export default function EstimatorClient() {
                     </Form>
                 </TabsContent>
                 <TabsContent value="conversion" className="p-4 md:p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <Card className="shadow-lg border-border/40">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-primary">
                                     <Layers className="w-5 h-5"/>
-                                    CFT থেকে ইটের সংখ্যা
+                                    গাঁথুনি (CFT) থেকে ইট
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="cft-input">ইটের কাজের পরিমাণ (CFT)</Label>
+                                    <Label htmlFor="cft-input">গাঁথুনির কাজের পরিমাণ (CFT)</Label>
                                     <Input 
                                         id="cft-input" 
                                         type="number" 
@@ -1678,6 +1691,36 @@ export default function EstimatorClient() {
                                             <span className="text-xs text-blue-600 font-bold uppercase">রডের মোট ওজন (কেজি)</span>
                                             <p className="text-4xl font-black text-slate-800">{rodWeightResult.toFixed(2)}</p>
                                         </div>
+                                     </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card className="shadow-lg border-border/40">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-primary">
+                                    <Box className="w-5 h-5"/>
+                                    খোয়া (CFT) থেকে ইট
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="khowa-cft-input">খোয়ার পরিমাণ (CFT)</Label>
+                                    <Input 
+                                        id="khowa-cft-input" 
+                                        type="number" 
+                                        value={khowaCftToBrickInput} 
+                                        onChange={(e) => setKhowaCftToBrickInput(e.target.value)}
+                                        placeholder="যেমন: ১০০"
+                                    />
+                                </div>
+                                <Button onClick={calculateKhowaToBricks} className="w-full">রূপান্তর করুন</Button>
+                                {khowaCftToBrickResult !== null && (
+                                     <div className="!mt-6">
+                                        <div className="text-center p-3 bg-green-400/10 rounded-lg border border-green-500/30">
+                                            <span className="text-xs text-green-600 font-bold uppercase">প্রয়োজনীয় ইট (সংখ্যা)</span>
+                                            <p className="text-4xl font-black text-slate-800">{khowaCftToBrickResult}</p>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground text-center mt-2">* প্রতি CFT খোয়ার জন্য প্রায় ১১টি ইট লাগে।</p>
                                      </div>
                                 )}
                             </CardContent>
@@ -1793,3 +1836,5 @@ const FullHouseResultDisplay = ({ results }: { results: FullHouseResults }) => (
        <p className="text-[10px] text-muted-foreground text-center">* এটি একটি সাধারণ মানের কাজের জন্য আনুমানিক হিসাব। স্থান ও উপকরণ ভেদে পরিমাণ ও খরচ পরিবর্তিত হতে পারে।</p>
   </div>
 );
+
+    
