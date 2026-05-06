@@ -4,7 +4,7 @@
 import React, { useState, useTransition, useRef, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box, Palette, Eraser, Square, DoorClosed, LayoutGrid, RotateCcw, Download, Plus, Move } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box, Palette, Eraser, Square, DoorClosed, LayoutGrid, RotateCcw, Download, Plus, Move, Ruler } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -89,7 +89,8 @@ type StairResults = {
 };
 
 // --- Manual Design Constants ---
-const GRID_SIZE = 20;
+const GRID_SIZE = 25;
+const CELL_SIZE_FT = 1; // 1 cell = 1 foot
 type CellType = 'empty' | 'wall' | 'window' | 'door' | 'boundary';
 
 export default function EstimatorClient() {
@@ -106,8 +107,16 @@ export default function EstimatorClient() {
   const [selectedTool, setSelectedTool] = useState<CellType | 'eraser' | 'move'>('wall');
   const [dragStart, setDragStart] = useState<{ r: number, c: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ r: number, c: number } | null>(null);
-  const [manualInput, setManualInput] = useState({ length: 5, width: 5 });
-  const [toolSize, setToolSize] = useState(1); // For door/window thickness or custom wall sizes
+  
+  // Design Input in Ft and In
+  const [manualInput, setManualInput] = useState({ 
+    lengthFt: 10, 
+    lengthIn: 0, 
+    widthFt: 10, 
+    widthIn: 0 
+  });
+  
+  const [toolSizeIn, setToolSizeIn] = useState(30); // Tool size (e.g., window width) in inches
 
   const structuralForm = useForm<EstimatorValues>({
     resolver: zodResolver(estimatorSchema),
@@ -615,7 +624,7 @@ export default function EstimatorClient() {
         }
     }
 
-    // --- Advanced Manual Design Logic ---
+    // --- Advanced Manual Design Logic (Ft & In) ---
     const handleCellMouseDown = (r: number, c: number) => {
         if (selectedTool === 'move') return;
         setDragStart({ r, c });
@@ -643,7 +652,6 @@ export default function EstimatorClient() {
 
         for (let r = minR; r <= maxR; r++) {
             for (let c = minC; c <= maxC; c++) {
-                // If it's a wall tool, only draw perimeter if it's more than a 1x1 area
                 if (selectedTool === 'wall' || selectedTool === 'boundary') {
                     if (r === minR || r === maxR || c === minC || c === maxC) {
                         newGrid[r][c] = selectedTool as CellType;
@@ -651,7 +659,6 @@ export default function EstimatorClient() {
                 } else if (selectedTool === 'eraser') {
                     newGrid[r][c] = 'empty';
                 } else {
-                    // For single point tools like window/door, just apply to first cell of drag or area
                     newGrid[r][c] = selectedTool as CellType;
                 }
             }
@@ -662,27 +669,31 @@ export default function EstimatorClient() {
     };
 
     const addManualRoom = () => {
-        const { length, width } = manualInput;
-        const newGrid = [...designGrid.map(row => [...row])];
+        // Convert input to total feet (rounded to cells)
+        const totalLen = manualInput.lengthFt + (manualInput.lengthIn / 12);
+        const totalWid = manualInput.widthFt + (manualInput.widthIn / 12);
         
-        // Find center or top-left
+        const cellLen = Math.round(totalLen / CELL_SIZE_FT);
+        const cellWid = Math.round(totalWid / CELL_SIZE_FT);
+
+        const newGrid = [...designGrid.map(row => [...row])];
         const startR = 2;
         const startC = 2;
 
-        if (startR + length >= GRID_SIZE || startC + width >= GRID_SIZE) {
+        if (startR + cellLen >= GRID_SIZE || startC + cellWid >= GRID_SIZE) {
             toast({ variant: "destructive", title: "রুমটি গ্রিডের বাইরে চলে যাচ্ছে!" });
             return;
         }
 
-        for (let r = startR; r <= startR + length; r++) {
-            for (let c = startC; c <= startC + width; c++) {
-                if (r === startR || r === startR + length || c === startC || c === startC + width) {
+        for (let r = startR; r <= startR + cellLen; r++) {
+            for (let c = startC; c <= startC + cellWid; c++) {
+                if (r === startR || r === startR + cellLen || c === startC || c === startC + cellWid) {
                     newGrid[r][c] = 'wall';
                 }
             }
         }
         setDesignGrid(newGrid);
-        toast({ title: "রুম যোগ করা হয়েছে" });
+        toast({ title: `রুম যোগ করা হয়েছে (${manualInput.lengthFt}'${manualInput.lengthIn}" x ${manualInput.widthFt}'${manualInput.widthIn}")` });
     };
 
     const resetDesign = () => {
@@ -701,6 +712,18 @@ export default function EstimatorClient() {
             return (r === minR || r === maxR || c === minC || c === maxC) && r >= minR && r <= maxR && c >= minC && c <= maxC;
         }
         return r >= minR && r <= maxR && c >= minC && c <= maxC;
+    };
+
+    const getDragDimensions = () => {
+        if (!dragStart || !dragCurrent) return null;
+        const rLen = Math.abs(dragCurrent.r - dragStart.r) + 1;
+        const cLen = Math.abs(dragCurrent.c - dragStart.c) + 1;
+        return {
+            ft: rLen * CELL_SIZE_FT,
+            in: 0,
+            ft2: cLen * CELL_SIZE_FT,
+            in2: 0
+        };
     };
 
   return (
@@ -903,14 +926,14 @@ export default function EstimatorClient() {
                     </form></Form>
                 </TabsContent>
 
-                {/* --- Design Tab Content (ADVANCED) --- */}
+                {/* --- Design Tab Content (Ft & In Scaling) --- */}
                 <TabsContent value="design" className="p-4 md:p-6" onMouseUp={handleGridMouseUp}>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         {/* Tool Palette */}
-                        <div className="lg:col-span-3 space-y-6">
+                        <div className="lg:col-span-4 space-y-6">
                             <h2 className="font-bold text-xl text-primary flex items-center gap-2">
                                 <Palette className="w-6 h-6" />
-                                ডিজাইন টুলবক্স
+                                ডিজাইন টুলবক্স (ফুট ও ইঞ্চি)
                             </h2>
                             <Card className="shadow-lg border-border/40">
                                 <CardContent className="pt-6 space-y-6">
@@ -926,27 +949,41 @@ export default function EstimatorClient() {
 
                                     {/* Size Adjuster */}
                                     <div className="space-y-2 pt-4 border-t">
-                                        <Label className="text-xs font-bold text-primary">টুল সাইজ (যেমন: জানালার প্রস্থ)</Label>
+                                        <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                                            <Ruler className="w-3 h-3"/> টুল সাইজ (ইঞ্চি)
+                                        </Label>
                                         <div className="flex items-center gap-2">
-                                            <Input type="number" value={toolSize} onChange={(e) => setToolSize(parseInt(e.target.value) || 1)} min="1" max="5" className="h-8" />
-                                            <span className="text-[10px] text-muted-foreground">ইউনিট</span>
+                                            <Input 
+                                                type="number" 
+                                                value={toolSizeIn} 
+                                                onChange={(e) => setToolSizeIn(parseInt(e.target.value) || 1)} 
+                                                min="1" 
+                                                className="h-8" 
+                                            />
+                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">দরজা/জানালা</span>
                                         </div>
                                     </div>
 
-                                    {/* Manual Input Build */}
-                                    <div className="space-y-3 pt-4 border-t">
+                                    {/* Manual Input Build (Ft & In) */}
+                                    <div className="space-y-3 pt-4 border-t bg-muted/20 p-3 rounded-lg">
                                         <Label className="text-xs font-bold text-primary">মাপ লিখে রুম তৈরি করুন</Label>
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1">
-                                                <span className="text-[10px]">দৈর্ঘ্য (ইউনিট)</span>
-                                                <Input type="number" value={manualInput.length} onChange={(e) => setManualInput({ ...manualInput, length: parseInt(e.target.value) || 1 })} className="h-8" />
+                                                <span className="text-[10px] font-bold">দৈর্ঘ্য (লম্বা)</span>
+                                                <div className="flex gap-1">
+                                                    <Input placeholder="Ft" type="number" value={manualInput.lengthFt} onChange={(e) => setManualInput({ ...manualInput, lengthFt: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                    <Input placeholder="In" type="number" value={manualInput.lengthIn} onChange={(e) => setManualInput({ ...manualInput, lengthIn: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                </div>
                                             </div>
                                             <div className="space-y-1">
-                                                <span className="text-[10px]">প্রস্থ (ইউনিট)</span>
-                                                <Input type="number" value={manualInput.width} onChange={(e) => setManualInput({ ...manualInput, width: parseInt(e.target.value) || 1 })} className="h-8" />
+                                                <span className="text-[10px] font-bold">প্রস্থ (চওড়া)</span>
+                                                <div className="flex gap-1">
+                                                    <Input placeholder="Ft" type="number" value={manualInput.widthFt} onChange={(e) => setManualInput({ ...manualInput, widthFt: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                    <Input placeholder="In" type="number" value={manualInput.widthIn} onChange={(e) => setManualInput({ ...manualInput, widthIn: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                </div>
                                             </div>
                                         </div>
-                                        <Button size="sm" className="w-full flex items-center gap-2" onClick={addManualRoom}>
+                                        <Button size="sm" className="w-full flex items-center gap-2 bg-primary hover:bg-primary/90 mt-2" onClick={addManualRoom}>
                                             <Plus className="w-4 h-4" />
                                             রুম যোগ করুন
                                         </Button>
@@ -965,12 +1002,12 @@ export default function EstimatorClient() {
                         </div>
 
                         {/* Interactive Canvas */}
-                        <div className="lg:col-span-9 flex flex-col items-center">
-                            <div className="mb-4 text-sm font-medium text-muted-foreground flex items-center gap-4">
-                                <span className="bg-muted px-2 py-1 rounded">১ ইউনিট = ১৫ ইঞ্চি (প্রায়)</span>
+                        <div className="lg:col-span-8 flex flex-col items-center">
+                            <div className="mb-4 text-sm font-bold text-primary flex items-center gap-6 bg-primary/5 px-4 py-2 rounded-full border border-primary/10">
+                                <span className="flex items-center gap-1"><Ruler className="w-4 h-4"/> ১ ঘর = ১ ফুট (১২")</span>
                                 {dragStart && dragCurrent && (
-                                    <span className="bg-primary/10 text-primary px-2 py-1 rounded">
-                                        মাপ: {Math.abs(dragCurrent.r - dragStart.r) + 1} x {Math.abs(dragCurrent.c - dragStart.c) + 1} ইউনিট
+                                    <span className="bg-accent/20 text-accent-foreground px-3 py-1 rounded-full animate-pulse">
+                                        মাপ: {Math.abs(dragCurrent.c - dragStart.c) + 1} ফুট x {Math.abs(dragCurrent.r - dragStart.r) + 1} ফুট
                                     </span>
                                 )}
                             </div>
@@ -979,7 +1016,9 @@ export default function EstimatorClient() {
                                     className="grid gap-0" 
                                     style={{ 
                                         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-                                        width: 'fit-content'
+                                        width: 'fit-content',
+                                        backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
+                                        backgroundSize: '24px 24px' // Matching cell size roughly
                                     }}
                                     onMouseLeave={() => { setDragStart(null); setDragCurrent(null); }}
                                 >
@@ -992,26 +1031,30 @@ export default function EstimatorClient() {
                                                     onMouseDown={() => handleCellMouseDown(rIdx, cIdx)}
                                                     onMouseEnter={() => handleCellMouseEnter(rIdx, cIdx)}
                                                     className={cn(
-                                                        "w-6 h-6 sm:w-8 sm:h-8 border border-muted-foreground/10 cursor-crosshair transition-colors",
-                                                        cell === 'wall' && "bg-slate-800",
-                                                        cell === 'boundary' && "bg-green-800/80",
-                                                        cell === 'window' && "bg-blue-400/30 border-blue-500 border-2",
-                                                        cell === 'door' && "bg-amber-100/50 border-amber-700/50",
-                                                        cell === 'empty' && "bg-background",
-                                                        isPreview && (selectedTool === 'eraser' ? "bg-red-200/50" : "bg-primary/30 border-primary border-2")
+                                                        "w-6 h-6 sm:w-8 sm:h-8 border border-muted-foreground/5 cursor-crosshair transition-all duration-75",
+                                                        cell === 'wall' && "bg-slate-800 shadow-inner",
+                                                        cell === 'boundary' && "bg-green-700/60 border-green-800",
+                                                        cell === 'window' && "bg-blue-300/40 border-blue-600 border-2",
+                                                        cell === 'door' && "bg-amber-200/50 border-amber-800/40",
+                                                        cell === 'empty' && "bg-transparent",
+                                                        isPreview && (selectedTool === 'eraser' ? "bg-red-400/50" : "bg-primary/40 border-primary border-2")
                                                     )}
-                                                />
+                                                >
+                                                    {/* Optional: Add light coordinate text on every 5th cell */}
+                                                    {(rIdx % 5 === 0 && cIdx % 5 === 0) && (
+                                                        <span className="text-[6px] text-muted-foreground/30 pointer-events-none">{rIdx},{cIdx}</span>
+                                                    )}
+                                                </div>
                                             );
                                         })
                                     )}
                                 </div>
                             </div>
+                            <p className="mt-4 text-[10px] text-muted-foreground">* নকশা আঁকার জন্য মাউস দিয়ে ক্লিক করে টেনে আনুন (Click & Drag)</p>
                         </div>
                     </div>
                 </TabsContent>
 
-                {/* --- Other tabs (stair, brick, plaster, tile, fullHouse, conversion) as previously implemented --- */}
-                {/* (Truncated for brevity but they remain in the final code) */}
                 <TabsContent value="stair">
                      <Form {...stairForm}><form onSubmit={stairForm.handleSubmit(calculateStair)} className="p-4 md:p-6">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1108,7 +1151,7 @@ export default function EstimatorClient() {
 const ToolButton = ({ label, icon, active, onClick }: { label: string, icon: React.ReactNode, active: boolean, onClick: () => void }) => (
     <Button 
         variant={active ? "default" : "outline"} 
-        className={cn("h-16 flex flex-col gap-1 p-2", active && "ring-2 ring-primary")}
+        className={cn("h-16 flex flex-col gap-1 p-2 transition-all", active && "ring-2 ring-primary border-primary")}
         onClick={onClick}
     >
         {icon}
