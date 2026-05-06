@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState, useTransition } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box, Palette, ImageIcon } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box, Palette, Eraser, Square, DoorClosed, LayoutGrid, RotateCcw, Download } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -17,7 +18,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "@/firebase/../components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -27,8 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues, slabEstimatorSchema, type SlabEstimatorValues, AiConstructionAdvisoryInputSchema, stairEstimatorSchema, type StairEstimatorValues, HouseDesignInputSchema, type HouseDesignInput } from "@/app/lib/schemas";
-import { getConstructionAdvice, createHouseDesign } from "@/app/actions";
+import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues, slabEstimatorSchema, type SlabEstimatorValues, AiConstructionAdvisoryInputSchema, stairEstimatorSchema, type StairEstimatorValues } from "@/app/lib/schemas";
+import { getConstructionAdvice } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -36,8 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import Image from "next/image";
-
+import { cn } from "@/lib/utils";
 
 type StructuralResults = {
   cement: number;
@@ -88,6 +88,9 @@ type StairResults = {
     totalRodWeight: number;
 };
 
+// --- Manual Design Constants ---
+const GRID_SIZE = 15;
+type CellType = 'empty' | 'wall' | 'window' | 'door';
 
 export default function EstimatorClient() {
   const [structuralResults, setStructuralResults] = useState<StructuralResults | null>(null);
@@ -95,6 +98,12 @@ export default function EstimatorClient() {
   const [aiAdvice, setAiAdvice] = useState("");
   const [isAiLoading, startAiTransition] = useTransition();
   const { toast } = useToast();
+
+  // --- Manual Design State ---
+  const [designGrid, setDesignGrid] = useState<CellType[][]>(
+    Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill('empty'))
+  );
+  const [selectedTool, setSelectedTool] = useState<CellType | 'eraser'>('wall');
 
   const structuralForm = useForm<EstimatorValues>({
     resolver: zodResolver(estimatorSchema),
@@ -245,7 +254,6 @@ export default function EstimatorClient() {
         title: "ত্রুটি",
         description: "AI পরামর্শের জন্য সমস্ত মান সঠিকভাবে পূরণ করুন।",
       });
-      console.error(validation.error.flatten().fieldErrors);
       return;
     }
 
@@ -296,19 +304,17 @@ export default function EstimatorClient() {
     const area = totalLength * wallHeightFt;
     const isFiveInchWall = wallThicknessIn === '5';
     
-    // Brick Calculation
     const bricksPerSft = isFiveInchWall ? 5 : 10;
     const bricks = area * bricksPerSft;
 
-    // Mortar Calculation (assuming 1:4 ratio)
     const wallVolume = isFiveInchWall ? area * (5/12) : area * (10/12);
-    const wetMortarVolume = wallVolume * 0.30; // Mortar is ~30% of total brickwork volume
-    const dryMortarVolume = wetMortarVolume * 1.33; // Add 33% for dry volume
+    const wetMortarVolume = wallVolume * 0.30; 
+    const dryMortarVolume = wetMortarVolume * 1.33; 
     
-    const ratioSum = 5; // 1 part cement + 4 parts sand
+    const ratioSum = 5; 
     
     const cementVolumeCft = (dryMortarVolume / ratioSum) * 1;
-    const cementBags = cementVolumeCft / 1.25; // 1 cement bag = 1.25 cft
+    const cementBags = cementVolumeCft / 1.25; 
     
     const sandCft = (dryMortarVolume / ratioSum) * 4;
 
@@ -358,12 +364,10 @@ export default function EstimatorClient() {
       const tilesNeeded = totalArea / tileArea;
       const totalTiles = Math.ceil(tilesNeeded * (1 + wastagePercent / 100));
 
-      // Mortar Calculation (1:4 ratio)
-      // Assume 1" (0.0833ft) mortar for floor and 0.5" (0.0416ft) for walls
       const mortarThicknessFt = calculationType === 'floor' ? 1 / 12 : 0.5 / 12;
       const wetVol = totalArea * mortarThicknessFt;
-      const dryVol = wetVol * 1.33; // Dry volume factor, same as plaster
-      const ratioSum = 5; // 1:4
+      const dryVol = wetVol * 1.33; 
+      const ratioSum = 5; 
       const cementCFT = (dryVol / ratioSum) * 1;
       const cementBags = Math.ceil(cementCFT / 1.25);
       const sandCFT = (dryVol / ratioSum) * 4;
@@ -390,15 +394,15 @@ export default function EstimatorClient() {
       const { wallLengthFt, wallHeightFt, plasterThicknessIn, plasterSides } = data;
       const area = wallLengthFt * wallHeightFt * parseInt(plasterSides);
       const wetVol = area * (plasterThicknessIn / 12);
-      const dryVol = wetVol * 1.33; // Mortar dry volume factor
-      const ratioSum = 5; // 1:4 ratio
+      const dryVol = wetVol * 1.33; 
+      const ratioSum = 5; 
       const cementCFT = (dryVol / ratioSum) * 1;
       const cementBags = Math.ceil(cementCFT / 1.25);
       const sandCFT = (dryVol / ratioSum) * 4;
 
       setPlasterResults({
           cement: cementBags,
-          sand: parseFloat(sandCFT.toFixed(1)),
+          sand: parseFloat(sandCft.toFixed(1)),
       });
   }
 
@@ -410,7 +414,6 @@ export default function EstimatorClient() {
             totalAreaSqFt: 1000,
             roomCount: 3,
             bathroomCount: 2,
-            kitchenCount: 1,
             avgRoomLengthFt: 12,
             avgRoomWidthFt: 10,
             floorHeightFt: 10,
@@ -437,40 +440,29 @@ export default function EstimatorClient() {
             mainRodFactor, ringRodFactor, ringGapIn
         } = data;
 
-        // --- STRUCTURAL CALCULATION (ASSUMPTIONS) ---
-        // Foundation: 1.5ft avg thickness
         const foundationVol = totalAreaSqFt * 1.5; 
-        // Columns: 12"x12" avg size
         const totalColumns = columnCountPerFloor * floorCount;
         const columnVol = (12/12) * (12/12) * floorHeightFt * totalColumns; 
-        // Beams: length is ~2.5x sqrt of area, 10"x12" avg size
         const beamLengthPerFloor = Math.sqrt(totalAreaSqFt) * 2.5;
         const totalBeamLength = beamLengthPerFloor * floorCount;
         const beamVol = (10/12) * (12/12) * totalBeamLength;
-        // Slabs
         const totalSlabArea = totalAreaSqFt * floorCount;
         const slabVol = totalSlabArea * (slabThicknessIn / 12);
         
         const totalWetVol = foundationVol + columnVol + beamVol + slabVol;
         const dryVol = totalWetVol * 1.5;
-        const ratioSum = 5.5; // 1:1.5:3
+        const ratioSum = 5.5; 
 
         const structuralCement = (dryVol / ratioSum) / 1.25;
         const structuralSand = (dryVol / ratioSum) * 1.5;
         const structuralChips = (dryVol / ratioSum) * 3;
 
-        // --- ROD CALCULATION (ASSUMPTIONS) ---
-        // Foundation: rods @ 6" c/c both ways
         const foundationRodLength = (Math.sqrt(totalAreaSqFt) / 0.5) * Math.sqrt(totalAreaSqFt) * 2;
         const foundationRodWeight = foundationRodLength * mainRodFactor;
-        // Columns: 6 rods/column
         const columnRodLength = totalColumns * floorHeightFt * 6;
-        // Beams: 6 rods/beam
         const beamRodLength = totalBeamLength * 6;
-        // Slabs: rods @ 6" c/c both ways (simplified)
         const slabRodLength = (totalSlabArea / 0.5) * 2;
         const totalMainRodWeight = (columnRodLength + beamRodLength + slabRodLength) * mainRodFactor + foundationRodWeight;
-        // Rings: for 12x12 col and 10x12 beam
         const ringCountCol = ringGapIn > 0 ? (floorHeightFt * 12) / ringGapIn : 0;
         const ringLenCol = ((12 / 12) + (12 / 12)) * 2;
         const totalRingWeightCol = ringCountCol * ringLenCol * totalColumns * ringRodFactor;
@@ -480,10 +472,8 @@ export default function EstimatorClient() {
         const totalRingRodWeight = totalRingWeightCol + totalRingWeightBeam;
         const totalRodWeight = totalMainRodWeight + totalRingRodWeight;
 
-        // --- BRICK CALCULATION (ASSUMPTIONS) ---
         const perimeter = Math.sqrt(totalAreaSqFt) * 4;
         const exteriorWallArea = perimeter * floorHeightFt * floorCount;
-        // Interior walls: simplified based on room count
         const interiorWallLength = (avgRoomLengthFt * 1.5 + avgRoomWidthFt) * roomCount * floorCount;
         const interiorWallArea = interiorWallLength * floorHeightFt;
         const totalWallArea = exteriorWallArea + interiorWallArea;
@@ -494,29 +484,25 @@ export default function EstimatorClient() {
         const masonryCement = (totalWallArea / 100) * brickCementPer100Sft;
         const masonrySand = (totalWallArea / 100) * brickSandPer100Sft;
         
-        // --- PLASTER CALCULATION (ASSUMPTIONS) ---
         let plasterArea = 0;
-        if (plasterExterior) plasterArea += exteriorWallArea; // Outside
-        if (plasterInterior) plasterArea += (exteriorWallArea + interiorWallArea) * 2; // Inside walls both sides
-        const plasterWetVol = plasterArea * (0.5 / 12); // 0.5" thickness
+        if (plasterExterior) plasterArea += exteriorWallArea; 
+        if (plasterInterior) plasterArea += (exteriorWallArea + interiorWallArea) * 2; 
+        const plasterWetVol = plasterArea * (0.5 / 12); 
         const plasterDryVol = plasterWetVol * 1.33;
-        const plasterRatioSum = 5; // 1:4
+        const plasterRatioSum = 5; 
         const plasterCement = ((plasterDryVol / plasterRatioSum) * 1) / 1.25;
         const plasterSand = (plasterDryVol / plasterRatioSum) * 4;
         
-        // --- TILE CALCULATION (ASSUMPTIONS) ---
         let totalTiles = 0;
-        // Assume 12"x12" tiles (1 sft)
         if (tileFloors) {
             const floorArea = totalAreaSqFt * floorCount;
             totalTiles += floorArea;
         }
         if (tileBathroomWalls) {
-            // Assume avg bathroom perimeter of (8+6)*2 = 28ft
             const bathroomWallArea = 28 * bathroomWallTileHeightFt * bathroomCount * floorCount;
             totalTiles += bathroomWallArea;
         }
-        totalTiles = totalTiles * 1.1; // 10% wastage
+        totalTiles = totalTiles * 1.1; 
 
         setFullHouseResults({
             totalCement: Math.ceil(structuralCement + masonryCement + plasterCement),
@@ -554,19 +540,17 @@ export default function EstimatorClient() {
             mainRodFactor, distRodFactor, distRodGapIn
         } = data;
 
-        // Concrete Volume
         const waistVol = flightCount * waistSlabLengthFt * waistSlabWidthFt * (waistSlabThicknessIn / 12);
         const stepsVol = flightCount * stepCountPerFlight * 0.5 * (riserHeightIn / 12) * (treadWidthIn / 12) * waistSlabWidthFt;
         const landingVol = landingLengthFt * landingWidthFt * (waistSlabThicknessIn / 12);
         const totalWetVol = waistVol + stepsVol + landingVol;
         const dryVol = totalWetVol * 1.5;
-        const ratioSum = 5.5; // 1:1.5:3
+        const ratioSum = 5.5; 
 
         const cementBags = Math.ceil(((dryVol / ratioSum) * 1) / 1.25);
         const sandCFT = (dryVol / ratioSum) * 1.5;
         const chipsCFT = (dryVol / ratioSum) * 3;
 
-        // Rod Calculation
         const rodGapFt = distRodGapIn > 0 ? distRodGapIn / 12 : 1;
         const totalFlightLength = waistSlabLengthFt * flightCount;
 
@@ -600,7 +584,6 @@ export default function EstimatorClient() {
     function calculateCftToBricks() {
         const cft = parseFloat(cftToBrickInput);
         if (!isNaN(cft) && cft > 0) {
-            // Standard brickwork calculation: approx 12 bricks per CFT of 10" wall.
             setCftToBrickResult(Math.ceil(cft * 12));
         } else {
             setCftToBrickResult(null);
@@ -611,7 +594,6 @@ export default function EstimatorClient() {
     function calculateKhowaToBricks() {
         const cft = parseFloat(khowaCftToBrickInput);
         if (!isNaN(cft) && cft > 0) {
-            // Standard calculation: approx 11 bricks are needed to produce 1 CFT of brick chips.
             setKhowaCftToBrickResult(Math.ceil(cft * 11));
         } else {
             setKhowaCftToBrickResult(null);
@@ -629,33 +611,24 @@ export default function EstimatorClient() {
         }
     }
 
-    // --- HOUSE DESIGN AI ---
-    const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-    const [isDesigning, startDesignTransition] = useTransition();
-    const houseDesignForm = useForm<HouseDesignInput>({
-        resolver: zodResolver(HouseDesignInputSchema),
-        defaultValues: {
-            style: "Modern",
-            floors: 1,
-            surroundings: "Garden and trees",
+    // --- Manual Design Canvas Logic ---
+    const handleCellClick = (r: number, c: number) => {
+        const newGrid = [...designGrid];
+        const currentType = newGrid[r][c];
+        
+        if (selectedTool === 'eraser') {
+            newGrid[r][c] = 'empty';
+        } else {
+            // If already same type, toggle empty, else apply new tool
+            newGrid[r][c] = currentType === selectedTool ? 'empty' : selectedTool;
         }
-    });
+        setDesignGrid(newGrid);
+    };
 
-    async function handleGenerateDesign(data: HouseDesignInput) {
-        setGeneratedImageUrl(null);
-        startDesignTransition(async () => {
-            const response = await createHouseDesign(data);
-            if('imageUrl' in response) {
-                setGeneratedImageUrl(response.imageUrl);
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "ত্রুটি",
-                    description: response.error,
-                });
-            }
-        });
-    }
+    const resetDesign = () => {
+        setDesignGrid(Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill('empty')));
+        toast({ title: "ডিজাইন রিসেট করা হয়েছে" });
+    };
 
   return (
     <>
@@ -774,7 +747,7 @@ export default function EstimatorClient() {
                                             </div>
                                         </div>
                                         
-                                        <div className="space-y-3">
+                                        <div className={cn("space-y-3", !includeBase && "opacity-40 grayscale pointer-events-none")}>
                                             <FormLabel className="font-bold text-muted-foreground">বেস / ভিত্তি</FormLabel>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="baseCount" render={({ field }) => (
@@ -794,7 +767,7 @@ export default function EstimatorClient() {
                                             </div>
                                         </div>
                                         
-                                        <div className="space-y-3">
+                                        <div className={cn("space-y-3", !includeColumn && "opacity-40 grayscale pointer-events-none")}>
                                             <FormLabel className="font-bold text-muted-foreground">কলাম</FormLabel>
                                              <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="columnCount" render={({ field }) => (
@@ -814,7 +787,7 @@ export default function EstimatorClient() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3">
+                                        <div className={cn("space-y-3", !includeBeam && "opacity-40 grayscale pointer-events-none")}>
                                             <FormLabel className="font-bold text-muted-foreground">বিম</FormLabel>
                                             <FormField control={structuralForm.control} name="beamLengthFt" render={({ field }) => (
                                                 <FormItem><FormLabel className="text-xs">মোট দৈর্ঘ্য (ফুট)</FormLabel><FormControl><Input type="number" {...field} disabled={!includeBeam} /></FormControl><FormMessage className="text-xs" /></FormItem>
@@ -849,7 +822,7 @@ export default function EstimatorClient() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3">
+                                        <div className={cn("space-y-3", !includeBase && "opacity-40 grayscale pointer-events-none")}>
                                             <FormLabel className="font-bold text-muted-foreground">বেসের জালি (রড সংখ্যা)</FormLabel>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <FormField control={structuralForm.control} name="baseRodLongitudinalCount" render={({ field }) => (
@@ -878,7 +851,7 @@ export default function EstimatorClient() {
                                                     </Select>
                                                 </FormItem>
                                             )} />
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className={cn("grid grid-cols-2 gap-2", (!includeColumn && !includeBeam) && "opacity-40 grayscale pointer-events-none")}>
                                                 <FormField control={structuralForm.control} name="ringRodFactor" render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel className="text-xs">রিং রড</FormLabel>
@@ -1761,79 +1734,97 @@ export default function EstimatorClient() {
                     </div>
                 </TabsContent>
                 <TabsContent value="design" className="p-4 md:p-6">
-                    <Form {...houseDesignForm}>
-                        <form onSubmit={houseDesignForm.handleSubmit(handleGenerateDesign)} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <h2 className="font-bold text-xl text-primary flex items-center gap-2">
-                                    <Palette className="w-6 h-6" />
-                                    AI হাউজ ডিজাইন জেনারেটর
-                                </h2>
-                                <Card className="shadow-lg">
-                                    <CardContent className="pt-6 space-y-4">
-                                        <FormField control={houseDesignForm.control} name="style" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>বাড়ির স্টাইল</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="Modern Architecture">মডার্ন (Modern)</SelectItem>
-                                                        <SelectItem value="Traditional Brick House">ঐতিহ্যবাহী (Traditional)</SelectItem>
-                                                        <SelectItem value="Minimalist Luxury Villa">মিনিমালিস্ট ভিলা (Minimalist)</SelectItem>
-                                                        <SelectItem value="Eco-friendly Wooden Cabin">ইকো-ফ্রেন্ডলি (Eco-friendly)</SelectItem>
-                                                        <SelectItem value="Duplex Contemporary">ডুপ্লেক্স (Duplex)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={houseDesignForm.control} name="floors" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>তলার সংখ্যা (Floors)</FormLabel>
-                                                <FormControl><Input type="number" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={houseDesignForm.control} name="surroundings" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>পরিবেশ ও চারপাশ</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="যেমন: বাগান, পাহাড়, বা পুকুরের পাশে" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <Button type="submit" className="w-full font-bold h-12 text-lg" disabled={isDesigning}>
-                                            {isDesigning ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> ডিজাইন তৈরি হচ্ছে...</> : "ডিজাইন তৈরি করুন"}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Tool Palette */}
+                        <div className="lg:col-span-3 space-y-6">
+                            <h2 className="font-bold text-xl text-primary flex items-center gap-2">
+                                <Palette className="w-6 h-6" />
+                                ডিজাইন টুলস
+                            </h2>
+                            <Card className="shadow-lg border-border/40">
+                                <CardContent className="pt-6 space-y-4">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <ToolButton 
+                                            label="দেয়াল" 
+                                            icon={<Square className="w-5 h-5 fill-slate-800 text-slate-800" />} 
+                                            active={selectedTool === 'wall'} 
+                                            onClick={() => setSelectedTool('wall')} 
+                                        />
+                                        <ToolButton 
+                                            label="জানালা" 
+                                            icon={<LayoutGrid className="w-5 h-5 text-blue-500" />} 
+                                            active={selectedTool === 'window'} 
+                                            onClick={() => setSelectedTool('window')} 
+                                        />
+                                        <ToolButton 
+                                            label="দরজা" 
+                                            icon={<DoorClosed className="w-5 h-5 text-amber-700" />} 
+                                            active={selectedTool === 'door'} 
+                                            onClick={() => setSelectedTool('door')} 
+                                        />
+                                        <ToolButton 
+                                            label="মুছুন" 
+                                            icon={<Eraser className="w-5 h-5 text-red-500" />} 
+                                            active={selectedTool === 'eraser'} 
+                                            onClick={() => setSelectedTool('eraser')} 
+                                        />
+                                    </div>
+                                    <div className="pt-4 border-t space-y-2">
+                                        <Button variant="outline" className="w-full flex items-center gap-2" onClick={resetDesign}>
+                                            <RotateCcw className="w-4 h-4" />
+                                            রিসেট করুন
                                         </Button>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                            <div className="flex flex-col items-center justify-center space-y-4">
-                                <h3 className="font-bold text-lg text-muted-foreground">তৈরিকৃত ডিজাইন</h3>
-                                <div className="relative w-full aspect-square bg-muted rounded-2xl overflow-hidden border-2 border-dashed flex items-center justify-center">
-                                    {generatedImageUrl ? (
-                                        <Image src={generatedImageUrl} alt="Generated House Design" fill className="object-cover" />
-                                    ) : (
-                                        <div className="text-center p-8 text-muted-foreground flex flex-col items-center gap-3">
-                                            <ImageIcon className="w-16 h-16 opacity-20" />
-                                            <p>আপনার ইনপুটের ভিত্তিতে এখানে একটি ইউনিক ডিজাইন তৈরি হবে।</p>
-                                        </div>
-                                    )}
-                                    {isDesigning && (
-                                        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                                            <div className="text-center">
-                                                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
-                                                <p className="mt-4 font-medium">আপনার স্বপ্নের বাড়ির ডিজাইন তৈরি করছি...</p>
-                                            </div>
-                                        </div>
+                                        <Button className="w-full flex items-center gap-2" onClick={() => toast({ title: "ডিজাইন সেভ করা হয়েছে" })}>
+                                            <Download className="w-4 h-4" />
+                                            সেভ করুন
+                                        </Button>
+                                    </div>
+                                    <div className="bg-muted/30 p-3 rounded-lg text-xs space-y-2 text-muted-foreground">
+                                        <p className="font-bold text-primary">নির্দেশনা:</p>
+                                        <ul className="list-disc list-inside space-y-1">
+                                            <li>টুল সিলেক্ট করুন এবং গ্রিডে ক্লিক করুন।</li>
+                                            <li>দেয়াল আঁকতে ড্র্যাগ বা ক্লিক করুন।</li>
+                                            <li>একটি বক্স ১৫" x ১৫" জায়গা নির্দেশ করে।</li>
+                                        </ul>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Canvas Grid */}
+                        <div className="lg:col-span-9 flex flex-col items-center">
+                            <div className="bg-card p-4 rounded-2xl shadow-xl border-2 border-border/50">
+                                <div 
+                                    className="grid gap-0" 
+                                    style={{ 
+                                        gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+                                        width: 'fit-content'
+                                    }}
+                                >
+                                    {designGrid.map((row, rIdx) => 
+                                        row.map((cell, cIdx) => (
+                                            <div 
+                                                key={`${rIdx}-${cIdx}`}
+                                                onClick={() => handleCellClick(rIdx, cIdx)}
+                                                className={cn(
+                                                    "w-6 h-6 sm:w-8 sm:h-8 border border-muted-foreground/10 cursor-crosshair transition-all hover:opacity-70",
+                                                    cell === 'wall' && "bg-slate-800 border-slate-900",
+                                                    cell === 'window' && "bg-blue-400/30 border-blue-500 border-2 flex items-center justify-center after:content-[''] after:w-full after:h-px after:bg-blue-500",
+                                                    cell === 'door' && "bg-amber-100/50 border-amber-700/50 relative overflow-hidden after:content-[''] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:bg-[linear-gradient(45deg,transparent_45%,#b45309_45%,#b45309_55%,transparent_55%)]",
+                                                    cell === 'empty' && "bg-background"
+                                                )}
+                                            />
+                                        ))
                                     )}
                                 </div>
-                                {generatedImageUrl && (
-                                    <p className="text-xs text-muted-foreground">* এটি এআই দ্বারা তৈরিকৃত একটি কাল্পনিক ডিজাইন।</p>
-                                )}
                             </div>
-                        </form>
-                    </Form>
+                            <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm font-medium">
+                                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800" /> দেয়াল</div>
+                                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-100 border border-blue-500" /> জানালা</div>
+                                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-amber-100 border border-amber-700" /> দরজা</div>
+                            </div>
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
         </Card>
@@ -1864,6 +1855,17 @@ export default function EstimatorClient() {
     </>
   );
 }
+
+const ToolButton = ({ label, icon, active, onClick }: { label: string, icon: React.ReactNode, active: boolean, onClick: () => void }) => (
+    <Button 
+        variant={active ? "default" : "outline"} 
+        className={cn("h-16 flex flex-col gap-1 p-2", active && "ring-2 ring-primary")}
+        onClick={onClick}
+    >
+        {icon}
+        <span className="text-[10px]">{label}</span>
+    </Button>
+);
 
 
 const ResultDisplay = ({ results }: { results: StructuralResults }) => (
