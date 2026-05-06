@@ -203,3 +203,10 @@ export const stairEstimatorSchema = z.object({
 });
 
 export type StairEstimatorValues = z.infer<typeof stairEstimatorSchema>;
+
+export const HouseDesignInputSchema = z.object({
+  style: z.string().min(1, "স্টাইল নির্বাচন করুন"),
+  floors: z.coerce.number().min(1, "ন্যূনতম ১ তলা হতে হবে"),
+  surroundings: z.string().min(1, "পরিবেশ বর্ণনা করুন"),
+});
+export type HouseDesignInput = z.infer<typeof HouseDesignInputSchema>;

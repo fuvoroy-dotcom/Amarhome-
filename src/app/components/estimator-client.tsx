@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box } from "lucide-react";
+import { Building, Cog, BarChartBig, BrainCircuit, Loader2, Layers, Home, Paintbrush, ClipboardList, Trash2, RectangleHorizontal, Grid, List, ArrowRightLeft, Box, Palette, ImageIcon } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -27,8 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues, slabEstimatorSchema, type SlabEstimatorValues, AiConstructionAdvisoryInputSchema, stairEstimatorSchema, type StairEstimatorValues } from "@/app/lib/schemas";
-import { getConstructionAdvice } from "@/app/actions";
+import { estimatorSchema, type EstimatorValues, brickEstimatorSchema, type BrickEstimatorValues, tileEstimatorSchema, type TileEstimatorValues, plasterEstimatorSchema, type PlasterEstimatorValues, fullHouseEstimatorSchema, type FullHouseEstimatorValues, slabEstimatorSchema, type SlabEstimatorValues, AiConstructionAdvisoryInputSchema, stairEstimatorSchema, type StairEstimatorValues, HouseDesignInputSchema, type HouseDesignInput } from "@/app/lib/schemas";
+import { getConstructionAdvice, createHouseDesign } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
 
 
 type StructuralResults = {
@@ -628,6 +629,34 @@ export default function EstimatorClient() {
         }
     }
 
+    // --- HOUSE DESIGN AI ---
+    const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+    const [isDesigning, startDesignTransition] = useTransition();
+    const houseDesignForm = useForm<HouseDesignInput>({
+        resolver: zodResolver(HouseDesignInputSchema),
+        defaultValues: {
+            style: "Modern",
+            floors: 1,
+            surroundings: "Garden and trees",
+        }
+    });
+
+    async function handleGenerateDesign(data: HouseDesignInput) {
+        setGeneratedImageUrl(null);
+        startDesignTransition(async () => {
+            const response = await createHouseDesign(data);
+            if('imageUrl' in response) {
+                setGeneratedImageUrl(response.imageUrl);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "ত্রুটি",
+                    description: response.error,
+                });
+            }
+        });
+    }
+
   return (
     <>
     <div className="w-full max-w-6xl">
@@ -638,38 +667,42 @@ export default function EstimatorClient() {
             </div>
             
             <Tabs defaultValue="structural" className="w-full">
-                <TabsList className="grid w-full grid-cols-8 rounded-none h-auto">
-                    <TabsTrigger value="structural" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                <TabsList className="flex w-full flex-wrap rounded-none h-auto bg-muted">
+                    <TabsTrigger value="structural" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Building className="mr-2 h-5 w-5" />
                         স্ট্রাকচার
                     </TabsTrigger>
-                     <TabsTrigger value="slab" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                     <TabsTrigger value="slab" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Grid className="mr-2 h-5 w-5" />
                         ছাদ
                     </TabsTrigger>
-                    <TabsTrigger value="stair" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                    <TabsTrigger value="stair" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <List className="mr-2 h-5 w-5" />
                         সিঁড়ি
                     </TabsTrigger>
-                    <TabsTrigger value="brick" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                    <TabsTrigger value="brick" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Layers className="mr-2 h-5 w-5" />
                         গাঁথুনি
                     </TabsTrigger>
-                    <TabsTrigger value="plaster" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                    <TabsTrigger value="plaster" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <Paintbrush className="mr-2 h-5 w-5" />
                         প্লাস্টার
                     </TabsTrigger>
-                    <TabsTrigger value="tile" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                    <TabsTrigger value="tile" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <RectangleHorizontal className="mr-2 h-5 w-5" />
                         টাইলস
                     </TabsTrigger>
-                    <TabsTrigger value="fullHouse" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                    <TabsTrigger value="fullHouse" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <ClipboardList className="mr-2 h-5 w-5" />
                         পূর্ণাঙ্গ বাড়ি
                     </TabsTrigger>
-                    <TabsTrigger value="conversion" className="py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                    <TabsTrigger value="conversion" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
                         <ArrowRightLeft className="mr-2 h-5 w-5" />
                         রূপান্তর
+                    </TabsTrigger>
+                    <TabsTrigger value="design" className="flex-1 py-3 rounded-none text-base data-[state=active]:shadow-inner data-[state=active]:bg-background/50">
+                        <Palette className="mr-2 h-5 w-5" />
+                        ডিজাইন
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="structural" className="p-0">
@@ -1726,6 +1759,81 @@ export default function EstimatorClient() {
                             </CardContent>
                         </Card>
                     </div>
+                </TabsContent>
+                <TabsContent value="design" className="p-4 md:p-6">
+                    <Form {...houseDesignForm}>
+                        <form onSubmit={houseDesignForm.handleSubmit(handleGenerateDesign)} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <h2 className="font-bold text-xl text-primary flex items-center gap-2">
+                                    <Palette className="w-6 h-6" />
+                                    AI হাউজ ডিজাইন জেনারেটর
+                                </h2>
+                                <Card className="shadow-lg">
+                                    <CardContent className="pt-6 space-y-4">
+                                        <FormField control={houseDesignForm.control} name="style" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>বাড়ির স্টাইল</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="Modern Architecture">মডার্ন (Modern)</SelectItem>
+                                                        <SelectItem value="Traditional Brick House">ঐতিহ্যবাহী (Traditional)</SelectItem>
+                                                        <SelectItem value="Minimalist Luxury Villa">মিনিমালিস্ট ভিলা (Minimalist)</SelectItem>
+                                                        <SelectItem value="Eco-friendly Wooden Cabin">ইকো-ফ্রেন্ডলি (Eco-friendly)</SelectItem>
+                                                        <SelectItem value="Duplex Contemporary">ডুপ্লেক্স (Duplex)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={houseDesignForm.control} name="floors" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>তলার সংখ্যা (Floors)</FormLabel>
+                                                <FormControl><Input type="number" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={houseDesignForm.control} name="surroundings" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>পরিবেশ ও চারপাশ</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="যেমন: বাগান, পাহাড়, বা পুকুরের পাশে" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <Button type="submit" className="w-full font-bold h-12 text-lg" disabled={isDesigning}>
+                                            {isDesigning ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> ডিজাইন তৈরি হচ্ছে...</> : "ডিজাইন তৈরি করুন"}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <div className="flex flex-col items-center justify-center space-y-4">
+                                <h3 className="font-bold text-lg text-muted-foreground">তৈরিকৃত ডিজাইন</h3>
+                                <div className="relative w-full aspect-square bg-muted rounded-2xl overflow-hidden border-2 border-dashed flex items-center justify-center">
+                                    {generatedImageUrl ? (
+                                        <Image src={generatedImageUrl} alt="Generated House Design" fill className="object-cover" />
+                                    ) : (
+                                        <div className="text-center p-8 text-muted-foreground flex flex-col items-center gap-3">
+                                            <ImageIcon className="w-16 h-16 opacity-20" />
+                                            <p>আপনার ইনপুটের ভিত্তিতে এখানে একটি ইউনিক ডিজাইন তৈরি হবে।</p>
+                                        </div>
+                                    )}
+                                    {isDesigning && (
+                                        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                                            <div className="text-center">
+                                                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+                                                <p className="mt-4 font-medium">আপনার স্বপ্নের বাড়ির ডিজাইন তৈরি করছি...</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                {generatedImageUrl && (
+                                    <p className="text-xs text-muted-foreground">* এটি এআই দ্বারা তৈরিকৃত একটি কাল্পনিক ডিজাইন।</p>
+                                )}
+                            </div>
+                        </form>
+                    </Form>
                 </TabsContent>
             </Tabs>
         </Card>
