@@ -90,7 +90,6 @@ type StairResults = {
 
 // --- Manual Design Constants ---
 const GRID_SIZE = 25;
-const CELL_SIZE_FT = 1; // 1 cell = 1 foot
 type CellType = 'empty' | 'wall' | 'window' | 'door' | 'boundary';
 
 export default function EstimatorClient() {
@@ -107,6 +106,7 @@ export default function EstimatorClient() {
   const [selectedTool, setSelectedTool] = useState<CellType | 'eraser' | 'move'>('wall');
   const [dragStart, setDragStart] = useState<{ r: number, c: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ r: number, c: number } | null>(null);
+  const [cellSizeFt, setCellSizeFt] = useState<number>(1); // Scale: 1 cell = X feet
   
   // Design Input in Ft and In
   const [manualInput, setManualInput] = useState({ 
@@ -624,7 +624,7 @@ export default function EstimatorClient() {
         }
     }
 
-    // --- Advanced Manual Design Logic (Ft & In) ---
+    // --- Advanced Manual Design Logic (Ft & In Scaling) ---
     const handleCellMouseDown = (r: number, c: number) => {
         if (selectedTool === 'move') return;
         setDragStart({ r, c });
@@ -669,12 +669,13 @@ export default function EstimatorClient() {
     };
 
     const addManualRoom = () => {
-        // Convert input to total feet (rounded to cells)
+        // Convert input to total feet
         const totalLen = manualInput.lengthFt + (manualInput.lengthIn / 12);
         const totalWid = manualInput.widthFt + (manualInput.widthIn / 12);
         
-        const cellLen = Math.round(totalLen / CELL_SIZE_FT);
-        const cellWid = Math.round(totalWid / CELL_SIZE_FT);
+        // Convert feet to cells based on cellSizeFt
+        const cellLen = Math.round(totalLen / cellSizeFt);
+        const cellWid = Math.round(totalWid / cellSizeFt);
 
         const newGrid = [...designGrid.map(row => [...row])];
         const startR = 2;
@@ -716,13 +717,17 @@ export default function EstimatorClient() {
 
     const getDragDimensions = () => {
         if (!dragStart || !dragCurrent) return null;
-        const rLen = Math.abs(dragCurrent.r - dragStart.r) + 1;
-        const cLen = Math.abs(dragCurrent.c - dragStart.c) + 1;
+        const rCount = Math.abs(dragCurrent.r - dragStart.r) + 1;
+        const cCount = Math.abs(dragCurrent.c - dragStart.c) + 1;
+        
+        const totalFtR = rCount * cellSizeFt;
+        const totalFtC = cCount * cellSizeFt;
+        
         return {
-            ft: rLen * CELL_SIZE_FT,
-            in: 0,
-            ft2: cLen * CELL_SIZE_FT,
-            in2: 0
+            ftR: Math.floor(totalFtR),
+            inR: Math.round((totalFtR % 1) * 12),
+            ftC: Math.floor(totalFtC),
+            inC: Math.round((totalFtC % 1) * 12)
         };
     };
 
@@ -775,7 +780,154 @@ export default function EstimatorClient() {
                     </TabsTrigger>
                 </TabsList>
                 
-                {/* --- Structural Tab Content --- */}
+                {/* --- Design Tab Content --- */}
+                <TabsContent value="design" className="p-4 md:p-6" onMouseUp={handleGridMouseUp}>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Tool Palette */}
+                        <div className="lg:col-span-4 space-y-6">
+                            <h2 className="font-bold text-xl text-primary flex items-center gap-2">
+                                <Palette className="w-6 h-6" />
+                                ডিজাইন টুলবক্স
+                            </h2>
+                            <Card className="shadow-lg border-border/40">
+                                <CardContent className="pt-6 space-y-6">
+                                    {/* Scale Control */}
+                                    <div className="space-y-2 pb-4 border-b">
+                                        <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                                            <Grid className="w-3 h-3"/> গ্রিড স্কেল (ফুট)
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-muted-foreground">১ ঘর = </span>
+                                            <Input 
+                                                type="number" 
+                                                value={cellSizeFt} 
+                                                onChange={(e) => setCellSizeFt(parseFloat(e.target.value) || 0.1)} 
+                                                step="0.1"
+                                                min="0.1" 
+                                                className="h-8 w-20" 
+                                            />
+                                            <span className="text-[10px] text-muted-foreground">ফুট</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Tool Selection */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <ToolButton label="দেয়াল (Drag)" icon={<Square className="w-5 h-5 fill-slate-800" />} active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
+                                        <ToolButton label="সীমানা" icon={<LayoutGrid className="w-5 h-5 text-green-600" />} active={selectedTool === 'boundary'} onClick={() => setSelectedTool('boundary')} />
+                                        <ToolButton label="জানালা" icon={<LayoutGrid className="w-5 h-5 text-blue-500" />} active={selectedTool === 'window'} onClick={() => setSelectedTool('window')} />
+                                        <ToolButton label="দরজা" icon={<DoorClosed className="w-5 h-5 text-amber-700" />} active={selectedTool === 'door'} onClick={() => setSelectedTool('door')} />
+                                        <ToolButton label="মুছুন" icon={<Eraser className="w-5 h-5 text-red-500" />} active={selectedTool === 'eraser'} onClick={() => setSelectedTool('eraser')} />
+                                        <ToolButton label="মুভ" icon={<Move className="w-5 h-5" />} active={selectedTool === 'move'} onClick={() => setSelectedTool('move')} />
+                                    </div>
+
+                                    {/* Size Adjuster */}
+                                    <div className="space-y-2 pt-4 border-t">
+                                        <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                                            <Ruler className="w-3 h-3"/> টুল সাইজ (ইঞ্চি)
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                            <Input 
+                                                type="number" 
+                                                value={toolSizeIn} 
+                                                onChange={(e) => setToolSizeIn(parseInt(e.target.value) || 1)} 
+                                                min="1" 
+                                                className="h-8" 
+                                            />
+                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">দরজা/জানালা</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Manual Input Build (Ft & In) */}
+                                    <div className="space-y-3 pt-4 border-t bg-muted/20 p-3 rounded-lg">
+                                        <Label className="text-xs font-bold text-primary">মাপ লিখে রুম তৈরি করুন</Label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold">দৈর্ঘ্য (লম্বা)</span>
+                                                <div className="flex gap-1">
+                                                    <Input placeholder="Ft" type="number" value={manualInput.lengthFt} onChange={(e) => setManualInput({ ...manualInput, lengthFt: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                    <Input placeholder="In" type="number" value={manualInput.lengthIn} onChange={(e) => setManualInput({ ...manualInput, lengthIn: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold">প্রস্থ (চওড়া)</span>
+                                                <div className="flex gap-1">
+                                                    <Input placeholder="Ft" type="number" value={manualInput.widthFt} onChange={(e) => setManualInput({ ...manualInput, widthFt: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                    <Input placeholder="In" type="number" value={manualInput.widthIn} onChange={(e) => setManualInput({ ...manualInput, widthIn: parseInt(e.target.value) || 0 })} className="h-8" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Button size="sm" className="w-full flex items-center gap-2 bg-primary hover:bg-primary/90 mt-2" onClick={addManualRoom}>
+                                            <Plus className="w-4 h-4" />
+                                            রুম যোগ করুন
+                                        </Button>
+                                    </div>
+
+                                    <div className="pt-4 border-t space-y-2">
+                                        <Button variant="outline" className="w-full flex items-center gap-2" onClick={resetDesign}>
+                                            <RotateCcw className="w-4 h-4" /> রিসেট
+                                        </Button>
+                                        <Button className="w-full flex items-center gap-2" onClick={() => toast({ title: "ডিজাইন সেভ করা হয়েছে" })}>
+                                            <Download className="w-4 h-4" /> সেভ
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Interactive Canvas */}
+                        <div className="lg:col-span-8 flex flex-col items-center">
+                            <div className="mb-4 text-sm font-bold text-primary flex items-center gap-6 bg-primary/5 px-4 py-2 rounded-full border border-primary/10">
+                                <span className="flex items-center gap-1"><Ruler className="w-4 h-4"/> ১ ঘর = {cellSizeFt} ফুট ({Math.round(cellSizeFt * 12)}")</span>
+                                {dragStart && dragCurrent && (
+                                    <span className="bg-accent/20 text-accent-foreground px-3 py-1 rounded-full animate-pulse flex gap-2">
+                                        মাপ: 
+                                        <span>{getDragDimensions()?.ftC}'{getDragDimensions()?.inC}"</span>
+                                        x
+                                        <span>{getDragDimensions()?.ftR}'{getDragDimensions()?.inR}"</span>
+                                    </span>
+                                )}
+                            </div>
+                            <div className="bg-card p-4 rounded-2xl shadow-xl border-2 border-border/50 select-none overflow-auto max-w-full">
+                                <div 
+                                    className="grid gap-0" 
+                                    style={{ 
+                                        gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+                                        width: 'fit-content',
+                                        backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
+                                        backgroundSize: '24px 24px'
+                                    }}
+                                    onMouseLeave={() => { setDragStart(null); setDragCurrent(null); }}
+                                >
+                                    {designGrid.map((row, rIdx) => 
+                                        row.map((cell, cIdx) => {
+                                            const isPreview = isInsideDragPreview(rIdx, cIdx);
+                                            return (
+                                                <div 
+                                                    key={`${rIdx}-${cIdx}`}
+                                                    onMouseDown={() => handleCellMouseDown(rIdx, cIdx)}
+                                                    onMouseEnter={() => handleCellMouseEnter(rIdx, cIdx)}
+                                                    className={cn(
+                                                        "w-6 h-6 sm:w-8 sm:h-8 border border-muted-foreground/5 cursor-crosshair transition-all duration-75",
+                                                        cell === 'wall' && "bg-slate-800 shadow-inner",
+                                                        cell === 'boundary' && "bg-green-700/60 border-green-800",
+                                                        cell === 'window' && "bg-blue-300/40 border-blue-600 border-2",
+                                                        cell === 'door' && "bg-amber-200/50 border-amber-800/40",
+                                                        cell === 'empty' && "bg-transparent",
+                                                        isPreview && (selectedTool === 'eraser' ? "bg-red-400/50" : "bg-primary/40 border-primary border-2")
+                                                    )}
+                                                >
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                            <p className="mt-4 text-[10px] text-muted-foreground">* নকশা আঁকার জন্য মাউস দিয়ে ক্লিক করে টেনে আনুন (Click & Drag)</p>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* --- Rest of the tabs remain the same --- */}
                 <TabsContent value="structural" className="p-0">
                     <Form {...structuralForm}>
                         <form onSubmit={structuralForm.handleSubmit(calculateMaterials)} className="p-4 md:p-6">
@@ -899,7 +1051,6 @@ export default function EstimatorClient() {
                     </Form>
                 </TabsContent>
 
-                {/* --- Slab Tab --- */}
                 <TabsContent value="slab">
                     <Form {...slabForm}><form onSubmit={slabForm.handleSubmit(calculateSlab)} className="p-4 md:p-6">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -924,135 +1075,6 @@ export default function EstimatorClient() {
                             <div className="space-y-4">{slabResults ? <SlabResultDisplay results={slabResults} /> : <div className="h-48 flex items-center justify-center bg-muted/50 rounded-xl border border-dashed">ফলাফল এখানে দেখানো হবে</div>}</div>
                         </div>
                     </form></Form>
-                </TabsContent>
-
-                {/* --- Design Tab Content (Ft & In Scaling) --- */}
-                <TabsContent value="design" className="p-4 md:p-6" onMouseUp={handleGridMouseUp}>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        {/* Tool Palette */}
-                        <div className="lg:col-span-4 space-y-6">
-                            <h2 className="font-bold text-xl text-primary flex items-center gap-2">
-                                <Palette className="w-6 h-6" />
-                                ডিজাইন টুলবক্স (ফুট ও ইঞ্চি)
-                            </h2>
-                            <Card className="shadow-lg border-border/40">
-                                <CardContent className="pt-6 space-y-6">
-                                    {/* Tool Selection */}
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <ToolButton label="দেয়াল (Drag)" icon={<Square className="w-5 h-5 fill-slate-800" />} active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
-                                        <ToolButton label="সীমানা" icon={<LayoutGrid className="w-5 h-5 text-green-600" />} active={selectedTool === 'boundary'} onClick={() => setSelectedTool('boundary')} />
-                                        <ToolButton label="জানালা" icon={<LayoutGrid className="w-5 h-5 text-blue-500" />} active={selectedTool === 'window'} onClick={() => setSelectedTool('window')} />
-                                        <ToolButton label="দরজা" icon={<DoorClosed className="w-5 h-5 text-amber-700" />} active={selectedTool === 'door'} onClick={() => setSelectedTool('door')} />
-                                        <ToolButton label="মুছুন" icon={<Eraser className="w-5 h-5 text-red-500" />} active={selectedTool === 'eraser'} onClick={() => setSelectedTool('eraser')} />
-                                        <ToolButton label="মুভ" icon={<Move className="w-5 h-5" />} active={selectedTool === 'move'} onClick={() => setSelectedTool('move')} />
-                                    </div>
-
-                                    {/* Size Adjuster */}
-                                    <div className="space-y-2 pt-4 border-t">
-                                        <Label className="text-xs font-bold text-primary flex items-center gap-1">
-                                            <Ruler className="w-3 h-3"/> টুল সাইজ (ইঞ্চি)
-                                        </Label>
-                                        <div className="flex items-center gap-2">
-                                            <Input 
-                                                type="number" 
-                                                value={toolSizeIn} 
-                                                onChange={(e) => setToolSizeIn(parseInt(e.target.value) || 1)} 
-                                                min="1" 
-                                                className="h-8" 
-                                            />
-                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">দরজা/জানালা</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Manual Input Build (Ft & In) */}
-                                    <div className="space-y-3 pt-4 border-t bg-muted/20 p-3 rounded-lg">
-                                        <Label className="text-xs font-bold text-primary">মাপ লিখে রুম তৈরি করুন</Label>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-1">
-                                                <span className="text-[10px] font-bold">দৈর্ঘ্য (লম্বা)</span>
-                                                <div className="flex gap-1">
-                                                    <Input placeholder="Ft" type="number" value={manualInput.lengthFt} onChange={(e) => setManualInput({ ...manualInput, lengthFt: parseInt(e.target.value) || 0 })} className="h-8" />
-                                                    <Input placeholder="In" type="number" value={manualInput.lengthIn} onChange={(e) => setManualInput({ ...manualInput, lengthIn: parseInt(e.target.value) || 0 })} className="h-8" />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <span className="text-[10px] font-bold">প্রস্থ (চওড়া)</span>
-                                                <div className="flex gap-1">
-                                                    <Input placeholder="Ft" type="number" value={manualInput.widthFt} onChange={(e) => setManualInput({ ...manualInput, widthFt: parseInt(e.target.value) || 0 })} className="h-8" />
-                                                    <Input placeholder="In" type="number" value={manualInput.widthIn} onChange={(e) => setManualInput({ ...manualInput, widthIn: parseInt(e.target.value) || 0 })} className="h-8" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <Button size="sm" className="w-full flex items-center gap-2 bg-primary hover:bg-primary/90 mt-2" onClick={addManualRoom}>
-                                            <Plus className="w-4 h-4" />
-                                            রুম যোগ করুন
-                                        </Button>
-                                    </div>
-
-                                    <div className="pt-4 border-t space-y-2">
-                                        <Button variant="outline" className="w-full flex items-center gap-2" onClick={resetDesign}>
-                                            <RotateCcw className="w-4 h-4" /> রিসেট
-                                        </Button>
-                                        <Button className="w-full flex items-center gap-2" onClick={() => toast({ title: "ডিজাইন সেভ করা হয়েছে" })}>
-                                            <Download className="w-4 h-4" /> সেভ
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Interactive Canvas */}
-                        <div className="lg:col-span-8 flex flex-col items-center">
-                            <div className="mb-4 text-sm font-bold text-primary flex items-center gap-6 bg-primary/5 px-4 py-2 rounded-full border border-primary/10">
-                                <span className="flex items-center gap-1"><Ruler className="w-4 h-4"/> ১ ঘর = ১ ফুট (১২")</span>
-                                {dragStart && dragCurrent && (
-                                    <span className="bg-accent/20 text-accent-foreground px-3 py-1 rounded-full animate-pulse">
-                                        মাপ: {Math.abs(dragCurrent.c - dragStart.c) + 1} ফুট x {Math.abs(dragCurrent.r - dragStart.r) + 1} ফুট
-                                    </span>
-                                )}
-                            </div>
-                            <div className="bg-card p-4 rounded-2xl shadow-xl border-2 border-border/50 select-none overflow-auto max-w-full">
-                                <div 
-                                    className="grid gap-0" 
-                                    style={{ 
-                                        gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-                                        width: 'fit-content',
-                                        backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
-                                        backgroundSize: '24px 24px' // Matching cell size roughly
-                                    }}
-                                    onMouseLeave={() => { setDragStart(null); setDragCurrent(null); }}
-                                >
-                                    {designGrid.map((row, rIdx) => 
-                                        row.map((cell, cIdx) => {
-                                            const isPreview = isInsideDragPreview(rIdx, cIdx);
-                                            return (
-                                                <div 
-                                                    key={`${rIdx}-${cIdx}`}
-                                                    onMouseDown={() => handleCellMouseDown(rIdx, cIdx)}
-                                                    onMouseEnter={() => handleCellMouseEnter(rIdx, cIdx)}
-                                                    className={cn(
-                                                        "w-6 h-6 sm:w-8 sm:h-8 border border-muted-foreground/5 cursor-crosshair transition-all duration-75",
-                                                        cell === 'wall' && "bg-slate-800 shadow-inner",
-                                                        cell === 'boundary' && "bg-green-700/60 border-green-800",
-                                                        cell === 'window' && "bg-blue-300/40 border-blue-600 border-2",
-                                                        cell === 'door' && "bg-amber-200/50 border-amber-800/40",
-                                                        cell === 'empty' && "bg-transparent",
-                                                        isPreview && (selectedTool === 'eraser' ? "bg-red-400/50" : "bg-primary/40 border-primary border-2")
-                                                    )}
-                                                >
-                                                    {/* Optional: Add light coordinate text on every 5th cell */}
-                                                    {(rIdx % 5 === 0 && cIdx % 5 === 0) && (
-                                                        <span className="text-[6px] text-muted-foreground/30 pointer-events-none">{rIdx},{cIdx}</span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </div>
-                            <p className="mt-4 text-[10px] text-muted-foreground">* নকশা আঁকার জন্য মাউস দিয়ে ক্লিক করে টেনে আনুন (Click & Drag)</p>
-                        </div>
-                    </div>
                 </TabsContent>
 
                 <TabsContent value="stair">
