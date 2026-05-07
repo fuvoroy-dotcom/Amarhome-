@@ -247,10 +247,11 @@ export default function EstimatorClient() {
       let nextX = currentX - dragOffset.x;
       let nextY = currentY - dragOffset.y;
       
-      // Smart Magnetic Snapping
-      const snapThreshold = 1.0; 
+      // Smart Magnetic Snapping for Boundaries
+      const snapThreshold = 0.8; 
       let activeSnap: {x: number, y: number} | null = null;
 
+      // Corners of current object
       const corners = [
         { x: nextX, y: nextY }, // TL
         { x: nextX + currentObj.w, y: nextY }, // TR
@@ -260,17 +261,20 @@ export default function EstimatorClient() {
 
       designObjects.forEach(other => {
         if (other.id === selectedObjectId) return;
+        
+        // Corners of other objects
         const otherCorners = [
-          { x: other.x, y: other.y },
-          { x: other.x + other.w, y: other.y },
-          { x: other.x, y: other.y + other.h },
-          { x: other.x + other.w, y: other.y + other.h }
+          { x: other.x, y: other.y }, // TL
+          { x: other.x + other.w, y: other.y }, // TR
+          { x: other.x, y: other.y + other.h }, // BL
+          { x: other.x + other.w, y: other.y + other.h } // BR
         ];
 
         corners.forEach((cc, ci) => {
           otherCorners.forEach(oc => {
             const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
             if (dist < snapThreshold) {
+              // Adjust nextX/nextY based on which corner snapped to which
               if (ci === 0) { nextX = oc.x; nextY = oc.y; }
               else if (ci === 1) { nextX = oc.x - currentObj.w; nextY = oc.y; }
               else if (ci === 2) { nextX = oc.x; nextY = oc.y - currentObj.h; }
@@ -279,6 +283,14 @@ export default function EstimatorClient() {
             }
           });
         });
+
+        // Snap to edges if near
+        if (!activeSnap) {
+          if (Math.abs(nextX - other.x) < snapThreshold) nextX = other.x;
+          if (Math.abs(nextX + currentObj.w - (other.x + other.w)) < snapThreshold) nextX = other.x + other.w - currentObj.w;
+          if (Math.abs(nextY - other.y) < snapThreshold) nextY = other.y;
+          if (Math.abs(nextY + currentObj.h - (other.y + other.h)) < snapThreshold) nextY = other.y + other.h - currentObj.h;
+        }
       });
 
       if (!activeSnap) {
