@@ -245,11 +245,11 @@ export default function EstimatorClient() {
       let nextX = currentX - dragOffset.x;
       let nextY = currentY - dragOffset.y;
       
-      // Professional Magnetic Corner Snapping
+      // Professional Magnetic Snap Logic
       const snapThreshold = 0.8; 
       let activeSnap: {x: number, y: number} | null = null;
 
-      // Corners of current object
+      // Corners of moving object
       const corners = [
         { x: nextX, y: nextY }, // TL
         { x: nextX + currentObj.w, y: nextY }, // TR
@@ -260,7 +260,7 @@ export default function EstimatorClient() {
       designObjects.forEach(other => {
         if (other.id === selectedObjectId) return;
         
-        // Corners of other objects
+        // Corners of static objects
         const otherCorners = [
           { x: other.x, y: other.y }, // TL
           { x: other.x + other.w, y: other.y }, // TR
@@ -268,6 +268,7 @@ export default function EstimatorClient() {
           { x: other.x + other.w, y: other.y + other.h } // BR
         ];
 
+        // Check each corner against all corners of other objects
         corners.forEach((cc, ci) => {
           otherCorners.forEach(oc => {
             const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
@@ -281,7 +282,7 @@ export default function EstimatorClient() {
           });
         });
 
-        // Smart Edge Alignment
+        // Edge Aligment Snapping
         if (!activeSnap) {
           if (Math.abs(nextX - other.x) < snapThreshold) nextX = other.x;
           if (Math.abs(nextX + currentObj.w - (other.x + other.w)) < snapThreshold) nextX = other.x + other.w - currentObj.w;
@@ -291,6 +292,7 @@ export default function EstimatorClient() {
       });
 
       if (!activeSnap) {
+        // Precise Grid Snap when not magnetically snapped
         nextX = Math.round(nextX * 2) / 2;
         nextY = Math.round(nextY * 2) / 2;
       }
@@ -530,7 +532,7 @@ export default function EstimatorClient() {
                     onMouseUp={() => { setInteractionMode('none'); setSnapPoint(null); }}
                     onClick={() => { if (interactionMode === 'none') setSelectedObjectId(null); }}
                   >
-                    {/* Joint Snapping Indicator */}
+                    {/* Magnetic Snap Point Indicator */}
                     {snapPoint && (
                       <div 
                         className="absolute w-6 h-6 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
@@ -582,10 +584,7 @@ export default function EstimatorClient() {
                               </div>
                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-blue-600" />
 
-                              {/* Multi-point Resizing Handles */}
-                              <div className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-blue-600 cursor-nw-resize" />
-                              <div className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-blue-600 cursor-ne-resize" />
-                              <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-blue-600 cursor-sw-resize" />
+                              {/* Resizing Handles */}
                               <div 
                                 className="absolute -bottom-2 -right-2 w-6 h-6 bg-blue-600 rounded-sm cursor-se-resize z-40 border-2 border-white shadow-lg"
                                 onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')}
@@ -595,6 +594,8 @@ export default function EstimatorClient() {
                         </div>
                       ))}
                     </div>
+                    {/* Fixed Bottom Horizontal Scrollbar placeholder for usability */}
+                    <div className="sticky bottom-0 left-0 w-full h-4 bg-slate-200/50 backdrop-blur-sm z-40 pointer-events-none" />
                   </div>
                 </div>
 
