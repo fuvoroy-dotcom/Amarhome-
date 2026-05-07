@@ -97,6 +97,7 @@ export default function EstimatorClient() {
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing'>('none');
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(30); // 1ft = 30px
+  const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   
   const selectedObject = designObjects.find(obj => obj.id === selectedObjectId);
 
@@ -237,6 +238,38 @@ export default function EstimatorClient() {
     if (interactionMode === 'dragging') {
       const newX = Math.round((currentX - dragOffset.x) * 2) / 2;
       const newY = Math.round((currentY - dragOffset.y) * 2) / 2;
+      
+      // Proximity/Joint detection logic
+      let activeSnap: {x: number, y: number} | null = null;
+      const snapThreshold = 0.5; // feet
+      
+      const currentCorners = [
+        {x: newX, y: newY},
+        {x: newX + (designObjects.find(o=>o.id===selectedObjectId)?.w || 0), y: newY},
+        {x: newX, y: newY + (designObjects.find(o=>o.id===selectedObjectId)?.h || 0)},
+        {x: newX + (designObjects.find(o=>o.id===selectedObjectId)?.w || 0), y: newY + (designObjects.find(o=>o.id===selectedObjectId)?.h || 0)}
+      ];
+
+      designObjects.forEach(other => {
+        if (other.id === selectedObjectId) return;
+        const otherCorners = [
+          {x: other.x, y: other.y},
+          {x: other.x + other.w, y: other.y},
+          {x: other.x, y: other.y + other.h},
+          {x: other.x + other.w, y: other.y + other.h}
+        ];
+
+        currentCorners.forEach(c => {
+          otherCorners.forEach(oc => {
+            const dist = Math.sqrt(Math.pow(c.x - oc.x, 2) + Math.pow(c.y - oc.y, 2));
+            if (dist < snapThreshold) {
+              activeSnap = { x: oc.x, y: oc.y };
+            }
+          });
+        });
+      });
+
+      setSnapPoint(activeSnap);
       setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, x: Math.max(0, newX), y: Math.max(0, newY) } : o));
     } else if (interactionMode === 'resizing') {
       const obj = designObjects.find(o => o.id === selectedObjectId);
@@ -426,7 +459,7 @@ export default function EstimatorClient() {
                 
                 {/* Information Footer */}
                 <div className="p-4 bg-slate-100 text-slate-500 border-t">
-                    <p className="text-[10px] leading-relaxed text-center">অবজেক্ট সিলেক্ট করলে ডানে <br/> এডিট প্যানেল আসবে</p>
+                    <p className="text-[10px] leading-relaxed text-center">অবজেক্ট সিলেক্ট করলে পাশে <br/> এডিট প্যানেল আসবে</p>
                 </div>
               </div>
 
@@ -460,7 +493,10 @@ export default function EstimatorClient() {
                     id="canvas-workspace"
                     className="flex-1 relative bg-slate-200 overflow-auto cursor-crosshair scrollbar-hide"
                     onMouseMove={handleMouseMove}
-                    onMouseUp={() => setInteractionMode('none')}
+                    onMouseUp={() => {
+                      setInteractionMode('none');
+                      setSnapPoint(null);
+                    }}
                     onClick={() => {
                       if (interactionMode === 'none') setSelectedObjectId(null);
                     }}
@@ -474,6 +510,14 @@ export default function EstimatorClient() {
                       </div>
                       <Button variant="destructive" size="icon" className="h-12 w-12 shadow-2xl rounded-full" onClick={() => { if(confirm('আপনি কি সব ডিলিট করতে চান?')) setDesignObjects([])}}><Eraser className="w-6 h-6"/></Button>
                     </div>
+
+                    {/* Snap Point Indicator */}
+                    {snapPoint && (
+                      <div 
+                        className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
+                        style={{ left: snapPoint.x * zoom - 8, top: snapPoint.y * zoom - 8 }}
+                      />
+                    )}
 
                     {/* The Grid */}
                     <div 
