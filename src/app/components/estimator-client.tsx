@@ -48,7 +48,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 
-// --- Types for Calculators ---
+// --- Types for Calculators (v61e7980 logic) ---
 type StructuralResults = { cement: number; sand: number; chips: number; mainRodWeight: number; ringRodWeight: number; totalRodWeight: number; };
 type SlabResults = { cement: number; sand: number; chips: number; rodWeight: number; };
 type BrickResults = { bricks: number; cement: number; sand: number; };
@@ -101,7 +101,7 @@ export default function EstimatorClient() {
   
   const selectedObject = designObjects.find(obj => obj.id === selectedObjectId);
 
-  // --- Calculator Forms ---
+  // --- Calculator Forms (v61e7980 logic) ---
   const structuralForm = useForm<EstimatorValues>({
     resolver: zodResolver(estimatorSchema),
     defaultValues: { includeBase: true, includeColumn: true, includeBeam: true, baseCount: 1, baseLengthFt: 5, baseWidthFt: 5, baseThicknessIn: 18, columnCount: 1, columnLengthIn: 12, columnWidthIn: 10, columnHeightFt: 32, beamHeightIn: 12, beamWidthIn: 10, beamLengthFt: 12, columnRodCount: 8, beamRodCount: 6, mainRodFactor: 0.48, ringGapIn: 7, ringRodFactor: 0.12, baseRodLongitudinalCount: 10, baseRodWidthCount: 10 },
@@ -125,7 +125,7 @@ export default function EstimatorClient() {
 
   const stairForm = useForm<StairEstimatorValues>({ resolver: zodResolver(stairEstimatorSchema), defaultValues: { flightCount: 1, waistSlabLengthFt: 10, waistSlabWidthFt: 3.5, waistSlabThicknessIn: 5, stepCountPerFlight: 10, riserHeightIn: 6, treadWidthIn: 10, landingLengthFt: 3.5, landingWidthFt: 7, mainRodFactor: 0.30, distRodFactor: 0.19, distRodGapIn: 6 } });
 
-  // --- Calculator Logic (v61e7980) ---
+  // --- Calculator Logic (v61e7980 logic) ---
   function calculateStructural(data: EstimatorValues) {
     const { includeBase, includeColumn, includeBeam, baseCount, baseLengthFt, baseWidthFt, baseThicknessIn, columnCount, columnLengthIn, columnWidthIn, columnHeightFt, beamHeightIn, beamWidthIn, beamLengthFt, columnRodCount, beamRodCount, mainRodFactor, ringGapIn, ringRodFactor, baseRodLongitudinalCount, baseRodWidthCount } = data;
     let totalWetVol = 0;
@@ -323,7 +323,6 @@ export default function EstimatorClient() {
             </Form>
           </TabsContent>
 
-          {/* --- Slab, Brick, etc. (v61e7980 logic remains) --- */}
           <TabsContent value="slab" className="p-6">
             <Form {...slabForm}><form onSubmit={slabForm.handleSubmit(calculateSlab)} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-4">
