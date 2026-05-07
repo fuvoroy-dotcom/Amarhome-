@@ -7,7 +7,8 @@ import {
   Building, Cog, BarChartBig, Layers, Paintbrush, ClipboardList, Trash2, 
   RectangleHorizontal, Grid, List, ArrowRightLeft, Palette, 
   Eraser, Square, DoorClosed, LayoutGrid, RotateCcw, Plus, 
-  Maximize, Bed, Armchair, Bath, Utensils, Tv, Coffee, MousePointer2, X
+  Maximize, Bed, Armchair, Bath, Utensils, Tv, Coffee, MousePointer2, X,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight
 } from "lucide-react";
 import {
   Card,
@@ -239,15 +240,17 @@ export default function EstimatorClient() {
       const newX = Math.round((currentX - dragOffset.x) * 2) / 2;
       const newY = Math.round((currentY - dragOffset.y) * 2) / 2;
       
-      // Proximity/Joint detection logic
+      // Joint detection for ALL corners
       let activeSnap: {x: number, y: number} | null = null;
-      const snapThreshold = 0.5; // feet
-      
+      const snapThreshold = 0.7; // feet
+      const currentObj = designObjects.find(o=>o.id===selectedObjectId);
+      if (!currentObj) return;
+
       const currentCorners = [
         {x: newX, y: newY},
-        {x: newX + (designObjects.find(o=>o.id===selectedObjectId)?.w || 0), y: newY},
-        {x: newX, y: newY + (designObjects.find(o=>o.id===selectedObjectId)?.h || 0)},
-        {x: newX + (designObjects.find(o=>o.id===selectedObjectId)?.w || 0), y: newY + (designObjects.find(o=>o.id===selectedObjectId)?.h || 0)}
+        {x: newX + currentObj.w, y: newY},
+        {x: newX, y: newY + currentObj.h},
+        {x: newX + currentObj.w, y: newY + currentObj.h}
       ];
 
       designObjects.forEach(other => {
@@ -287,6 +290,10 @@ export default function EstimatorClient() {
   const deleteObject = (id: string) => {
     setDesignObjects(designObjects.filter(o => o.id !== id));
     setSelectedObjectId(null);
+  };
+
+  const nudgeObject = (id: string, dx: number, dy: number) => {
+    setDesignObjects(objs => objs.map(o => o.id === id ? { ...o, x: o.x + dx, y: o.y + dy } : o));
   };
 
   return (
@@ -457,7 +464,6 @@ export default function EstimatorClient() {
                   </div>
                 </ScrollArea>
                 
-                {/* Information Footer */}
                 <div className="p-4 bg-slate-100 text-slate-500 border-t">
                     <p className="text-[10px] leading-relaxed text-center">অবজেক্ট সিলেক্ট করলে পাশে <br/> এডিট প্যানেল আসবে</p>
                 </div>
@@ -501,7 +507,6 @@ export default function EstimatorClient() {
                       if (interactionMode === 'none') setSelectedObjectId(null);
                     }}
                   >
-                    {/* Floating Controls */}
                     <div className="fixed bottom-10 right-10 z-30 flex flex-col gap-2">
                       <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-2xl border border-slate-200 flex flex-col gap-2">
                         <Button variant="secondary" size="icon" className="h-10 w-10 hover:bg-blue-50" onClick={() => setZoom(z => Math.min(100, z + 5))}><Plus className="w-5 h-5"/></Button>
@@ -511,7 +516,6 @@ export default function EstimatorClient() {
                       <Button variant="destructive" size="icon" className="h-12 w-12 shadow-2xl rounded-full" onClick={() => { if(confirm('আপনি কি সব ডিলিট করতে চান?')) setDesignObjects([])}}><Eraser className="w-6 h-6"/></Button>
                     </div>
 
-                    {/* Snap Point Indicator */}
                     {snapPoint && (
                       <div 
                         className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
@@ -519,7 +523,6 @@ export default function EstimatorClient() {
                       />
                     )}
 
-                    {/* The Grid */}
                     <div 
                       className="absolute inset-0"
                       style={{ 
@@ -552,7 +555,6 @@ export default function EstimatorClient() {
                             <span className="text-[9px] font-mono text-slate-500 mt-0.5">{obj.w}' × {obj.h}'</span>
                           </div>
                           
-                          {/* Resizing Handle */}
                           {selectedObjectId === obj.id && (
                             <div 
                               className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-600 rounded-full cursor-se-resize z-40 shadow-lg border-2 border-white flex items-center justify-center"
@@ -562,78 +564,55 @@ export default function EstimatorClient() {
                             </div>
                           )}
 
-                          {/* Floating Edit Panel (Next to selected object on the right) */}
                           {selectedObjectId === obj.id && (
                              <div 
-                                className="absolute bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 p-4 w-52 z-50 flex flex-col gap-3 pointer-events-auto"
+                                className="absolute bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 p-4 w-60 z-50 flex flex-col gap-3 pointer-events-auto"
                                 style={{ 
                                     left: `calc(100% + 20px)`, 
                                     top: 0,
-                                    transform: `rotate(${-obj.rotation}deg)`, // Keep panel upright
+                                    transform: `rotate(${-obj.rotation}deg)`, 
                                     transition: 'none'
                                 }}
                                 onMouseDown={(e) => e.stopPropagation()}
                              >
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-bold text-blue-400 uppercase">এডিট: {obj.label}</span>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-5 w-5 text-slate-400 hover:text-white" 
-                                        onClick={() => setSelectedObjectId(null)}
-                                    >
-                                        <X className="w-3 h-3"/>
-                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-white" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
                                 </div>
                                 <Separator className="bg-slate-700"/>
+                                
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
                                         <Label className="text-[9px] text-slate-400">দৈর্ঘ্য (ফুট)</Label>
-                                        <Input 
-                                            type="number" 
-                                            step="0.5"
-                                            value={obj.w} 
-                                            onChange={(e) => updateObject(obj.id, { w: parseFloat(e.target.value) || 0.5 })} 
-                                            className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" 
-                                        />
+                                        <Input type="number" step="0.5" value={obj.w} onChange={(e) => updateObject(obj.id, { w: parseFloat(e.target.value) || 0.5 })} className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-[9px] text-slate-400">প্রস্থ (ফুট)</Label>
-                                        <Input 
-                                            type="number" 
-                                            step="0.5"
-                                            value={obj.h} 
-                                            onChange={(e) => updateObject(obj.id, { h: parseFloat(e.target.value) || 0.5 })} 
-                                            className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" 
-                                        />
+                                        <Input type="number" step="0.5" value={obj.h} onChange={(e) => updateObject(obj.id, { h: parseFloat(e.target.value) || 0.5 })} className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" />
                                     </div>
                                 </div>
+
                                 <div className="space-y-1">
                                     <div className="flex justify-between items-center">
                                         <Label className="text-[9px] text-slate-400">৩৬০° রোটেশন</Label>
-                                        <Input 
-                                            type="number" 
-                                            value={obj.rotation} 
-                                            onChange={(e) => updateObject(obj.id, { rotation: parseInt(e.target.value) || 0 })} 
-                                            className="h-6 w-12 bg-slate-800 border-slate-700 text-[9px] text-blue-400 text-center" 
-                                        />
+                                        <Input type="number" value={obj.rotation} onChange={(e) => updateObject(obj.id, { rotation: parseInt(e.target.value) || 0 })} className="h-6 w-12 bg-slate-800 border-slate-700 text-[9px] text-blue-400 text-center" />
                                     </div>
-                                    <Slider 
-                                        value={[obj.rotation]} 
-                                        max={360} 
-                                        step={1} 
-                                        onValueChange={(val) => updateObject(obj.id, { rotation: val[0] })} 
-                                        className="py-1" 
-                                    />
+                                    <Slider value={[obj.rotation]} max={360} step={1} onValueChange={(val) => updateObject(obj.id, { rotation: val[0] })} className="py-1" />
                                 </div>
-                                <Button 
-                                    variant="destructive" 
-                                    size="sm" 
-                                    className="h-7 text-[10px] mt-1" 
-                                    onClick={() => deleteObject(obj.id)}
-                                >
-                                    <Trash2 className="w-3 h-3 mr-1"/> ডিলিট
-                                </Button>
+
+                                <div className="space-y-2">
+                                    <Label className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">অবস্থান পরিবর্তন</Label>
+                                    <div className="grid grid-cols-3 gap-1 w-32 mx-auto">
+                                        <div />
+                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, 0, -0.5)}><ArrowUp className="w-4 h-4"/></Button>
+                                        <div />
+                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, -0.5, 0)}><ArrowLeft className="w-4 h-4"/></Button>
+                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, 0, 0.5)}><ArrowDown className="w-4 h-4"/></Button>
+                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, 0.5, 0)}><ArrowRight className="w-4 h-4"/></Button>
+                                    </div>
+                                </div>
+
+                                <Button variant="destructive" size="sm" className="h-7 text-[10px] mt-1" onClick={() => deleteObject(obj.id)}><Trash2 className="w-3 h-3 mr-1"/> ডিলিট</Button>
                              </div>
                           )}
                         </div>
