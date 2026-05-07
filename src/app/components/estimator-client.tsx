@@ -213,13 +213,15 @@ export default function EstimatorClient() {
   };
 
   const handleMouseDown = (e: React.MouseEvent, id: string, mode: 'dragging' | 'resizing' = 'dragging') => {
-    e.stopPropagation(); // সিলেকশন স্টপ হওয়া ঠেকায়
+    e.stopPropagation(); 
     setSelectedObjectId(id);
     setInteractionMode(mode);
     const obj = designObjects.find(o => o.id === id);
     if (obj) {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setDragOffset({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+      const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
+      if (rect) {
+        setDragOffset({ x: (e.clientX - rect.left) / zoom - obj.x, y: (e.clientY - rect.top) / zoom - obj.y });
+      }
     }
   };
 
@@ -423,7 +425,7 @@ export default function EstimatorClient() {
                 </ScrollArea>
 
                 {/* Permanent Properties Panel (Selected Object Controls) */}
-                <div className="p-4 bg-slate-900 text-white min-h-[250px] border-t border-slate-700">
+                <div className="p-4 bg-slate-900 text-white min-h-[300px] border-t border-slate-700">
                   {selectedObject ? (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="flex justify-between items-center">
@@ -457,7 +459,14 @@ export default function EstimatorClient() {
                       <div className="space-y-1">
                         <div className="flex justify-between items-center mb-1">
                           <Label className="text-[10px] text-slate-400 uppercase">৩৬০° রোটেশন</Label>
-                          <span className="text-[10px] font-mono text-blue-400">{selectedObject.rotation}°</span>
+                          <Input 
+                            type="number" 
+                            min="0"
+                            max="360"
+                            value={selectedObject.rotation} 
+                            onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} 
+                            className="h-7 w-16 bg-slate-800 border-slate-700 text-[10px] text-blue-400 text-center" 
+                          />
                         </div>
                         <Slider 
                           value={[selectedObject.rotation]} 
@@ -509,7 +518,6 @@ export default function EstimatorClient() {
                     onMouseMove={handleMouseMove}
                     onMouseUp={() => setInteractionMode('none')}
                     onClick={() => {
-                      // ক্যানভাসে ক্লিক করলে সিলেকশন চলে যাবে (যদি অবজেক্টে ক্লিক না হয়)
                       if (interactionMode === 'none') setSelectedObjectId(null);
                     }}
                   >
@@ -536,7 +544,7 @@ export default function EstimatorClient() {
                         <div
                           key={obj.id}
                           onMouseDown={(e) => handleMouseDown(e, obj.id)}
-                          onClick={(e) => e.stopPropagation()} // ক্যানভাস ক্লিক আটকাতে
+                          onClick={(e) => e.stopPropagation()} 
                           className={cn(
                             "absolute flex items-center justify-center border-2 transition-all cursor-move select-none",
                             selectedObjectId === obj.id 
@@ -556,7 +564,7 @@ export default function EstimatorClient() {
                             <span className="text-[9px] font-mono text-slate-500 mt-0.5">{obj.w}' × {obj.h}'</span>
                           </div>
                           
-                          {/* Resizing Handles (Only for selected object) */}
+                          {/* Resizing Handle */}
                           {selectedObjectId === obj.id && (
                             <div 
                               className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-600 rounded-full cursor-se-resize z-40 shadow-lg border-2 border-white flex items-center justify-center"
