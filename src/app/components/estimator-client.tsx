@@ -93,13 +93,6 @@ export default function EstimatorClient() {
   const [fullHouseResults, setFullHouseResults] = useState<FullHouseResults | null>(null);
   const [stairResults, setStairResults] = useState<StairResults | null>(null);
 
-  // --- Conversion States ---
-  const [cftToBrickInput, setCftToBrickInput] = useState<string>("");
-  const [cftToBrickResult, setCftToBrickResult] = useState<number | null>(null);
-  const [rodLengthInput, setRodLengthInput] = useState<string>("");
-  const [rodConversionFactor, setRodConversionFactor] = useState<number>(0.48);
-  const [rodWeightResult, setRodWeightResult] = useState<number | null>(null);
-
   // --- Design State ---
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -208,15 +201,16 @@ export default function EstimatorClient() {
 
   // --- Design Interaction Handlers ---
   const addObject = (type: DesignObject['type'], subType: string, label: string) => {
-    let w = 8, h = 8;
-    if (subType === 'wall') { w = 10; h = 0.5; }
-    else if (type === 'opening') { w = 3; h = 0.5; }
+    let w = 10, h = 0.5;
+    if (subType === 'room') { w = 10; h = 10; }
+    else if (subType === 'wall') { w = 10; h = 0.2; }
+    else if (type === 'opening') { w = 3; h = 0.2; }
     else if (type === 'furniture') { w = 4; h = 6; }
     
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, x: 10, y: 10, w, h,
-      label, color: type === 'structure' ? '#ffffff' : type === 'opening' ? '#64748b' : '#e2e8f0', rotation: 0
+      label, color: subType === 'wall' ? '#000000' : '#ffffff', rotation: 0
     };
     setDesignObjects([...designObjects, newObj]);
     setSelectedObjectId(newObj.id);
@@ -317,6 +311,12 @@ export default function EstimatorClient() {
     setDesignObjects(objs => objs.map(o => o.id === id ? { ...o, x: o.x + dx, y: o.y + dy } : o));
   };
 
+  const formatFeetInches = (feet: number) => {
+    const f = Math.floor(feet);
+    const i = Math.round((feet - f) * 12);
+    return `${f}' ${i}"`;
+  };
+
   return (
     <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col">
       <Card className="shadow-none border-none overflow-hidden rounded-none bg-white flex-1 flex flex-col">
@@ -328,20 +328,23 @@ export default function EstimatorClient() {
         </div>
 
         <Tabs defaultValue="design" className="w-full flex-1 flex flex-col overflow-hidden">
-          {/* Scrollable TabsList for many tabs */}
-          <div className="w-full bg-slate-100 border-b overflow-x-auto overflow-y-hidden scrollbar-hide">
-            <TabsList className="flex h-auto bg-transparent rounded-none border-none px-4 justify-start min-w-max">
-              <TabsTrigger value="structural" className="py-2 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
-              <TabsTrigger value="slab" className="py-2 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
-              <TabsTrigger value="stair" className="py-2 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
-              <TabsTrigger value="brick" className="py-2 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
-              <TabsTrigger value="plaster" className="py-2 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
-              <TabsTrigger value="tile" className="py-2 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
-              <TabsTrigger value="fullHouse" className="py-2 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
-              <TabsTrigger value="conversion" className="py-2 text-[12px] whitespace-nowrap">রূপান্তর</TabsTrigger>
-              <TabsTrigger value="design" className="py-2 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল (SmartDraw)</TabsTrigger>
-            </TabsList>
-          </div>
+          {/* Fixed ScrollArea for TabsList to prevent runtime error */}
+          <ScrollArea className="w-full bg-slate-100 border-b">
+            <div className="flex h-auto bg-transparent rounded-none border-none px-4 justify-start min-w-max p-1">
+              <TabsList className="flex h-auto bg-transparent rounded-none border-none justify-start p-0">
+                <TabsTrigger value="structural" className="py-2 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
+                <TabsTrigger value="slab" className="py-2 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
+                <TabsTrigger value="stair" className="py-2 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
+                <TabsTrigger value="brick" className="py-2 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
+                <TabsTrigger value="plaster" className="py-2 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
+                <TabsTrigger value="tile" className="py-2 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
+                <TabsTrigger value="fullHouse" className="py-2 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
+                <TabsTrigger value="conversion" className="py-2 text-[12px] whitespace-nowrap">রূপান্তর</TabsTrigger>
+                <TabsTrigger value="design" className="py-2 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল (SmartDraw)</TabsTrigger>
+              </TabsList>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
 
           {/* Calculator Contents (v61e7980 logic) */}
           <TabsContent value="structural" className="p-6 bg-white overflow-auto">
@@ -453,7 +456,7 @@ export default function EstimatorClient() {
                         </div>
                         <Separator />
                         <div className="space-y-2">
-                          <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2" onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Maximize className="w-3 h-3"/> Add Wall</Button>
+                          <Button variant="outline" className="w-full justify-start text-[11px] h-9 gap-2 bg-amber-50 border-amber-200 text-amber-900 font-bold" onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Maximize className="w-3 h-3"/> Add Wall</Button>
                           <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2" onClick={() => addObject('opening', 'door', 'দরজা')}><DoorClosed className="w-3 h-3"/> Add Wall Opening</Button>
                         </div>
                       </AccordionContent>
@@ -543,8 +546,8 @@ export default function EstimatorClient() {
                           className={cn(
                             "absolute flex items-center justify-center transition-all cursor-move select-none",
                             selectedObjectId === obj.id 
-                              ? "border-2 border-blue-600 z-30 shadow-2xl bg-white/40" 
-                              : "border border-black z-10 bg-white/90"
+                              ? "z-30 shadow-2xl" 
+                              : "z-10"
                           )}
                           style={{
                             left: obj.x * zoom,
@@ -552,12 +555,21 @@ export default function EstimatorClient() {
                             width: obj.w * zoom,
                             height: obj.h * zoom,
                             transform: `rotate(${obj.rotation}deg)`,
+                            backgroundColor: obj.subType === 'wall' ? '#000000' : obj.color,
+                            border: selectedObjectId === obj.id ? '2px solid #2563eb' : (obj.subType === 'wall' ? 'none' : '1px solid #000'),
                           }}
                         >
-                          <div className="flex flex-col items-center justify-center p-1 text-center pointer-events-none overflow-hidden">
-                            <span className="text-[10px] font-bold text-slate-800 truncate w-full">{obj.label}</span>
-                            <span className="text-[8px] font-mono text-slate-500">{obj.w}' × {obj.h}'</span>
+                          {/* Dimension Label (Floating above object) - Enhanced like screenshot */}
+                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white px-1 py-0.5 rounded shadow-sm border border-slate-200 pointer-events-none text-[9px] font-mono z-40">
+                             {formatFeetInches(obj.w)}
                           </div>
+
+                          {obj.subType !== 'wall' && (
+                            <div className="flex flex-col items-center justify-center p-1 text-center pointer-events-none overflow-hidden">
+                              <span className="text-[10px] font-bold text-slate-800 truncate w-full">{obj.label}</span>
+                              <span className="text-[8px] font-mono text-slate-500">{obj.w}' × {obj.h}'</span>
+                            </div>
+                          )}
                           
                           {/* Resizing & Rotation UI */}
                           {selectedObjectId === obj.id && (
@@ -594,9 +606,10 @@ export default function EstimatorClient() {
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Left</span>
                       <Input 
                         type="number" 
-                        step="0.5" 
+                        step="0.1" 
                         className="h-7 w-16 text-[11px] font-mono" 
-                        value={selectedObject?.x || 0} 
+                        disabled={!selectedObject}
+                        value={selectedObject ? selectedObject.x : ''} 
                         onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFloat(e.target.value) || 0 })}
                       />
                     </div>
@@ -604,30 +617,33 @@ export default function EstimatorClient() {
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Top</span>
                       <Input 
                         type="number" 
-                        step="0.5" 
+                        step="0.1" 
                         className="h-7 w-16 text-[11px] font-mono" 
-                        value={selectedObject?.y || 0} 
+                        disabled={!selectedObject}
+                        value={selectedObject ? selectedObject.y : ''} 
                         onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
-                      <Input 
-                        type="number" 
-                        step="0.5" 
-                        className="h-7 w-16 text-[11px] font-mono" 
-                        value={selectedObject?.h || 0} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} 
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
                       <Input 
                         type="number" 
-                        step="0.5" 
+                        step="0.1" 
                         className="h-7 w-16 text-[11px] font-mono" 
-                        value={selectedObject?.w || 0} 
+                        disabled={!selectedObject}
+                        value={selectedObject ? selectedObject.w : ''} 
                         onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} 
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
+                      <Input 
+                        type="number" 
+                        step="0.1" 
+                        className="h-7 w-16 text-[11px] font-mono" 
+                        disabled={!selectedObject}
+                        value={selectedObject ? selectedObject.h : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.1 })} 
                       />
                     </div>
                   </div>
