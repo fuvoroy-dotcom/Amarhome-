@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -214,7 +213,7 @@ export default function EstimatorClient() {
   };
 
   const handleMouseDown = (e: React.MouseEvent, id: string, mode: 'dragging' | 'resizing' = 'dragging') => {
-    e.stopPropagation();
+    e.stopPropagation(); // সিলেকশন স্টপ হওয়া ঠেকায়
     setSelectedObjectId(id);
     setInteractionMode(mode);
     const obj = designObjects.find(o => o.id === id);
@@ -276,7 +275,7 @@ export default function EstimatorClient() {
           </TabsList>
 
           {/* --- Calculator Tabs (v61e7980 logic) --- */}
-          <TabsContent value="structural" className="p-6">
+          <TabsContent value="structural" className="p-6 focus:outline-none">
             <Form {...structuralForm}>
               <form onSubmit={structuralForm.handleSubmit(calculateStructural)} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-4">
@@ -383,13 +382,14 @@ export default function EstimatorClient() {
           </TabsContent>
 
           {/* --- Professional SmartDraw-style Design Workspace --- */}
-          <TabsContent value="design" className="p-0 m-0 bg-[#f1f5f9] relative overflow-hidden h-[750px] border-t">
+          <TabsContent value="design" className="p-0 m-0 bg-[#f1f5f9] relative overflow-hidden h-[750px] border-t focus:outline-none">
             <div className="flex h-full">
               {/* Sidebar: Library & Permanent Properties */}
               <div className="w-72 bg-white border-r flex flex-col z-20 shadow-xl overflow-hidden">
                 <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
                   <span className="font-bold text-sm flex items-center gap-2"><LayoutGrid className="w-4 h-4 text-blue-600"/> লাইব্রেরি</span>
                 </div>
+                
                 <ScrollArea className="flex-1">
                   <div className="p-4 space-y-6">
                     <div>
@@ -422,12 +422,12 @@ export default function EstimatorClient() {
                   </div>
                 </ScrollArea>
 
-                {/* Permanent Properties Panel (Visible when selected) */}
+                {/* Permanent Properties Panel (Selected Object Controls) */}
                 <div className="p-4 bg-slate-900 text-white min-h-[250px] border-t border-slate-700">
                   {selectedObject ? (
-                    <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-blue-400">এডিট প্যানেল: {selectedObject.label}</span>
+                        <span className="text-xs font-bold text-blue-400 uppercase">এডিট প্যানেল: {selectedObject.label}</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:bg-red-900/50" onClick={() => deleteObject(selectedObject.id)}>
                           <Trash2 className="w-3 h-3"/>
                         </Button>
@@ -455,7 +455,10 @@ export default function EstimatorClient() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] text-slate-400 uppercase">রোটেশন ({selectedObject.rotation}°)</Label>
+                        <div className="flex justify-between items-center mb-1">
+                          <Label className="text-[10px] text-slate-400 uppercase">৩৬০° রোটেশন</Label>
+                          <span className="text-[10px] font-mono text-blue-400">{selectedObject.rotation}°</span>
+                        </div>
                         <Slider 
                           value={[selectedObject.rotation]} 
                           max={360} 
@@ -466,9 +469,9 @@ export default function EstimatorClient() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center">
+                    <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center py-10">
                       <MousePointer2 className="w-8 h-8 mb-2 opacity-20" />
-                      <p className="text-[10px]">অবজেক্ট সিলেক্ট করুন মাপ পরিবর্তনের জন্য</p>
+                      <p className="text-[10px] leading-relaxed">নকশার যেকোনো অবজেক্ট সিলেক্ট করুন<br/>সেটির মাপ ও দিক পরিবর্তনের জন্য</p>
                     </div>
                   )}
                 </div>
@@ -502,18 +505,22 @@ export default function EstimatorClient() {
                   {/* Main Canvas Workspace */}
                   <div 
                     id="canvas-workspace"
-                    className="flex-1 relative bg-slate-200 overflow-auto cursor-crosshair"
+                    className="flex-1 relative bg-slate-200 overflow-auto cursor-crosshair scrollbar-hide"
                     onMouseMove={handleMouseMove}
                     onMouseUp={() => setInteractionMode('none')}
+                    onClick={() => {
+                      // ক্যানভাসে ক্লিক করলে সিলেকশন চলে যাবে (যদি অবজেক্টে ক্লিক না হয়)
+                      if (interactionMode === 'none') setSelectedObjectId(null);
+                    }}
                   >
                     {/* Floating Controls */}
-                    <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
-                      <div className="bg-white/90 backdrop-blur p-1 rounded-lg shadow-xl border flex flex-col gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.min(100, z + 5))}><Plus className="w-4 h-4"/></Button>
+                    <div className="fixed bottom-10 right-10 z-30 flex flex-col gap-2">
+                      <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-2xl border border-slate-200 flex flex-col gap-2">
+                        <Button variant="secondary" size="icon" className="h-10 w-10 hover:bg-blue-50" onClick={() => setZoom(z => Math.min(100, z + 5))}><Plus className="w-5 h-5"/></Button>
                         <Separator />
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.max(10, z - 5))}><RotateCcw className="w-4 h-4 rotate-180"/></Button>
+                        <Button variant="secondary" size="icon" className="h-10 w-10 hover:bg-blue-50" onClick={() => setZoom(z => Math.max(10, z - 5))}><RotateCcw className="w-5 h-5 rotate-180"/></Button>
                       </div>
-                      <Button variant="destructive" size="icon" className="h-10 w-10 shadow-xl" onClick={() => setDesignObjects([])}><Eraser className="w-5 h-5"/></Button>
+                      <Button variant="destructive" size="icon" className="h-12 w-12 shadow-2xl rounded-full" onClick={() => { if(confirm('আপনি কি সব ডিলিট করতে চান?')) setDesignObjects([])}}><Eraser className="w-6 h-6"/></Button>
                     </div>
 
                     {/* The Grid */}
@@ -524,46 +531,39 @@ export default function EstimatorClient() {
                         backgroundSize: `${zoom}px ${zoom}px`,
                         width: 5000, height: 5000
                       }}
-                      onClick={() => setSelectedObjectId(null)}
                     >
                       {designObjects.map(obj => (
                         <div
                           key={obj.id}
                           onMouseDown={(e) => handleMouseDown(e, obj.id)}
+                          onClick={(e) => e.stopPropagation()} // ক্যানভাস ক্লিক আটকাতে
                           className={cn(
-                            "absolute flex items-center justify-center border-2 transition-all group",
-                            selectedObjectId === obj.id ? "border-blue-500 ring-2 ring-blue-500/20 z-20 shadow-2xl" : "border-slate-400 z-10 bg-opacity-90"
+                            "absolute flex items-center justify-center border-2 transition-all cursor-move select-none",
+                            selectedObjectId === obj.id 
+                              ? "border-blue-600 ring-4 ring-blue-600/20 z-30 shadow-2xl bg-white/40" 
+                              : "border-slate-400 z-10 bg-white/80"
                           )}
                           style={{
                             left: obj.x * zoom,
                             top: obj.y * zoom,
                             width: obj.w * zoom,
                             height: obj.h * zoom,
-                            backgroundColor: obj.color,
                             transform: `rotate(${obj.rotation}deg)`,
                           }}
                         >
-                          <div className="flex flex-col items-center justify-center p-1 text-center pointer-events-none">
-                            <span className="text-[10px] font-bold text-slate-800">{obj.label}</span>
-                            <span className="text-[8px] font-medium opacity-60">{obj.w}' × {obj.h}'</span>
+                          <div className="flex flex-col items-center justify-center p-2 text-center pointer-events-none">
+                            <span className="text-[11px] font-bold text-slate-800">{obj.label}</span>
+                            <span className="text-[9px] font-mono text-slate-500 mt-0.5">{obj.w}' × {obj.h}'</span>
                           </div>
                           
-                          {/* Resizing Handles */}
+                          {/* Resizing Handles (Only for selected object) */}
                           {selectedObjectId === obj.id && (
-                            <>
-                              {/* Bottom Right Resize Handle */}
-                              <div 
-                                className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-blue-600 rounded-full cursor-se-resize z-30 shadow-md border border-white"
-                                onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')}
-                              />
-                              {/* Visual indicators for wall connection */}
-                              {obj.subType === 'wall' && (
-                                <>
-                                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-blue-400 rounded-full opacity-0 group-hover:opacity-100" />
-                                  <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-blue-400 rounded-full opacity-0 group-hover:opacity-100" />
-                                </>
-                              )}
-                            </>
+                            <div 
+                              className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-600 rounded-full cursor-se-resize z-40 shadow-lg border-2 border-white flex items-center justify-center"
+                              onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')}
+                            >
+                              <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                            </div>
                           )}
                         </div>
                       ))}
@@ -583,20 +583,20 @@ function LibItem({ icon, label, onClick }: { icon: React.ReactNode, label: strin
   return (
     <Button 
       variant="outline" 
-      className="flex flex-col h-20 w-full gap-2 p-2 hover:bg-blue-50 hover:border-blue-400 transition-all group border-slate-200 bg-white" 
+      className="flex flex-col h-20 w-full gap-2 p-2 hover:bg-blue-50 hover:border-blue-400 transition-all group border-slate-200 bg-white shadow-sm" 
       onClick={onClick}
     >
-      <div className="text-slate-400 group-hover:text-blue-500">
+      <div className="text-slate-400 group-hover:text-blue-600 transition-colors">
         {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
       </div>
-      <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-600">{label}</span>
+      <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-700">{label}</span>
     </Button>
   );
 }
 
 function ResultItem({ label, value, unit, highlight }: { label: string, value: string | number, unit: string, highlight?: boolean }) {
   return (
-    <div className={cn("flex justify-between items-center", highlight && "text-blue-700")}>
+    <div className={cn("flex justify-between items-center", highlight && "text-blue-800")}>
       <span className="text-sm font-medium text-slate-600">{label}:</span>
       <span className={cn("text-2xl font-black", highlight && "text-3xl")}>{value} <span className="text-sm font-normal text-muted-foreground">{unit}</span></span>
     </div>
