@@ -95,7 +95,6 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating'>('none');
-  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(30); // 1ft = 30px
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
@@ -214,11 +213,10 @@ export default function EstimatorClient() {
     setSelectedObjectId(newObj.id);
   };
 
-  const handleMouseDown = (e: React.MouseEvent, id: string, mode: any = 'dragging', handle: string | null = null) => {
+  const handleMouseDown = (e: React.MouseEvent, id: string, mode: any = 'dragging') => {
     e.stopPropagation(); 
     setSelectedObjectId(id);
     setInteractionMode(mode);
-    setResizeHandle(handle);
     const obj = designObjects.find(o => o.id === id);
     if (obj) {
       const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
@@ -247,7 +245,7 @@ export default function EstimatorClient() {
       let nextX = currentX - dragOffset.x;
       let nextY = currentY - dragOffset.y;
       
-      // Smart Magnetic Snapping for Boundaries
+      // Professional Magnetic Corner Snapping
       const snapThreshold = 0.8; 
       let activeSnap: {x: number, y: number} | null = null;
 
@@ -274,7 +272,6 @@ export default function EstimatorClient() {
           otherCorners.forEach(oc => {
             const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
             if (dist < snapThreshold) {
-              // Adjust nextX/nextY based on which corner snapped to which
               if (ci === 0) { nextX = oc.x; nextY = oc.y; }
               else if (ci === 1) { nextX = oc.x - currentObj.w; nextY = oc.y; }
               else if (ci === 2) { nextX = oc.x; nextY = oc.y - currentObj.h; }
@@ -284,7 +281,7 @@ export default function EstimatorClient() {
           });
         });
 
-        // Snap to edges if near
+        // Smart Edge Alignment
         if (!activeSnap) {
           if (Math.abs(nextX - other.x) < snapThreshold) nextX = other.x;
           if (Math.abs(nextX + currentObj.w - (other.x + other.w)) < snapThreshold) nextX = other.x + other.w - currentObj.w;
@@ -500,7 +497,7 @@ export default function EstimatorClient() {
                 </ScrollArea>
               </div>
 
-              {/* Main Workspace with Optimized Rulers & Scrollbars */}
+              {/* Main Workspace with Rulers & Grid */}
               <div className="flex-1 relative flex flex-col overflow-hidden bg-[#e2e8f0]">
                 {/* Horizontal Ruler */}
                 <div className="h-8 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
@@ -533,11 +530,11 @@ export default function EstimatorClient() {
                     onMouseUp={() => { setInteractionMode('none'); setSnapPoint(null); }}
                     onClick={() => { if (interactionMode === 'none') setSelectedObjectId(null); }}
                   >
-                    {/* Snap Joint Indicator */}
+                    {/* Joint Snapping Indicator */}
                     {snapPoint && (
                       <div 
-                        className="absolute w-5 h-5 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
-                        style={{ left: snapPoint.x * zoom - 10, top: snapPoint.y * zoom - 10 }}
+                        className="absolute w-6 h-6 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
+                        style={{ left: snapPoint.x * zoom - 12, top: snapPoint.y * zoom - 12 }}
                       />
                     )}
 
@@ -557,7 +554,7 @@ export default function EstimatorClient() {
                           className={cn(
                             "absolute flex items-center justify-center border-2 transition-all cursor-move select-none",
                             selectedObjectId === obj.id 
-                              ? "border-blue-600 ring-4 ring-blue-600/20 z-30 bg-white/50" 
+                              ? "border-blue-600 ring-4 ring-blue-600/20 z-30 bg-white/50 shadow-2xl scale-[1.01]" 
                               : "border-slate-400 z-10 bg-white/90"
                           )}
                           style={{
@@ -573,19 +570,19 @@ export default function EstimatorClient() {
                             <span className="text-[8px] font-mono text-slate-500">{obj.w}' × {obj.h}'</span>
                           </div>
                           
-                          {/* Selection UI: Resizing & Rotation handles */}
+                          {/* Professional Resize & Rotate UI */}
                           {selectedObjectId === obj.id && (
                             <>
-                              {/* Rotation Handle */}
+                              {/* Rotate Handle */}
                               <div 
-                                className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full border-2 border-blue-600 shadow-xl flex items-center justify-center cursor-pointer hover:bg-blue-50 z-40"
+                                className="absolute -top-12 left-1/2 -translate-x-1/2 w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center cursor-pointer hover:bg-blue-700 z-40"
                                 onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}
                               >
-                                <RefreshCw className="w-4 h-4 text-blue-600" />
+                                <RefreshCw className="w-4 h-4 text-white" />
                               </div>
                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-blue-600" />
 
-                              {/* Corner Resizing Handles */}
+                              {/* Multi-point Resizing Handles */}
                               <div className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-blue-600 cursor-nw-resize" />
                               <div className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-blue-600 cursor-ne-resize" />
                               <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-blue-600 cursor-sw-resize" />
@@ -601,7 +598,7 @@ export default function EstimatorClient() {
                   </div>
                 </div>
 
-                {/* Floating View Controls */}
+                {/* Bottom Zoom Controls */}
                 <div className="absolute bottom-6 left-12 z-30 flex gap-2">
                   <div className="bg-white p-1 rounded-lg shadow-xl border flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(150, z + 5))}><Plus className="w-4 h-4"/></Button>
@@ -611,8 +608,8 @@ export default function EstimatorClient() {
                 </div>
               </div>
 
-              {/* Fixed Property Sidebar (Right) */}
-              <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
+              {/* FIXED PROPERTY SIDEBAR (RIGHT) */}
+              <div className="w-72 bg-white border-l flex flex-col z-20 shadow-2xl shrink-0">
                 <div className="p-4 border-b bg-slate-50 flex items-center gap-2 font-bold text-sm">
                   <Settings2 className="w-4 h-4 text-blue-600"/> এডিট প্যানেল
                 </div>
@@ -621,50 +618,50 @@ export default function EstimatorClient() {
                     <div className="p-4 space-y-6">
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-blue-600 uppercase">{selectedObject.label}</span>
+                          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{selectedObject.label} এডিট</span>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
                         </div>
                         <Separator />
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase">দৈর্ঘ্য (ফুট)</Label>
-                            <Input type="number" step="0.5" value={selectedObject.w} onChange={(e) => updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} className="h-8 font-mono" />
+                            <Label className="text-[10px] text-slate-500 uppercase font-bold">দৈর্ঘ্য (ফুট)</Label>
+                            <Input type="number" step="0.5" value={selectedObject.w} onChange={(e) => updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} className="h-9 font-mono border-blue-100 focus:border-blue-500" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase">প্রস্থ (ফুট)</Label>
-                            <Input type="number" step="0.5" value={selectedObject.h} onChange={(e) => updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} className="h-8 font-mono" />
+                            <Label className="text-[10px] text-slate-500 uppercase font-bold">প্রস্থ (ফুট)</Label>
+                            <Input type="number" step="0.5" value={selectedObject.h} onChange={(e) => updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} className="h-9 font-mono border-blue-100 focus:border-blue-500" />
                           </div>
                         </div>
 
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <Label className="text-[10px] text-slate-500 uppercase font-bold">রোটেশন (ডিগ্রি)</Label>
-                            <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-8 w-16 text-center font-mono" />
+                            <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center font-mono border-blue-100 focus:border-blue-500" />
                           </div>
                           <Slider value={[selectedObject.rotation]} max={360} step={1} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} />
                         </div>
 
-                        <div className="space-y-3 pt-2">
-                          <Label className="text-[10px] text-slate-400 uppercase font-bold text-center block">অবস্থান পরিবর্তন</Label>
-                          <div className="grid grid-cols-3 gap-2 w-32 mx-auto">
+                        <div className="space-y-4 pt-4">
+                          <Label className="text-[10px] text-slate-400 uppercase font-bold text-center block tracking-widest">অবস্থান পরিবর্তন</Label>
+                          <div className="grid grid-cols-3 gap-2 w-36 mx-auto">
                             <div />
-                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-50" onClick={() => nudgeObject(selectedObject.id, 0, -0.5)}><ArrowUp className="w-4 h-4"/></Button>
+                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-600 hover:text-white transition-colors" onClick={() => nudgeObject(selectedObject.id, 0, -0.5)}><ArrowUp className="w-4 h-4"/></Button>
                             <div />
-                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-50" onClick={() => nudgeObject(selectedObject.id, -0.5, 0)}><ArrowLeft className="w-4 h-4"/></Button>
-                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-50" onClick={() => nudgeObject(selectedObject.id, 0, 0.5)}><ArrowDown className="w-4 h-4"/></Button>
-                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-50" onClick={() => nudgeObject(selectedObject.id, 0.5, 0)}><ArrowRight className="w-4 h-4"/></Button>
+                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-600 hover:text-white transition-colors" onClick={() => nudgeObject(selectedObject.id, -0.5, 0)}><ArrowLeft className="w-4 h-4"/></Button>
+                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-600 hover:text-white transition-colors" onClick={() => nudgeObject(selectedObject.id, 0, 0.5)}><ArrowDown className="w-4 h-4"/></Button>
+                            <Button size="icon" variant="outline" className="h-10 w-10 hover:bg-blue-600 hover:text-white transition-colors" onClick={() => nudgeObject(selectedObject.id, 0.5, 0)}><ArrowRight className="w-4 h-4"/></Button>
                           </div>
                         </div>
 
                         <Separator />
-                        <Button variant="destructive" className="w-full text-xs" onClick={() => deleteObject(selectedObject.id)}><Trash2 className="w-3 h-3 mr-2"/> অবজেক্ট ডিলিট</Button>
+                        <Button variant="destructive" className="w-full text-xs font-bold py-5" onClick={() => deleteObject(selectedObject.id)}><Trash2 className="w-4 h-4 mr-2"/> অবজেক্ট ডিলিট</Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="h-64 flex flex-col items-center justify-center p-8 text-center text-slate-300">
-                      <MousePointer2 className="w-12 h-12 mb-4 opacity-20" />
-                      <p className="text-[11px] font-bold">একটি অবজেক্ট সিলেক্ট করুন <br/> এডিট করার জন্য</p>
+                    <div className="h-96 flex flex-col items-center justify-center p-8 text-center text-slate-300">
+                      <MousePointer2 className="w-16 h-16 mb-6 opacity-10 animate-bounce" />
+                      <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">একটি অবজেক্ট সিলেক্ট করুন <br/> এডিট করার জন্য</p>
                     </div>
                   )}
                 </ScrollArea>
