@@ -328,17 +328,20 @@ export default function EstimatorClient() {
         </div>
 
         <Tabs defaultValue="design" className="w-full flex-1 flex flex-col overflow-hidden">
-          <TabsList className="flex h-auto bg-slate-100 rounded-none border-b shrink-0 px-4 overflow-x-auto justify-start">
-            <TabsTrigger value="structural" className="py-2 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
-            <TabsTrigger value="slab" className="py-2 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
-            <TabsTrigger value="stair" className="py-2 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
-            <TabsTrigger value="brick" className="py-2 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
-            <TabsTrigger value="plaster" className="py-2 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
-            <TabsTrigger value="tile" className="py-2 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
-            <TabsTrigger value="fullHouse" className="py-2 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
-            <TabsTrigger value="conversion" className="py-2 text-[12px] whitespace-nowrap">রূপান্তর</TabsTrigger>
-            <TabsTrigger value="design" className="py-2 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল (SmartDraw)</TabsTrigger>
-          </TabsList>
+          {/* Scrollable TabsList for many tabs */}
+          <div className="w-full bg-slate-100 border-b overflow-x-auto overflow-y-hidden scrollbar-hide">
+            <TabsList className="flex h-auto bg-transparent rounded-none border-none px-4 justify-start min-w-max">
+              <TabsTrigger value="structural" className="py-2 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
+              <TabsTrigger value="slab" className="py-2 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
+              <TabsTrigger value="stair" className="py-2 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
+              <TabsTrigger value="brick" className="py-2 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
+              <TabsTrigger value="plaster" className="py-2 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
+              <TabsTrigger value="tile" className="py-2 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
+              <TabsTrigger value="fullHouse" className="py-2 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
+              <TabsTrigger value="conversion" className="py-2 text-[12px] whitespace-nowrap">রূপান্তর</TabsTrigger>
+              <TabsTrigger value="design" className="py-2 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল (SmartDraw)</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Calculator Contents (v61e7980 logic) */}
           <TabsContent value="structural" className="p-6 bg-white overflow-auto">
@@ -391,7 +394,7 @@ export default function EstimatorClient() {
           {/* --- SMARTDRAW DESIGN WORKSPACE --- */}
           <TabsContent value="design" className="p-0 m-0 bg-[#f8f9fa] flex flex-col flex-1 overflow-hidden">
             {/* 1. Top Toolbar (Professional Interface) */}
-            <div className="h-14 bg-white border-b flex items-center px-4 gap-6 shrink-0 shadow-sm z-30">
+            <div className="h-14 bg-white border-b flex items-center px-4 gap-6 shrink-0 shadow-sm z-30 overflow-x-auto whitespace-nowrap">
               <div className="flex items-center gap-1 border-r pr-4">
                 <ToolIconButton icon={<Download />} label="Export" dropdown />
               </div>
@@ -432,7 +435,7 @@ export default function EstimatorClient() {
             {/* Main Editor Layout */}
             <div className="flex-1 flex overflow-hidden">
               {/* 2. Left Sidebar (Tool Accordion) */}
-              <div className="w-72 bg-white border-r flex flex-col z-20 shadow-lg shrink-0 overflow-hidden">
+              <div className="w-64 bg-white border-r flex flex-col z-20 shadow-lg shrink-0 overflow-hidden">
                 <div className="p-3 border-b bg-slate-50 flex items-center justify-between">
                   <span className="font-bold text-xs uppercase tracking-wider text-slate-600">Tools</span>
                   <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -443,7 +446,7 @@ export default function EstimatorClient() {
                       <AccordionTrigger className="px-4 py-2 hover:no-underline text-[12px] font-bold text-slate-700 bg-slate-50/50">Basic Tools</AccordionTrigger>
                       <AccordionContent className="p-4 space-y-4">
                         <div className="grid grid-cols-2 gap-2">
-                          <SideToolBtn icon={<MousePointer />} label="Select" active />
+                          <SideToolBtn icon={<MousePointer />} label="Select" active={interactionMode === 'none'} onClick={() => setInteractionMode('none')} />
                           <SideToolBtn icon={<Shapes />} label="Shape" onClick={() => addObject('shape', 'rect', 'আকৃতি')} />
                           <SideToolBtn icon={<Minus />} label="Line" />
                           <SideToolBtn icon={<Type />} label="Text" />
@@ -556,7 +559,7 @@ export default function EstimatorClient() {
                             <span className="text-[8px] font-mono text-slate-500">{obj.w}' × {obj.h}'</span>
                           </div>
                           
-                          {/* 8-Point Resizing & Rotation UI */}
+                          {/* Resizing & Rotation UI */}
                           {selectedObjectId === obj.id && (
                             <>
                               {/* Rotate Handle */}
@@ -568,15 +571,11 @@ export default function EstimatorClient() {
                               </div>
                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-blue-600" />
 
-                              {/* 8 Handles */}
-                              <Handle pos="tl" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="tr" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="bl" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="br" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="t" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="b" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="l" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              <Handle pos="r" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                              {/* Corner Resizing Handle (Bottom-Right) */}
+                              <div 
+                                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md"
+                                onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')}
+                              />
                             </>
                           )}
                         </div>
@@ -585,27 +584,51 @@ export default function EstimatorClient() {
                   </div>
                 </div>
 
-                {/* 4. Bottom Property Bar (Quick Edits) */}
-                <div className="h-12 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                {/* 4. Bottom Property Bar (Quick Edits) - ACTIVE */}
+                <div className="h-12 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto whitespace-nowrap">
                   <div className="flex items-center gap-2 border-r pr-4">
                     <Button variant="ghost" size="sm" className="h-8 text-[11px] gap-2"><Layers className="w-3 h-3"/> Layer-1</Button>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Left</span>
-                      <Input type="text" className="h-7 w-20 text-[11px] font-mono bg-slate-50" value={`${selectedObject?.x || 0}'`} readOnly />
+                      <Input 
+                        type="number" 
+                        step="0.5" 
+                        className="h-7 w-16 text-[11px] font-mono" 
+                        value={selectedObject?.x || 0} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFloat(e.target.value) || 0 })}
+                      />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Top</span>
-                      <Input type="text" className="h-7 w-20 text-[11px] font-mono bg-slate-50" value={`${selectedObject?.y || 0}'`} readOnly />
+                      <Input 
+                        type="number" 
+                        step="0.5" 
+                        className="h-7 w-16 text-[11px] font-mono" 
+                        value={selectedObject?.y || 0} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFloat(e.target.value) || 0 })}
+                      />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
-                      <Input type="number" step="0.5" className="h-7 w-20 text-[11px] font-mono" value={selectedObject?.h || 0} onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} />
+                      <Input 
+                        type="number" 
+                        step="0.5" 
+                        className="h-7 w-16 text-[11px] font-mono" 
+                        value={selectedObject?.h || 0} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} 
+                      />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
-                      <Input type="number" step="0.5" className="h-7 w-20 text-[11px] font-mono" value={selectedObject?.w || 0} onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} />
+                      <Input 
+                        type="number" 
+                        step="0.5" 
+                        className="h-7 w-16 text-[11px] font-mono" 
+                        value={selectedObject?.w || 0} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} 
+                      />
                     </div>
                   </div>
                   <div className="ml-auto flex items-center gap-3">
@@ -650,7 +673,12 @@ export default function EstimatorClient() {
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <Label className="text-[10px] text-slate-500 uppercase font-bold">Rotation (deg)</Label>
-                            <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center font-mono border-blue-100 focus:border-blue-500 shadow-sm" />
+                            <Input 
+                                type="number" 
+                                value={selectedObject.rotation} 
+                                onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} 
+                                className="h-9 w-20 text-center font-mono border-blue-100 focus:border-blue-500 shadow-sm" 
+                            />
                           </div>
                           <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} />
                         </div>
@@ -722,25 +750,6 @@ function SymbolBox({ icon, onClick }: { icon: React.ReactNode, onClick: () => vo
     >
       {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-400" })}
     </div>
-  );
-}
-
-function Handle({ pos, onMouseDown }: { pos: string, onMouseDown: (e: React.MouseEvent) => void }) {
-  const styles: Record<string, string> = {
-    tl: "-top-1.5 -left-1.5 cursor-nw-resize",
-    tr: "-top-1.5 -right-1.5 cursor-ne-resize",
-    bl: "-bottom-1.5 -left-1.5 cursor-sw-resize",
-    br: "-bottom-1.5 -right-1.5 cursor-se-resize",
-    t: "-top-1.5 left-1/2 -translate-x-1/2 cursor-n-resize",
-    b: "-bottom-1.5 left-1/2 -translate-x-1/2 cursor-s-resize",
-    l: "top-1/2 -translate-y-1/2 -left-1.5 cursor-w-resize",
-    r: "top-1/2 -translate-y-1/2 -right-1.5 cursor-e-resize",
-  };
-  return (
-    <div 
-      className={cn("absolute w-3 h-3 bg-white border-2 border-blue-600 rounded-sm z-40 shadow-md", styles[pos])}
-      onMouseDown={onMouseDown}
-    />
   );
 }
 
