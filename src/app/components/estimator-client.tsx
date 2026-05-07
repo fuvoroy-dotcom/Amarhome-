@@ -74,7 +74,7 @@ type DesignObject = {
 export default function EstimatorClient() {
   const { toast } = useToast();
 
-  // --- Calculator States ---
+  // --- Calculator States (v61e7980) ---
   const [structuralResults, setStructuralResults] = useState<StructuralResults | null>(null);
   const [slabResults, setSlabResults] = useState<SlabResults | null>(null);
   const [brickResults, setBrickResults] = useState<BrickResults | null>(null);
@@ -102,7 +102,7 @@ export default function EstimatorClient() {
   
   const selectedObject = designObjects.find(obj => obj.id === selectedObjectId);
 
-  // --- Calculator Forms (v61e7980 logic) ---
+  // --- Calculator Forms (v61e7980) ---
   const structuralForm = useForm<EstimatorValues>({
     resolver: zodResolver(estimatorSchema),
     defaultValues: { includeBase: true, includeColumn: true, includeBeam: true, baseCount: 1, baseLengthFt: 5, baseWidthFt: 5, baseThicknessIn: 18, columnCount: 1, columnLengthIn: 12, columnWidthIn: 10, columnHeightFt: 32, beamHeightIn: 12, beamWidthIn: 10, beamLengthFt: 12, columnRodCount: 8, beamRodCount: 6, mainRodFactor: 0.48, ringGapIn: 7, ringRodFactor: 0.12, baseRodLongitudinalCount: 10, baseRodWidthCount: 10 },
@@ -126,7 +126,7 @@ export default function EstimatorClient() {
 
   const stairForm = useForm<StairEstimatorValues>({ resolver: zodResolver(stairEstimatorSchema), defaultValues: { flightCount: 1, waistSlabLengthFt: 10, waistSlabWidthFt: 3.5, waistSlabThicknessIn: 5, stepCountPerFlight: 10, riserHeightIn: 6, treadWidthIn: 10, landingLengthFt: 3.5, landingWidthFt: 7, mainRodFactor: 0.30, distRodFactor: 0.19, distRodGapIn: 6 } });
 
-  // --- Calculator Logic (v61e7980 logic) ---
+  // --- Calculation Functions (v61e7980) ---
   function calculateStructural(data: EstimatorValues) {
     const { includeBase, includeColumn, includeBeam, baseCount, baseLengthFt, baseWidthFt, baseThicknessIn, columnCount, columnLengthIn, columnWidthIn, columnHeightFt, beamHeightIn, beamWidthIn, beamLengthFt, columnRodCount, beamRodCount, mainRodFactor, ringGapIn, ringRodFactor, baseRodLongitudinalCount, baseRodWidthCount } = data;
     let totalWetVol = 0;
@@ -207,7 +207,7 @@ export default function EstimatorClient() {
     
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x: 5, y: 5, w, h,
+      type, subType, x: 10, y: 10, w, h,
       label, color: type === 'structure' ? '#ffffff' : type === 'opening' ? '#64748b' : '#e2e8f0', rotation: 0
     };
     setDesignObjects([...designObjects, newObj]);
@@ -236,50 +236,60 @@ export default function EstimatorClient() {
     const currentX = (e.clientX - canvasRect.left) / zoom;
     const currentY = (e.clientY - canvasRect.top) / zoom;
 
-    if (interactionMode === 'dragging') {
-      const newX = Math.round((currentX - dragOffset.x) * 2) / 2;
-      const newY = Math.round((currentY - dragOffset.y) * 2) / 2;
-      
-      // Joint detection for ALL corners
-      let activeSnap: {x: number, y: number} | null = null;
-      const snapThreshold = 0.7; // feet
-      const currentObj = designObjects.find(o=>o.id===selectedObjectId);
-      if (!currentObj) return;
+    const currentObj = designObjects.find(o => o.id === selectedObjectId);
+    if (!currentObj) return;
 
-      const currentCorners = [
-        {x: newX, y: newY},
-        {x: newX + currentObj.w, y: newY},
-        {x: newX, y: newY + currentObj.h},
-        {x: newX + currentObj.w, y: newY + currentObj.h}
+    if (interactionMode === 'dragging') {
+      let nextX = currentX - dragOffset.x;
+      let nextY = currentY - dragOffset.y;
+      
+      // Professional corner snapping logic
+      let activeSnap: {x: number, y: number} | null = null;
+      const snapThreshold = 0.8; // threshold in feet
+
+      const curCorners = [
+        { x: nextX, y: nextY }, // TL
+        { x: nextX + currentObj.w, y: nextY }, // TR
+        { x: nextX, y: nextY + currentObj.h }, // BL
+        { x: nextX + currentObj.w, y: nextY + currentObj.h } // BR
       ];
 
       designObjects.forEach(other => {
         if (other.id === selectedObjectId) return;
         const otherCorners = [
-          {x: other.x, y: other.y},
-          {x: other.x + other.w, y: other.y},
-          {x: other.x, y: other.y + other.h},
-          {x: other.x + other.w, y: other.y + other.h}
+          { x: other.x, y: other.y },
+          { x: other.x + other.w, y: other.y },
+          { x: other.x, y: other.y + other.h },
+          { x: other.x + other.w, y: other.y + other.h }
         ];
 
-        currentCorners.forEach(c => {
+        curCorners.forEach((cc, ci) => {
           otherCorners.forEach(oc => {
-            const dist = Math.sqrt(Math.pow(c.x - oc.x, 2) + Math.pow(c.y - oc.y, 2));
+            const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
             if (dist < snapThreshold) {
+              // Adjust nextX and nextY to make corners overlap perfectly
+              if (ci === 0) { nextX = oc.x; nextY = oc.y; }
+              else if (ci === 1) { nextX = oc.x - currentObj.w; nextY = oc.y; }
+              else if (ci === 2) { nextX = oc.x; nextY = oc.y - currentObj.h; }
+              else if (ci === 3) { nextX = oc.x - currentObj.w; nextY = oc.y - currentObj.h; }
               activeSnap = { x: oc.x, y: oc.y };
             }
           });
         });
       });
 
+      if (!activeSnap) {
+        // Grid snap if no corner snap
+        nextX = Math.round(nextX * 2) / 2;
+        nextY = Math.round(nextY * 2) / 2;
+      }
+
       setSnapPoint(activeSnap);
-      setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, x: Math.max(0, newX), y: Math.max(0, newY) } : o));
+      setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, x: Math.max(0, nextX), y: Math.max(0, nextY) } : o));
     } else if (interactionMode === 'resizing') {
-      const obj = designObjects.find(o => o.id === selectedObjectId);
-      if (!obj) return;
-      const newW = Math.round((currentX - obj.x) * 2) / 2;
-      const newH = Math.round((currentY - obj.y) * 2) / 2;
-      setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, w: Math.max(0.5, newW), h: Math.max(0.5, newH) } : o));
+      const nextW = Math.round((currentX - currentObj.x) * 2) / 2;
+      const nextH = Math.round((currentY - currentObj.y) * 2) / 2;
+      setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, w: Math.max(0.5, nextW), h: Math.max(0.5, nextH) } : o));
     }
   };
 
@@ -313,7 +323,7 @@ export default function EstimatorClient() {
             <TabsTrigger value="tile" className="py-3 text-xs">টাইলস</TabsTrigger>
             <TabsTrigger value="fullHouse" className="py-3 text-xs">পুরো বাড়ি</TabsTrigger>
             <TabsTrigger value="conversion" className="py-3 text-xs">রূপান্তর</TabsTrigger>
-            <TabsTrigger value="design" className="py-3 text-xs bg-blue-600 text-white data-[state=active]:bg-blue-700">ডিজাইন</TabsTrigger>
+            <TabsTrigger value="design" className="py-3 text-xs bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold uppercase">ডিজাইন</TabsTrigger>
           </TabsList>
 
           {/* --- Calculator Tabs (v61e7980 logic) --- */}
@@ -390,36 +400,90 @@ export default function EstimatorClient() {
 
           <TabsContent value="brick" className="p-6">
             <Form {...brickForm}><form onSubmit={brickForm.handleSubmit(calculateBricks)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4"><FormField control={brickForm.control} name="wallHeightFt" render={({field})=>(<FormItem><FormLabel>উচ্চতা (ফুট)</FormLabel><Input type="number" {...field}/></FormItem>)}/><Button type="submit" className="w-full">হিসাব করুন</Button></div>
-              <div>{brickResults && <div className="p-6 bg-blue-50 rounded-xl"><ResultItem label="ইট" value={brickResults.bricks} unit="টি" highlight/><ResultItem label="বালু" value={brickResults.sand} unit="CFT"/></div>}</div>
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 border rounded-xl space-y-4">
+                  <FormField control={brickForm.control} name="calculationType" render={({ field }) => (<FormItem><FormLabel>হিসাবের ধরন</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="wall">দেয়াল ভিত্তিক</SelectItem><SelectItem value="rooms">রুম ভিত্তিক</SelectItem></SelectContent></Select></FormItem>)} />
+                  <FormField control={brickForm.control} name="wallHeightFt" render={({ field }) => (<FormItem><FormLabel>দেয়ালের উচ্চতা (ফুট)</FormLabel><Input type="number" {...field} /></FormItem>)} />
+                  <FormField control={brickForm.control} name="wallThicknessIn" render={({ field }) => (<FormItem><FormLabel>পুরুত্ব (ইঞ্চি)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">৫ ইঞ্চি</SelectItem><SelectItem value="10">১০ ইঞ্চি</SelectItem></SelectContent></Select></FormItem>)} />
+                </div>
+                <Button type="submit" className="w-full">হিসাব করুন</Button>
+              </div>
+              <div>{brickResults && <div className="p-6 bg-blue-50 rounded-xl space-y-4"><ResultItem label="ইট" value={brickResults.bricks} unit="টি" highlight/><ResultItem label="সিমেন্ট" value={brickResults.cement} unit="ব্যাগ"/><ResultItem label="বালু" value={brickResults.sand} unit="CFT"/></div>}</div>
             </form></Form>
           </TabsContent>
 
           <TabsContent value="plaster" className="p-6">
             <Form {...plasterForm}><form onSubmit={plasterForm.handleSubmit(calculatePlaster)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4"><FormField control={plasterForm.control} name="wallLengthFt" render={({field})=>(<FormItem><FormLabel>দৈর্ঘ্য</FormLabel><Input type="number" {...field}/></FormItem>)}/><Button type="submit" className="w-full">হিসাব করুন</Button></div>
-              <div>{plasterResults && <div className="p-6 bg-blue-50 rounded-xl"><ResultItem label="সিমেন্ট" value={plasterResults.cement} unit="ব্যাগ"/><ResultItem label="বালু" value={plasterResults.sand} unit="CFT"/></div>}</div>
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 border rounded-xl space-y-4">
+                  <FormField control={plasterForm.control} name="wallLengthFt" render={({ field }) => (<FormItem><FormLabel>দৈর্ঘ্য (ফুট)</FormLabel><Input type="number" {...field} /></FormItem>)} />
+                  <FormField control={plasterForm.control} name="wallHeightFt" render={({ field }) => (<FormItem><FormLabel>উচ্চতা (ফুট)</FormLabel><Input type="number" {...field} /></FormItem>)} />
+                </div>
+                <Button type="submit" className="w-full">হিসাব করুন</Button>
+              </div>
+              <div>{plasterResults && <div className="p-6 bg-blue-50 rounded-xl space-y-4"><ResultItem label="সিমেন্ট" value={plasterResults.cement} unit="ব্যাগ"/><ResultItem label="বালু" value={plasterResults.sand} unit="CFT"/></div>}</div>
             </form></Form>
           </TabsContent>
 
           <TabsContent value="tile" className="p-6">
             <Form {...tileForm}><form onSubmit={tileForm.handleSubmit(calculateTiles)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4"><FormField control={tileForm.control} name="floorLengthFt" render={({field})=>(<FormItem><FormLabel>দৈর্ঘ্য</FormLabel><Input type="number" {...field}/></FormItem>)}/><Button type="submit" className="w-full">হিসাব করুন</Button></div>
-              <div>{tileResults && <div className="p-6 bg-blue-50 rounded-xl"><ResultItem label="টাইলস" value={tileResults.tiles} unit="টি" highlight/></div>}</div>
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 border rounded-xl space-y-4">
+                  <FormField control={tileForm.control} name="floorLengthFt" render={({ field }) => (<FormItem><FormLabel>ফ্লোর দৈর্ঘ্য (ফুট)</FormLabel><Input type="number" {...field} /></FormItem>)} />
+                  <FormField control={tileForm.control} name="floorWidthFt" render={({ field }) => (<FormItem><FormLabel>ফ্লোর প্রস্থ (ফুট)</FormLabel><Input type="number" {...field} /></FormItem>)} />
+                </div>
+                <Button type="submit" className="w-full">হিসাব করুন</Button>
+              </div>
+              <div>{tileResults && <div className="p-6 bg-blue-50 rounded-xl space-y-4"><ResultItem label="টাইলস" value={tileResults.tiles} unit="টি" highlight/><ResultItem label="সিমেন্ট" value={tileResults.cement} unit="ব্যাগ"/></div>}</div>
             </form></Form>
           </TabsContent>
 
           <TabsContent value="fullHouse" className="p-6">
              <Form {...fullHouseForm}><form onSubmit={fullHouseForm.handleSubmit(calculateFullHouse)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="space-y-4"><FormField control={fullHouseForm.control} name="totalAreaSqFt" render={({field})=>(<FormItem><FormLabel>মোট এরিয়া (বর্গফুট)</FormLabel><Input type="number" {...field}/></FormItem>)}/><Button type="submit" className="w-full">হিসাব করুন</Button></div>
-               <div>{fullHouseResults && <div className="p-6 bg-blue-50 rounded-xl"><ResultItem label="মোট সিমেন্ট" value={fullHouseResults.totalCement} unit="ব্যাগ"/><ResultItem label="মোট ইট" value={fullHouseResults.totalBricks} unit="টি" highlight/></div>}</div>
+               <div className="space-y-4">
+                 <FormField control={fullHouseForm.control} name="totalAreaSqFt" render={({field})=>(<FormItem><FormLabel>মোট এরিয়া (বর্গফুট)</FormLabel><Input type="number" {...field}/></FormItem>)}/>
+                 <FormField control={fullHouseForm.control} name="floorCount" render={({field})=>(<FormItem><FormLabel>ফ্লোর সংখ্যা</FormLabel><Input type="number" {...field}/></FormItem>)}/>
+                 <Button type="submit" className="w-full">হিসাব করুন</Button>
+               </div>
+               <div>{fullHouseResults && <div className="p-6 bg-blue-50 rounded-xl space-y-4"><ResultItem label="মোট সিমেন্ট" value={fullHouseResults.totalCement} unit="ব্যাগ"/><ResultItem label="মোট ইট" value={fullHouseResults.totalBricks} unit="টি" highlight/><ResultItem label="মোট রড" value={fullHouseResults.totalRodWeight} unit="কেজি" highlight/></div>}</div>
              </form></Form>
           </TabsContent>
 
           <TabsContent value="conversion" className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="p-4 space-y-2"><Label>CFT থেকে ইট (গাঁথুনি)</Label><Input type="number" value={cftToBrickInput} onChange={(e)=>setCftToBrickInput(e.target.value)}/><Button onClick={()=>setCftToBrickResult(Math.ceil(parseFloat(cftToBrickInput)*12))}>হিসাব করুন</Button>{cftToBrickResult && <p className="font-bold">{cftToBrickResult} টি ইট</p>}</Card>
-              <Card className="p-4 space-y-2"><Label>রড ওজন</Label><Input type="number" value={rodLengthInput} onChange={(e)=>setRodLengthInput(e.target.value)}/><Button onClick={()=>setRodWeightResult(parseFloat(rodLengthInput)*rodConversionFactor)}>হিসাব করুন</Button>{rodWeightResult && <p className="font-bold">{rodWeightResult.toFixed(2)} কেজি</p>}</Card>
+              <Card className="p-6 space-y-4 shadow-sm border-slate-200">
+                <h3 className="font-bold flex items-center gap-2 text-slate-700"><Layers className="w-4 h-4"/> CFT থেকে ইট</h3>
+                <div className="space-y-2">
+                  <Label>CFT এর মান দিন</Label>
+                  <Input type="number" value={cftToBrickInput} onChange={(e)=>setCftToBrickInput(e.target.value)}/>
+                  <Button className="w-full" onClick={()=>setCftToBrickResult(Math.ceil(parseFloat(cftToBrickInput)*12))}>হিসাব করুন</Button>
+                  {cftToBrickResult && <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-center font-black text-blue-700 text-xl">{cftToBrickResult} টি ইট লাগবে</div>}
+                </div>
+              </Card>
+              <Card className="p-6 space-y-4 shadow-sm border-slate-200">
+                <h3 className="font-bold flex items-center gap-2 text-slate-700"><Cog className="w-4 h-4"/> রড ওজন ক্যালকুলেটর</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>রডের দৈর্ঘ্য (ফুট)</Label>
+                    <Input type="number" value={rodLengthInput} onChange={(e)=>setRodLengthInput(e.target.value)}/>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>রডের সাইজ</Label>
+                    <Select onValueChange={(v)=>setRodConversionFactor(parseFloat(v))}>
+                      <SelectTrigger><SelectValue placeholder="সিলেক্ট করুন" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0.12">8 mm</SelectItem>
+                        <SelectItem value="0.19">10 mm</SelectItem>
+                        <SelectItem value="0.30">12 mm</SelectItem>
+                        <SelectItem value="0.48">16 mm</SelectItem>
+                        <SelectItem value="0.75">20 mm</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button className="w-full" onClick={()=>setRodWeightResult(parseFloat(rodLengthInput)*rodConversionFactor)}>হিসাব করুন</Button>
+                  {rodWeightResult && <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-center font-black text-blue-700 text-xl">{rodWeightResult.toFixed(2)} কেজি</div>}
+                </div>
+              </Card>
             </div>
           </TabsContent>
 
