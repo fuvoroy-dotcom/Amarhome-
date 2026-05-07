@@ -8,7 +8,7 @@ import {
   RectangleHorizontal, Grid, List, ArrowRightLeft, Palette, 
   Eraser, Square, DoorClosed, LayoutGrid, RotateCcw, Plus, 
   Maximize, Bed, Armchair, Bath, Utensils, Tv, Coffee, MousePointer2, X,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Settings2
 } from "lucide-react";
 import {
   Card,
@@ -44,7 +44,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 
@@ -86,8 +86,6 @@ export default function EstimatorClient() {
   // --- Conversion States ---
   const [cftToBrickInput, setCftToBrickInput] = useState<string>("");
   const [cftToBrickResult, setCftToBrickResult] = useState<number | null>(null);
-  const [khowaCftToBrickInput, setKhowaCftToBrickInput] = useState<string>("");
-  const [khowaCftToBrickResult, setKhowaCftToBrickResult] = useState<number | null>(null);
   const [rodLengthInput, setRodLengthInput] = useState<string>("");
   const [rodConversionFactor, setRodConversionFactor] = useState<number>(0.48);
   const [rodWeightResult, setRodWeightResult] = useState<number | null>(null);
@@ -222,7 +220,10 @@ export default function EstimatorClient() {
     if (obj) {
       const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
       if (rect) {
-        setDragOffset({ x: (e.clientX - rect.left) / zoom - obj.x, y: (e.clientY - rect.top) / zoom - obj.y });
+        setDragOffset({ 
+          x: (e.clientX - rect.left) / zoom - obj.x, 
+          y: (e.clientY - rect.top) / zoom - obj.y 
+        });
       }
     }
   };
@@ -243,9 +244,8 @@ export default function EstimatorClient() {
       let nextX = currentX - dragOffset.x;
       let nextY = currentY - dragOffset.y;
       
-      // Professional corner snapping logic
+      const snapThreshold = 0.8; 
       let activeSnap: {x: number, y: number} | null = null;
-      const snapThreshold = 0.8; // threshold in feet
 
       const curCorners = [
         { x: nextX, y: nextY }, // TL
@@ -267,7 +267,6 @@ export default function EstimatorClient() {
           otherCorners.forEach(oc => {
             const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
             if (dist < snapThreshold) {
-              // Adjust nextX and nextY to make corners overlap perfectly
               if (ci === 0) { nextX = oc.x; nextY = oc.y; }
               else if (ci === 1) { nextX = oc.x - currentObj.w; nextY = oc.y; }
               else if (ci === 2) { nextX = oc.x; nextY = oc.y - currentObj.h; }
@@ -279,7 +278,6 @@ export default function EstimatorClient() {
       });
 
       if (!activeSnap) {
-        // Grid snap if no corner snap
         nextX = Math.round(nextX * 2) / 2;
         nextY = Math.round(nextY * 2) / 2;
       }
@@ -327,7 +325,7 @@ export default function EstimatorClient() {
           </TabsList>
 
           {/* --- Calculator Tabs (v61e7980 logic) --- */}
-          <TabsContent value="structural" className="p-6 focus:outline-none">
+          <TabsContent value="structural" className="p-6">
             <Form {...structuralForm}>
               <form onSubmit={structuralForm.handleSubmit(calculateStructural)} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-4">
@@ -451,51 +449,35 @@ export default function EstimatorClient() {
 
           <TabsContent value="conversion" className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="p-6 space-y-4 shadow-sm border-slate-200">
-                <h3 className="font-bold flex items-center gap-2 text-slate-700"><Layers className="w-4 h-4"/> CFT থেকে ইট</h3>
-                <div className="space-y-2">
-                  <Label>CFT এর মান দিন</Label>
-                  <Input type="number" value={cftToBrickInput} onChange={(e)=>setCftToBrickInput(e.target.value)}/>
-                  <Button className="w-full" onClick={()=>setCftToBrickResult(Math.ceil(parseFloat(cftToBrickInput)*12))}>হিসাব করুন</Button>
-                  {cftToBrickResult && <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-center font-black text-blue-700 text-xl">{cftToBrickResult} টি ইট লাগবে</div>}
-                </div>
+              <Card className="p-6 space-y-4">
+                <h3 className="font-bold flex items-center gap-2"><Layers className="w-4 h-4"/> CFT থেকে ইট</h3>
+                <Input type="number" placeholder="CFT এর মান" value={cftToBrickInput} onChange={(e)=>setCftToBrickInput(e.target.value)}/>
+                <Button className="w-full" onClick={()=>setCftToBrickResult(Math.ceil(parseFloat(cftToBrickInput)*12))}>হিসাব করুন</Button>
+                {cftToBrickResult && <div className="p-3 bg-blue-50 border rounded-lg text-center font-bold">{cftToBrickResult} টি ইট</div>}
               </Card>
-              <Card className="p-6 space-y-4 shadow-sm border-slate-200">
-                <h3 className="font-bold flex items-center gap-2 text-slate-700"><Cog className="w-4 h-4"/> রড ওজন ক্যালকুলেটর</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>রডের দৈর্ঘ্য (ফুট)</Label>
-                    <Input type="number" value={rodLengthInput} onChange={(e)=>setRodLengthInput(e.target.value)}/>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>রডের সাইজ</Label>
-                    <Select onValueChange={(v)=>setRodConversionFactor(parseFloat(v))}>
-                      <SelectTrigger><SelectValue placeholder="সিলেক্ট করুন" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0.12">8 mm</SelectItem>
-                        <SelectItem value="0.19">10 mm</SelectItem>
-                        <SelectItem value="0.30">12 mm</SelectItem>
-                        <SelectItem value="0.48">16 mm</SelectItem>
-                        <SelectItem value="0.75">20 mm</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button className="w-full" onClick={()=>setRodWeightResult(parseFloat(rodLengthInput)*rodConversionFactor)}>হিসাব করুন</Button>
-                  {rodWeightResult && <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-center font-black text-blue-700 text-xl">{rodWeightResult.toFixed(2)} কেজি</div>}
-                </div>
+              <Card className="p-6 space-y-4">
+                <h3 className="font-bold flex items-center gap-2"><Cog className="w-4 h-4"/> রড ওজন</h3>
+                <Input type="number" placeholder="রডের দৈর্ঘ্য (ফুট)" value={rodLengthInput} onChange={(e)=>setRodLengthInput(e.target.value)}/>
+                <Select onValueChange={(v)=>setRodConversionFactor(parseFloat(v))}>
+                  <SelectTrigger><SelectValue placeholder="রডের সাইজ" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.12">8 mm</SelectItem><SelectItem value="0.19">10 mm</SelectItem><SelectItem value="0.30">12 mm</SelectItem><SelectItem value="0.48">16 mm</SelectItem><SelectItem value="0.75">20 mm</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button className="w-full" onClick={()=>setRodWeightResult(parseFloat(rodLengthInput)*rodConversionFactor)}>হিসাব করুন</Button>
+                {rodWeightResult && <div className="p-3 bg-blue-50 border rounded-lg text-center font-bold">{rodWeightResult.toFixed(2)} কেজি</div>}
               </Card>
             </div>
           </TabsContent>
 
-          {/* --- Professional SmartDraw-style Design Workspace --- */}
-          <TabsContent value="design" className="p-0 m-0 bg-[#f1f5f9] relative overflow-hidden h-[750px] border-t focus:outline-none">
-            <div className="flex h-full">
-              {/* Sidebar: Library */}
-              <div className="w-72 bg-white border-r flex flex-col z-20 shadow-xl overflow-hidden">
-                <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
-                  <span className="font-bold text-sm flex items-center gap-2"><LayoutGrid className="w-4 h-4 text-blue-600"/> লাইব্রেরি</span>
+          {/* --- Professional SmartDraw Design Workspace with Viewport Optimization --- */}
+          <TabsContent value="design" className="p-0 m-0 bg-[#f1f5f9] relative h-[calc(100vh-200px)] min-h-[600px] border-t focus:outline-none">
+            <div className="flex h-full w-full overflow-hidden">
+              {/* Left Sidebar: Library */}
+              <div className="w-64 bg-white border-r flex flex-col z-20 shadow-xl shrink-0">
+                <div className="p-4 border-b bg-slate-50 flex items-center gap-2 font-bold text-sm">
+                  <LayoutGrid className="w-4 h-4 text-blue-600"/> লাইব্রেরি
                 </div>
-                
                 <ScrollArea className="flex-1">
                   <div className="p-4 space-y-6">
                     <div>
@@ -517,28 +499,16 @@ export default function EstimatorClient() {
                         <LibItem icon={<Tv />} label="টিভি" onClick={() => addObject('furniture', 'tv', 'টিভি')} />
                       </div>
                     </div>
-                    <Separator />
-                    <div>
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">কিচেন ও বাথ</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <LibItem icon={<Utensils />} label="কিচেন" onClick={() => addObject('utility', 'kitchen', 'কিচেন')} />
-                        <LibItem icon={<Bath />} label="টয়লেট" onClick={() => addObject('utility', 'toilet', 'টয়লেট')} />
-                      </div>
-                    </div>
                   </div>
                 </ScrollArea>
-                
-                <div className="p-4 bg-slate-100 text-slate-500 border-t">
-                    <p className="text-[10px] leading-relaxed text-center">অবজেক্ট সিলেক্ট করলে পাশে <br/> এডিট প্যানেল আসবে</p>
-                </div>
               </div>
 
-              {/* Workspace with Rulers */}
+              {/* Main Workspace with Optimized Scrolling */}
               <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
                 {/* Horizontal Ruler */}
                 <div className="h-8 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
                   <div className="flex absolute left-8 h-full items-end">
-                    {Array.from({ length: 100 }).map((_, i) => (
+                    {Array.from({ length: 150 }).map((_, i) => (
                       <div key={i} className="border-l border-slate-300 h-2 flex flex-col justify-end text-[8px] text-slate-400 font-mono" style={{ width: zoom, minWidth: zoom }}>
                         <span className="pl-1 pb-1">{i}ft</span>
                       </div>
@@ -550,7 +520,7 @@ export default function EstimatorClient() {
                   {/* Vertical Ruler */}
                   <div className="w-8 bg-white border-r flex flex-col items-end relative overflow-hidden z-10 select-none">
                     <div className="flex flex-col absolute top-0 w-full items-end">
-                      {Array.from({ length: 100 }).map((_, i) => (
+                      {Array.from({ length: 150 }).map((_, i) => (
                         <div key={i} className="border-t border-slate-300 w-2 flex items-center justify-end text-[8px] text-slate-400 font-mono" style={{ height: zoom, minHeight: zoom }}>
                           <span className="pr-1 rotate-90">{i}ft</span>
                         </div>
@@ -558,28 +528,15 @@ export default function EstimatorClient() {
                     </div>
                   </div>
 
-                  {/* Main Canvas Workspace */}
+                  {/* Scrollable Canvas Workspace */}
                   <div 
                     id="canvas-workspace"
-                    className="flex-1 relative bg-slate-200 overflow-auto cursor-crosshair scrollbar-hide"
+                    className="flex-1 relative bg-slate-200 overflow-auto cursor-crosshair"
                     onMouseMove={handleMouseMove}
-                    onMouseUp={() => {
-                      setInteractionMode('none');
-                      setSnapPoint(null);
-                    }}
-                    onClick={() => {
-                      if (interactionMode === 'none') setSelectedObjectId(null);
-                    }}
+                    onMouseUp={() => { setInteractionMode('none'); setSnapPoint(null); }}
+                    onClick={() => { if (interactionMode === 'none') setSelectedObjectId(null); }}
                   >
-                    <div className="fixed bottom-10 right-10 z-30 flex flex-col gap-2">
-                      <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-2xl border border-slate-200 flex flex-col gap-2">
-                        <Button variant="secondary" size="icon" className="h-10 w-10 hover:bg-blue-50" onClick={() => setZoom(z => Math.min(100, z + 5))}><Plus className="w-5 h-5"/></Button>
-                        <Separator />
-                        <Button variant="secondary" size="icon" className="h-10 w-10 hover:bg-blue-50" onClick={() => setZoom(z => Math.max(10, z - 5))}><RotateCcw className="w-5 h-5 rotate-180"/></Button>
-                      </div>
-                      <Button variant="destructive" size="icon" className="h-12 w-12 shadow-2xl rounded-full" onClick={() => { if(confirm('আপনি কি সব ডিলিট করতে চান?')) setDesignObjects([])}}><Eraser className="w-6 h-6"/></Button>
-                    </div>
-
+                    {/* Snap Indicator */}
                     {snapPoint && (
                       <div 
                         className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
@@ -603,7 +560,7 @@ export default function EstimatorClient() {
                           className={cn(
                             "absolute flex items-center justify-center border-2 transition-all cursor-move select-none",
                             selectedObjectId === obj.id 
-                              ? "border-blue-600 ring-4 ring-blue-600/20 z-30 shadow-2xl bg-white/40" 
+                              ? "border-blue-600 ring-4 ring-blue-600/20 z-30 bg-white/40" 
                               : "border-slate-400 z-10 bg-white/80"
                           )}
                           style={{
@@ -616,74 +573,88 @@ export default function EstimatorClient() {
                         >
                           <div className="flex flex-col items-center justify-center p-2 text-center pointer-events-none">
                             <span className="text-[11px] font-bold text-slate-800">{obj.label}</span>
-                            <span className="text-[9px] font-mono text-slate-500 mt-0.5">{obj.w}' × {obj.h}'</span>
+                            <span className="text-[9px] font-mono text-slate-500">{obj.w}' × {obj.h}'</span>
                           </div>
                           
                           {selectedObjectId === obj.id && (
                             <div 
-                              className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-600 rounded-full cursor-se-resize z-40 shadow-lg border-2 border-white flex items-center justify-center"
+                              className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg"
                               onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')}
-                            >
-                              <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                            </div>
-                          )}
-
-                          {selectedObjectId === obj.id && (
-                             <div 
-                                className="absolute bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 p-4 w-60 z-50 flex flex-col gap-3 pointer-events-auto"
-                                style={{ 
-                                    left: `calc(100% + 20px)`, 
-                                    top: 0,
-                                    transform: `rotate(${-obj.rotation}deg)`, 
-                                    transition: 'none'
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                             >
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-blue-400 uppercase">এডিট: {obj.label}</span>
-                                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-white" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
-                                </div>
-                                <Separator className="bg-slate-700"/>
-                                
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="space-y-1">
-                                        <Label className="text-[9px] text-slate-400">দৈর্ঘ্য (ফুট)</Label>
-                                        <Input type="number" step="0.5" value={obj.w} onChange={(e) => updateObject(obj.id, { w: parseFloat(e.target.value) || 0.5 })} className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-[9px] text-slate-400">প্রস্থ (ফুট)</Label>
-                                        <Input type="number" step="0.5" value={obj.h} onChange={(e) => updateObject(obj.id, { h: parseFloat(e.target.value) || 0.5 })} className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <div className="flex justify-between items-center">
-                                        <Label className="text-[9px] text-slate-400">৩৬০° রোটেশন</Label>
-                                        <Input type="number" value={obj.rotation} onChange={(e) => updateObject(obj.id, { rotation: parseInt(e.target.value) || 0 })} className="h-6 w-12 bg-slate-800 border-slate-700 text-[9px] text-blue-400 text-center" />
-                                    </div>
-                                    <Slider value={[obj.rotation]} max={360} step={1} onValueChange={(val) => updateObject(obj.id, { rotation: val[0] })} className="py-1" />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">অবস্থান পরিবর্তন</Label>
-                                    <div className="grid grid-cols-3 gap-1 w-32 mx-auto">
-                                        <div />
-                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, 0, -0.5)}><ArrowUp className="w-4 h-4"/></Button>
-                                        <div />
-                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, -0.5, 0)}><ArrowLeft className="w-4 h-4"/></Button>
-                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, 0, 0.5)}><ArrowDown className="w-4 h-4"/></Button>
-                                        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => nudgeObject(obj.id, 0.5, 0)}><ArrowRight className="w-4 h-4"/></Button>
-                                    </div>
-                                </div>
-
-                                <Button variant="destructive" size="sm" className="h-7 text-[10px] mt-1" onClick={() => deleteObject(obj.id)}><Trash2 className="w-3 h-3 mr-1"/> ডিলিট</Button>
-                             </div>
+                            />
                           )}
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
+
+                {/* Floating Action Buttons */}
+                <div className="absolute bottom-6 left-12 z-30 flex gap-2">
+                  <div className="bg-white p-1 rounded-lg shadow-xl border flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(100, z + 5))}><Plus className="w-4 h-4"/></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(10, z - 5))}><RotateCcw className="w-4 h-4 rotate-180"/></Button>
+                  </div>
+                  <Button variant="destructive" size="sm" onClick={() => { if(confirm('সব ডিলিট করবেন?')) setDesignObjects([])}}><Eraser className="w-4 h-4 mr-2"/> ক্যানভাস পরিষ্কার</Button>
+                </div>
+              </div>
+
+              {/* Right Sidebar: Fixed Edit Panel */}
+              <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
+                <div className="p-4 border-b bg-slate-50 flex items-center gap-2 font-bold text-sm">
+                  <Settings2 className="w-4 h-4 text-blue-600"/> এডিট প্যানেল
+                </div>
+                <ScrollArea className="flex-1">
+                  {selectedObject ? (
+                    <div className="p-4 space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-blue-600 uppercase">{selectedObject.label}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
+                        </div>
+                        <Separator />
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] text-slate-500">দৈর্ঘ্য (ফুট)</Label>
+                            <Input type="number" step="0.5" value={selectedObject.w} onChange={(e) => updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} className="h-8" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] text-slate-500">প্রস্থ (ফুট)</Label>
+                            <Input type="number" step="0.5" value={selectedObject.h} onChange={(e) => updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} className="h-8" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-[10px] text-slate-500">৩৬০° রোটেশন</Label>
+                            <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-8 w-16 text-center" />
+                          </div>
+                          <Slider value={[selectedObject.rotation]} max={360} step={1} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} />
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label className="text-[10px] text-slate-500 uppercase font-bold">অবস্থান পরিবর্তন</Label>
+                          <div className="grid grid-cols-3 gap-2 w-32 mx-auto">
+                            <div />
+                            <Button size="icon" variant="outline" className="h-10 w-10" onClick={() => nudgeObject(selectedObject.id, 0, -0.5)}><ArrowUp className="w-4 h-4"/></Button>
+                            <div />
+                            <Button size="icon" variant="outline" className="h-10 w-10" onClick={() => nudgeObject(selectedObject.id, -0.5, 0)}><ArrowLeft className="w-4 h-4"/></Button>
+                            <Button size="icon" variant="outline" className="h-10 w-10" onClick={() => nudgeObject(selectedObject.id, 0, 0.5)}><ArrowDown className="w-4 h-4"/></Button>
+                            <Button size="icon" variant="outline" className="h-10 w-10" onClick={() => nudgeObject(selectedObject.id, 0.5, 0)}><ArrowRight className="w-4 h-4"/></Button>
+                          </div>
+                        </div>
+
+                        <Separator />
+                        <Button variant="destructive" className="w-full" onClick={() => deleteObject(selectedObject.id)}><Trash2 className="w-4 h-4 mr-2"/> অবজেক্ট ডিলিট</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                      <MousePointer2 className="w-12 h-12 mb-4 opacity-20" />
+                      <p className="text-xs">একটি অবজেক্ট সিলেক্ট করুন <br/> এডিট করার জন্য</p>
+                    </div>
+                  )}
+                </ScrollArea>
               </div>
             </div>
           </TabsContent>
@@ -697,13 +668,13 @@ function LibItem({ icon, label, onClick }: { icon: React.ReactNode, label: strin
   return (
     <Button 
       variant="outline" 
-      className="flex flex-col h-20 w-full gap-2 p-2 hover:bg-blue-50 hover:border-blue-400 transition-all group border-slate-200 bg-white shadow-sm" 
+      className="flex flex-col h-20 w-full gap-2 p-2 hover:bg-blue-50 hover:border-blue-400 group transition-all" 
       onClick={onClick}
     >
-      <div className="text-slate-400 group-hover:text-blue-600 transition-colors">
+      <div className="text-slate-400 group-hover:text-blue-600">
         {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
       </div>
-      <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-700">{label}</span>
+      <span className="text-[10px] font-bold text-slate-600">{label}</span>
     </Button>
   );
 }
