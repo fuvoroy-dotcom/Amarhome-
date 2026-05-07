@@ -203,8 +203,8 @@ export default function EstimatorClient() {
   const addObject = (type: DesignObject['type'], subType: string, label: string) => {
     let w = 10, h = 0.5;
     if (subType === 'room') { w = 10; h = 10; }
-    else if (subType === 'wall') { w = 10; h = 0.2; }
-    else if (type === 'opening') { w = 3; h = 0.2; }
+    else if (subType === 'wall') { w = 10; h = 0.05; } // Very thin for a single line wall
+    else if (type === 'opening') { w = 3; h = 0.1; }
     else if (type === 'furniture') { w = 4; h = 6; }
     
     const newObj: DesignObject = {
@@ -287,8 +287,8 @@ export default function EstimatorClient() {
       setSnapPoint(activeSnap);
       setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, x: Math.max(0, nextX), y: Math.max(0, nextY) } : o));
     } else if (interactionMode === 'resizing') {
-      const nextW = Math.max(0.2, Math.round((currentX - currentObj.x) * 2) / 2);
-      const nextH = Math.max(0.2, Math.round((currentY - currentObj.y) * 2) / 2);
+      const nextW = Math.max(0.1, Math.round((currentX - currentObj.x) * 2) / 2);
+      const nextH = Math.max(0.05, Math.round((currentY - currentObj.y) * 2) / 2);
       setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, w: nextW, h: nextH } : o));
     } else if (interactionMode === 'rotating') {
       const centerX = currentObj.x + currentObj.w / 2;
@@ -317,6 +317,14 @@ export default function EstimatorClient() {
     return `${f}' ${i}"`;
   };
 
+  const parseFeetInches = (str: string) => {
+    const match = str.match(/(\d+)'\s*(\d+)"/);
+    if (match) {
+      return parseInt(match[1]) + parseInt(match[2]) / 12;
+    }
+    return parseFloat(str) || 0;
+  };
+
   return (
     <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col">
       <Card className="shadow-none border-none overflow-hidden rounded-none bg-white flex-1 flex flex-col">
@@ -328,23 +336,24 @@ export default function EstimatorClient() {
         </div>
 
         <Tabs defaultValue="design" className="w-full flex-1 flex flex-col overflow-hidden">
-          {/* Fixed ScrollArea for TabsList to prevent runtime error */}
-          <ScrollArea className="w-full bg-slate-100 border-b">
-            <div className="flex h-auto bg-transparent rounded-none border-none px-4 justify-start min-w-max p-1">
-              <TabsList className="flex h-auto bg-transparent rounded-none border-none justify-start p-0">
-                <TabsTrigger value="structural" className="py-2 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
-                <TabsTrigger value="slab" className="py-2 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
-                <TabsTrigger value="stair" className="py-2 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
-                <TabsTrigger value="brick" className="py-2 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
-                <TabsTrigger value="plaster" className="py-2 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
-                <TabsTrigger value="tile" className="py-2 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
-                <TabsTrigger value="fullHouse" className="py-2 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
-                <TabsTrigger value="conversion" className="py-2 text-[12px] whitespace-nowrap">রূপান্তর</TabsTrigger>
-                <TabsTrigger value="design" className="py-2 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল (SmartDraw)</TabsTrigger>
-              </TabsList>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <div className="w-full bg-slate-100 border-b overflow-hidden">
+            <ScrollArea className="w-full">
+              <div className="flex h-auto bg-transparent rounded-none border-none px-4 justify-start min-w-max p-1">
+                <TabsList className="flex h-auto bg-transparent rounded-none border-none justify-start p-0">
+                  <TabsTrigger value="structural" className="py-2 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
+                  <TabsTrigger value="slab" className="py-2 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
+                  <TabsTrigger value="stair" className="py-2 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
+                  <TabsTrigger value="brick" className="py-2 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
+                  <TabsTrigger value="plaster" className="py-2 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
+                  <TabsTrigger value="tile" className="py-2 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
+                  <TabsTrigger value="fullHouse" className="py-2 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
+                  <TabsTrigger value="conversion" className="py-2 text-[12px] whitespace-nowrap">রূপান্তর</TabsTrigger>
+                  <TabsTrigger value="design" className="py-2 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল (SmartDraw)</TabsTrigger>
+                </TabsList>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
 
           {/* Calculator Contents (v61e7980 logic) */}
           <TabsContent value="structural" className="p-6 bg-white overflow-auto">
@@ -559,15 +568,28 @@ export default function EstimatorClient() {
                             border: selectedObjectId === obj.id ? '2px solid #2563eb' : (obj.subType === 'wall' ? 'none' : '1px solid #000'),
                           }}
                         >
-                          {/* Dimension Label (Floating above object) - Enhanced like screenshot */}
-                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white px-1 py-0.5 rounded shadow-sm border border-slate-200 pointer-events-none text-[9px] font-mono z-40">
-                             {formatFeetInches(obj.w)}
+                          {/* Dimension Lines (Professional Look like SmartDraw) */}
+                          <div className="absolute -top-8 left-0 right-0 flex flex-col items-center pointer-events-none">
+                            <div className="w-full h-[1px] bg-blue-400 relative">
+                               <div className="absolute left-0 -top-1 w-[1px] h-2 bg-blue-400" />
+                               <div className="absolute right-0 -top-1 w-[1px] h-2 bg-blue-400" />
+                            </div>
+                            <span className="bg-white px-1 text-[10px] font-mono text-blue-600 -mt-2 z-10">{formatFeetInches(obj.w)}</span>
                           </div>
+
+                          {obj.subType !== 'wall' && (
+                             <div className="absolute -right-10 top-0 bottom-0 flex flex-row items-center pointer-events-none">
+                                <div className="h-full w-[1px] bg-blue-400 relative">
+                                   <div className="absolute top-0 -left-1 h-[1px] w-2 bg-blue-400" />
+                                   <div className="absolute bottom-0 -left-1 h-[1px] w-2 bg-blue-400" />
+                                </div>
+                                <span className="bg-white py-1 text-[10px] font-mono text-blue-600 -ml-5 rotate-90 z-10">{formatFeetInches(obj.h)}</span>
+                             </div>
+                          )}
 
                           {obj.subType !== 'wall' && (
                             <div className="flex flex-col items-center justify-center p-1 text-center pointer-events-none overflow-hidden">
                               <span className="text-[10px] font-bold text-slate-800 truncate w-full">{obj.label}</span>
-                              <span className="text-[8px] font-mono text-slate-500">{obj.w}' × {obj.h}'</span>
                             </div>
                           )}
                           
@@ -576,18 +598,15 @@ export default function EstimatorClient() {
                             <>
                               {/* Rotate Handle */}
                               <div 
-                                className="absolute -top-12 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border-2 border-blue-600 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:bg-blue-50 z-40"
+                                className="absolute -top-14 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border-2 border-blue-600 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:bg-blue-50 z-40"
                                 onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}
                               >
                                 <RefreshCw className="w-4 h-4 text-blue-600" />
                               </div>
-                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-blue-600" />
+                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-0.5 h-8 bg-blue-600" />
 
-                              {/* Corner Resizing Handle (Bottom-Right) */}
-                              <div 
-                                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md"
-                                onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')}
-                              />
+                              {/* Corner Resizing Handles */}
+                              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
                             </>
                           )}
                         </div>
@@ -605,45 +624,37 @@ export default function EstimatorClient() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Left</span>
                       <Input 
-                        type="number" 
-                        step="0.1" 
-                        className="h-7 w-16 text-[11px] font-mono" 
+                        className="h-7 w-20 text-[11px] font-mono" 
                         disabled={!selectedObject}
-                        value={selectedObject ? selectedObject.x : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFloat(e.target.value) || 0 })}
+                        value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) })}
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Top</span>
                       <Input 
-                        type="number" 
-                        step="0.1" 
-                        className="h-7 w-16 text-[11px] font-mono" 
+                        className="h-7 w-20 text-[11px] font-mono" 
                         disabled={!selectedObject}
-                        value={selectedObject ? selectedObject.y : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFloat(e.target.value) || 0 })}
+                        value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) })}
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
                       <Input 
-                        type="number" 
-                        step="0.1" 
-                        className="h-7 w-16 text-[11px] font-mono" 
+                        className="h-7 w-20 text-[11px] font-mono" 
                         disabled={!selectedObject}
-                        value={selectedObject ? selectedObject.w : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} 
+                        value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} 
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
                       <Input 
-                        type="number" 
-                        step="0.1" 
-                        className="h-7 w-16 text-[11px] font-mono" 
+                        className="h-7 w-20 text-[11px] font-mono" 
                         disabled={!selectedObject}
-                        value={selectedObject ? selectedObject.h : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.1 })} 
+                        value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} 
                       />
                     </div>
                   </div>
@@ -654,7 +665,6 @@ export default function EstimatorClient() {
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setZoom(z => Math.min(150, z + 5))}><Plus className="w-3 h-3"/></Button>
                       <span className="text-[11px] font-mono text-slate-500 w-10 text-right">{Math.round((zoom/30)*100)}%</span>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><LayoutGrid className="w-4 h-4 text-slate-400" /></Button>
                   </div>
                 </div>
               </div>
@@ -677,12 +687,12 @@ export default function EstimatorClient() {
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Length (ft)</Label>
-                            <Input type="number" step="0.5" value={selectedObject.w} onChange={(e) => updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} className="h-9 font-mono border-blue-100 focus:border-blue-500 shadow-sm" />
+                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Width (ft)</Label>
+                            <Input value={formatFeetInches(selectedObject.w)} onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} className="h-9 font-mono border-blue-100 focus:border-blue-500 shadow-sm" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Width (ft)</Label>
-                            <Input type="number" step="0.5" value={selectedObject.h} onChange={(e) => updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} className="h-9 font-mono border-blue-100 focus:border-blue-500 shadow-sm" />
+                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Height (ft)</Label>
+                            <Input value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} className="h-9 font-mono border-blue-100 focus:border-blue-500 shadow-sm" />
                           </div>
                         </div>
 
