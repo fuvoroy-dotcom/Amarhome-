@@ -7,7 +7,7 @@ import {
   Building, Cog, BarChartBig, Layers, Paintbrush, ClipboardList, Trash2, 
   RectangleHorizontal, Grid, List, ArrowRightLeft, Palette, 
   Eraser, Square, DoorClosed, LayoutGrid, RotateCcw, Plus, 
-  Maximize, Bed, Armchair, Bath, Utensils, Tv, Coffee, MousePointer2
+  Maximize, Bed, Armchair, Bath, Utensils, Tv, Coffee, MousePointer2, X
 } from "lucide-react";
 import {
   Card,
@@ -118,7 +118,7 @@ export default function EstimatorClient() {
   const tileForm = useForm<TileEstimatorValues>({ resolver: zodResolver(tileEstimatorSchema), defaultValues: { calculationType: 'floor', floorLengthFt: 12, floorWidthFt: 10, walls: [{ length: 12, height: 10 }], tileLengthIn: 12, tileWidthIn: 12, wastagePercent: 10 } });
   const { fields: wallFields, append: appendWall, remove: removeWall } = useFieldArray({ control: tileForm.control, name: "walls" });
 
-  const plasterForm = useForm<PlasterEstimatorValues>({ resolver: zodResolver(plasterEstimatorSchema), defaultValues: { wallLengthFt: 12, wallHeightFt: 10, plasterThicknessIn: 0.5, plasterSides: '2' } });
+  const plasterForm = useForm<PlasterEstimatorValues>({ resolver: zodResolver(plasterEstimatorSchema), defaultValues: { wallLengthFt: 10, wallHeightFt: 10, plasterThicknessIn: 0.5, plasterSides: '2' } });
 
   const fullHouseForm = useForm<FullHouseEstimatorValues>({ resolver: zodResolver(fullHouseEstimatorSchema), defaultValues: { floorCount: 1, totalAreaSqFt: 1000, roomCount: 3, bathroomCount: 2, avgRoomLengthFt: 12, avgRoomWidthFt: 10, floorHeightFt: 10, columnCountPerFloor: 10, slabThicknessIn: 5, wallThicknessIn: '5', tileFloors: true, tileBathroomWalls: true, bathroomWallTileHeightFt: 7, plasterInterior: true, plasterExterior: true, mainRodFactor: 0.48, ringRodFactor: 0.12, ringGapIn: 7 } });
 
@@ -386,7 +386,7 @@ export default function EstimatorClient() {
           {/* --- Professional SmartDraw-style Design Workspace --- */}
           <TabsContent value="design" className="p-0 m-0 bg-[#f1f5f9] relative overflow-hidden h-[750px] border-t focus:outline-none">
             <div className="flex h-full">
-              {/* Sidebar: Library & Permanent Properties */}
+              {/* Sidebar: Library */}
               <div className="w-72 bg-white border-r flex flex-col z-20 shadow-xl overflow-hidden">
                 <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
                   <span className="font-bold text-sm flex items-center gap-2"><LayoutGrid className="w-4 h-4 text-blue-600"/> লাইব্রেরি</span>
@@ -423,66 +423,10 @@ export default function EstimatorClient() {
                     </div>
                   </div>
                 </ScrollArea>
-
-                {/* Permanent Properties Panel (Selected Object Controls) */}
-                <div className="p-4 bg-slate-900 text-white min-h-[300px] border-t border-slate-700">
-                  {selectedObject ? (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-blue-400 uppercase">এডিট প্যানেল: {selectedObject.label}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:bg-red-900/50" onClick={() => deleteObject(selectedObject.id)}>
-                          <Trash2 className="w-3 h-3"/>
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-[10px] text-slate-400 uppercase">দৈর্ঘ্য (ফুট)</Label>
-                          <Input 
-                            type="number" 
-                            step="0.5"
-                            value={selectedObject.w} 
-                            onChange={(e) => updateObject(selectedObject.id, { w: parseFloat(e.target.value) || 0.5 })} 
-                            className="h-8 bg-slate-800 border-slate-700 text-xs text-white" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px] text-slate-400 uppercase">প্রস্থ (ফুট)</Label>
-                          <Input 
-                            type="number" 
-                            step="0.5"
-                            value={selectedObject.h} 
-                            onChange={(e) => updateObject(selectedObject.id, { h: parseFloat(e.target.value) || 0.5 })} 
-                            className="h-8 bg-slate-800 border-slate-700 text-xs text-white" 
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-center mb-1">
-                          <Label className="text-[10px] text-slate-400 uppercase">৩৬০° রোটেশন</Label>
-                          <Input 
-                            type="number" 
-                            min="0"
-                            max="360"
-                            value={selectedObject.rotation} 
-                            onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} 
-                            className="h-7 w-16 bg-slate-800 border-slate-700 text-[10px] text-blue-400 text-center" 
-                          />
-                        </div>
-                        <Slider 
-                          value={[selectedObject.rotation]} 
-                          max={360} 
-                          step={1} 
-                          onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} 
-                          className="py-2" 
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center py-10">
-                      <MousePointer2 className="w-8 h-8 mb-2 opacity-20" />
-                      <p className="text-[10px] leading-relaxed">নকশার যেকোনো অবজেক্ট সিলেক্ট করুন<br/>সেটির মাপ ও দিক পরিবর্তনের জন্য</p>
-                    </div>
-                  )}
+                
+                {/* Information Footer */}
+                <div className="p-4 bg-slate-100 text-slate-500 border-t">
+                    <p className="text-[10px] leading-relaxed text-center">অবজেক্ট সিলেক্ট করলে ডানে <br/> এডিট প্যানেল আসবে</p>
                 </div>
               </div>
 
@@ -572,6 +516,81 @@ export default function EstimatorClient() {
                             >
                               <div className="w-1.5 h-1.5 bg-white rounded-full" />
                             </div>
+                          )}
+
+                          {/* Floating Edit Panel (Next to selected object on the right) */}
+                          {selectedObjectId === obj.id && (
+                             <div 
+                                className="absolute bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 p-4 w-52 z-50 flex flex-col gap-3 pointer-events-auto"
+                                style={{ 
+                                    left: `calc(100% + 20px)`, 
+                                    top: 0,
+                                    transform: `rotate(${-obj.rotation}deg)`, // Keep panel upright
+                                    transition: 'none'
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                             >
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-blue-400 uppercase">এডিট: {obj.label}</span>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-5 w-5 text-slate-400 hover:text-white" 
+                                        onClick={() => setSelectedObjectId(null)}
+                                    >
+                                        <X className="w-3 h-3"/>
+                                    </Button>
+                                </div>
+                                <Separator className="bg-slate-700"/>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label className="text-[9px] text-slate-400">দৈর্ঘ্য (ফুট)</Label>
+                                        <Input 
+                                            type="number" 
+                                            step="0.5"
+                                            value={obj.w} 
+                                            onChange={(e) => updateObject(obj.id, { w: parseFloat(e.target.value) || 0.5 })} 
+                                            className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" 
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[9px] text-slate-400">প্রস্থ (ফুট)</Label>
+                                        <Input 
+                                            type="number" 
+                                            step="0.5"
+                                            value={obj.h} 
+                                            onChange={(e) => updateObject(obj.id, { h: parseFloat(e.target.value) || 0.5 })} 
+                                            className="h-7 bg-slate-800 border-slate-700 text-[10px] text-white" 
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <Label className="text-[9px] text-slate-400">৩৬০° রোটেশন</Label>
+                                        <Input 
+                                            type="number" 
+                                            value={obj.rotation} 
+                                            onChange={(e) => updateObject(obj.id, { rotation: parseInt(e.target.value) || 0 })} 
+                                            className="h-6 w-12 bg-slate-800 border-slate-700 text-[9px] text-blue-400 text-center" 
+                                        />
+                                    </div>
+                                    <Slider 
+                                        value={[obj.rotation]} 
+                                        max={360} 
+                                        step={1} 
+                                        onValueChange={(val) => updateObject(obj.id, { rotation: val[0] })} 
+                                        className="py-1" 
+                                    />
+                                </div>
+                                <Button 
+                                    variant="destructive" 
+                                    size="sm" 
+                                    className="h-7 text-[10px] mt-1" 
+                                    onClick={() => deleteObject(obj.id)}
+                                >
+                                    <Trash2 className="w-3 h-3 mr-1"/> ডিলিট
+                                </Button>
+                             </div>
                           )}
                         </div>
                       ))}
