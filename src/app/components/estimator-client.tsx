@@ -203,9 +203,16 @@ export default function EstimatorClient() {
   // --- Design Interaction Handlers ---
   const addObject = (type: DesignObject['type'], subType: string, label: string) => {
     let w = 10, h = 10;
-    if (subType === 'wall') { w = 10; h = 0.1; } // Thin for a single line wall
-    else if (type === 'opening') { w = 3; h = 0.1; }
-    else if (type === 'furniture') { w = 4; h = 6; }
+    if (subType === 'wall') { 
+      w = 10; 
+      h = 0.1; // Very thin height to represent a single line wall
+    } else if (type === 'opening') { 
+      w = 3; 
+      h = 0.1; 
+    } else if (type === 'furniture') { 
+      w = 4; 
+      h = 6; 
+    }
     
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
@@ -273,7 +280,6 @@ export default function EstimatorClient() {
           y: (e.clientY - rect.top) / zoom - obj.y 
         });
       }
-      // Identify the whole structure/group connected to this object
       setGroupToMove(getConnectedGroup(id, designObjects));
     }
   };
@@ -297,7 +303,6 @@ export default function EstimatorClient() {
       let finalDeltaX = deltaX;
       let finalDeltaY = deltaY;
 
-      // Snapping logic for the group leader
       const nextX = currentObj.x + deltaX;
       const nextY = currentObj.y + deltaY;
       const snapThreshold = 0.8; 
@@ -338,7 +343,6 @@ export default function EstimatorClient() {
 
       setSnapPoint(activeSnap);
       
-      // Move the entire group together as a single unit
       setDesignObjects(objs => objs.map(o => 
         groupToMove.includes(o.id) 
           ? { ...o, x: Math.max(0, o.x + finalDeltaX), y: Math.max(0, o.y + finalDeltaY) } 
@@ -547,18 +551,18 @@ export default function EstimatorClient() {
                             border: selectedObjectId === obj.id ? '2px solid #2563eb' : (obj.subType === 'wall' ? 'none' : '1px solid #000'),
                           }}
                         >
-                          {/* Dimension Label - Horizontal */}
+                          {/* Dimension Label - Width (Always shown) */}
                           <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none">
                             <div className="w-full h-[1px] bg-blue-400 relative">
                                <div className="absolute left-0 -top-1 w-[1px] h-2 bg-blue-400" />
                                <div className="absolute right-0 -top-1 w-[1px] h-2 bg-blue-400" />
                             </div>
-                            <span className="bg-white px-1 text-[10px] font-bold text-blue-600 -mt-2.5 z-10 shadow-sm border border-blue-50 rounded-sm">
+                            <span className="bg-white px-1 text-[10px] font-bold text-blue-600 -mt-2.5 z-10 shadow-sm border border-blue-50 rounded-sm whitespace-nowrap">
                               {formatFeetInches(obj.w)}
                             </span>
                           </div>
 
-                          {/* Dimension Label - Vertical (For Rooms only) */}
+                          {/* Dimension Label - Height (Only for Rooms, not single walls) */}
                           {obj.subType !== 'wall' && (
                              <div className="absolute -right-10 top-0 bottom-0 flex flex-row items-center pointer-events-none">
                                 <div className="h-full w-[1px] bg-blue-400 relative">
@@ -593,19 +597,39 @@ export default function EstimatorClient() {
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Left</span>
-                      <Input className="h-7 w-20 text-[11px] font-mono" disabled={!selectedObject} value={selectedObject ? formatFeetInches(selectedObject.x) : ''} onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) })} />
+                      <Input 
+                        className="h-7 w-20 text-[11px] font-mono" 
+                        disabled={!selectedObject} 
+                        value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) })} 
+                      />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Top</span>
-                      <Input className="h-7 w-20 text-[11px] font-mono" disabled={!selectedObject} value={selectedObject ? formatFeetInches(selectedObject.y) : ''} onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) })} />
+                      <Input 
+                        className="h-7 w-20 text-[11px] font-mono" 
+                        disabled={!selectedObject} 
+                        value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) })} 
+                      />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
-                      <Input className="h-7 w-20 text-[11px] font-mono" disabled={!selectedObject} value={selectedObject ? formatFeetInches(selectedObject.w) : ''} onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} />
+                      <Input 
+                        className="h-7 w-20 text-[11px] font-mono" 
+                        disabled={!selectedObject} 
+                        value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} 
+                      />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
-                      <Input className="h-7 w-20 text-[11px] font-mono" disabled={!selectedObject} value={selectedObject ? formatFeetInches(selectedObject.h) : ''} onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} />
+                      <Input 
+                        className="h-7 w-20 text-[11px] font-mono" 
+                        disabled={!selectedObject || selectedObject.subType === 'wall'} 
+                        value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
+                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} 
+                      />
                     </div>
                   </div>
                   <div className="ml-auto flex items-center gap-3">
@@ -638,7 +662,12 @@ export default function EstimatorClient() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[10px] text-slate-500 uppercase font-bold">Height</Label>
-                            <Input value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} className="h-9 font-mono" />
+                            <Input 
+                              disabled={selectedObject.subType === 'wall'} 
+                              value={formatFeetInches(selectedObject.h)} 
+                              onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} 
+                              className="h-9 font-mono" 
+                            />
                           </div>
                         </div>
 
