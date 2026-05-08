@@ -9,7 +9,7 @@ import {
   Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
   ChevronDown, Type, PaintBucket, Layers, FlipHorizontal, FlipVertical,
   BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon,
-  Paintbrush, Star, AlignLeft, Group, RotateCw
+  Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,7 @@ export default function EstimatorClient() {
   const [zoom, setZoom] = useState(30);
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
+  const [activeRibbonTab, setActiveRibbonTab] = useState('home');
 
   // History for Undo/Redo
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -364,6 +365,14 @@ export default function EstimatorClient() {
     if (selectedObjectId) updateObject(selectedObjectId, { flipV: !selectedObject?.flipV }, true);
   };
 
+  const handleNewFile = () => {
+    setDesignObjects([]);
+    setHistory([[]]);
+    setHistoryIndex(0);
+    setSelectedObjectId(null);
+    toast({ title: "New Design", description: "Canvas cleared." });
+  };
+
   return (
     <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden">
       {/* Top Header */}
@@ -374,8 +383,26 @@ export default function EstimatorClient() {
             <span className="font-bold text-sm text-slate-700">smartdraw</span>
           </div>
           <nav className="flex gap-4">
-            {['File', 'Home', 'Design', 'Page', 'Table', 'Options', 'Support'].map(item => (
-              <Button key={item} variant="ghost" className="h-8 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-200">{item}</Button>
+            {[
+              { id: 'file', label: 'File' },
+              { id: 'home', label: 'Home' },
+              { id: 'design', label: 'Design' },
+              { id: 'page', label: 'Page' },
+              { id: 'table', label: 'Table' },
+              { id: 'options', label: 'Options' },
+              { id: 'support', label: 'Support' }
+            ].map(item => (
+              <Button 
+                key={item.id} 
+                variant="ghost" 
+                onClick={() => setActiveRibbonTab(item.id)}
+                className={cn(
+                  "h-8 px-2 text-[11px] font-medium transition-colors hover:bg-slate-200",
+                  activeRibbonTab === item.id ? "bg-white text-blue-600 shadow-sm font-bold" : "text-slate-600"
+                )}
+              >
+                {item.label}
+              </Button>
             ))}
           </nav>
         </div>
@@ -384,183 +411,197 @@ export default function EstimatorClient() {
 
       {/* Professional Ribbon Bar */}
       <div className="h-20 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
-        {/* Export Group */}
-        <div className="flex flex-col items-center border-r px-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
-                <Download className="w-5 h-5 text-slate-600"/>
-                <span className="text-[9px] uppercase font-bold text-slate-500">Export</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PDF</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PNG</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as SVG</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Clipboard Group */}
-        <div className="flex items-center border-r px-2">
-          <RibbonButton icon={<Clipboard />} label="Paste" onClick={pasteObject} disabled={!clipboard} />
-          <div className="flex flex-col">
-            <RibbonIconButton icon={<Copy />} label="Copy" onClick={copyObject} />
-            <RibbonIconButton icon={<Scissors />} label="Cut" onClick={() => { copyObject(); deleteObject(selectedObjectId); }} />
-            <RibbonIconButton icon={<Paintbrush />} label="Format Painter" />
+        {activeRibbonTab === 'file' && (
+          <div className="flex items-center">
+            <RibbonButton icon={<Folder />} label="Documents" />
+            <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewFile} />
+            <RibbonButton icon={<FolderOpen />} label="Open" />
+            <RibbonButton icon={<Save />} label="Save a Copy" />
+            <RibbonButton icon={<Printer />} label="Print" onClick={() => window.print()} />
+            <RibbonButton icon={<Settings />} label="Options" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
+                  <User className="w-5 h-5 text-slate-600"/>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[9px] uppercase font-bold text-slate-500">Account</span>
+                    <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+                <DropdownMenuItem>Sign Out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
+        )}
 
-        {/* Insert Group */}
-        <div className="flex flex-col items-center border-r px-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
-                <Plus className="w-5 h-5 text-slate-600"/>
-                <span className="text-[9px] uppercase font-bold text-slate-500">Insert</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Insert Wall</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => addObject('shape', 'room', 'L-Room')}>L-Shaped Room</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => addObject('opening', 'door', 'দরজা')}>Door</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {activeRibbonTab === 'home' && (
+          <>
+            {/* Export Group */}
+            <div className="flex flex-col items-center border-r px-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
+                    <Download className="w-5 h-5 text-slate-600"/>
+                    <span className="text-[9px] uppercase font-bold text-slate-500">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PDF</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PNG</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as SVG</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-        {/* History Group */}
-        <div className="flex items-center border-r px-2">
-          <RibbonIconButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
-          <RibbonIconButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
-        </div>
-
-        {/* Style Group */}
-        <div className="flex items-center border-r px-2">
-           <RibbonIconButton icon={<Layers />} label="Styles" />
-           <RibbonIconButton icon={<FileText />} label="Themes" />
-        </div>
-
-        {/* Format Group */}
-        <div className="flex items-center border-r px-2 gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
-                <PaintBucket className="w-5 h-5 text-slate-600" />
-                <span className="text-[9px] uppercase font-bold text-slate-500">Fill</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="p-2 w-48">
-              <div className="grid grid-cols-5 gap-1">
-                {COLORS.map(c => (
-                  <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
-                ))}
-                <div onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: 'transparent' }, true)} className="w-6 h-6 rounded border cursor-pointer flex items-center justify-center text-[10px] text-slate-400 bg-slate-50">X</div>
+            {/* Clipboard Group */}
+            <div className="flex items-center border-r px-2">
+              <RibbonButton icon={<Clipboard />} label="Paste" onClick={pasteObject} disabled={!clipboard} />
+              <div className="flex flex-col">
+                <RibbonIconButton icon={<Copy />} label="Copy" onClick={copyObject} />
+                <RibbonIconButton icon={<Scissors />} label="Cut" onClick={() => { copyObject(); deleteObject(selectedObjectId); }} />
+                <RibbonIconButton icon={<Paintbrush />} label="Format Painter" />
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
-                <GripHorizontal className="w-5 h-5 text-slate-600" />
-                <span className="text-[9px] uppercase font-bold text-slate-500">Line Style</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="p-2 w-48">
-              <div className="space-y-3">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Style</span>
-                  <div className="flex gap-2 mt-1">
-                    {LINE_STYLES.map(s => (
-                      <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Width</span>
-                  <div className="flex gap-1 mt-1">
-                    {LINE_WIDTHS.map(w => (
-                      <Button key={w} variant="outline" className="h-7 w-7 text-[10px] p-0" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeWidth: w }, true)}>{w}px</Button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Color</span>
-                   <div className="grid grid-cols-5 gap-1 mt-1">
+            {/* Insert Group */}
+            <div className="flex flex-col items-center border-r px-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
+                    <Plus className="w-5 h-5 text-slate-600"/>
+                    <span className="text-[9px] uppercase font-bold text-slate-500">Insert</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Insert Wall</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => addObject('shape', 'room', 'L-Room')}>L-Shaped Room</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => addObject('opening', 'door', 'দরজা')}>Door</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* History Group */}
+            <div className="flex items-center border-r px-2">
+              <RibbonIconButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
+              <RibbonIconButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
+            </div>
+
+            {/* Style Group */}
+            <div className="flex items-center border-r px-2">
+               <RibbonIconButton icon={<Layers />} label="Styles" />
+               <RibbonIconButton icon={<FileText />} label="Themes" />
+            </div>
+
+            {/* Format Group */}
+            <div className="flex items-center border-r px-2 gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
+                    <PaintBucket className="w-5 h-5 text-slate-600" />
+                    <span className="text-[9px] uppercase font-bold text-slate-500">Fill</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="p-2 w-48">
+                  <div className="grid grid-cols-5 gap-1">
                     {COLORS.map(c => (
-                      <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c }, true)} className="w-5 h-5 rounded border cursor-pointer" style={{ backgroundColor: c }} />
+                      <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
                     ))}
+                    <div onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: 'transparent' }, true)} className="w-6 h-6 rounded border cursor-pointer flex items-center justify-center text-[10px] text-slate-400 bg-slate-50">X</div>
                   </div>
-                </div>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          <RibbonIconButton icon={<Star />} label="Effects" />
-        </div>
-
-        {/* Font Placeholder Group */}
-        <div className="flex items-center border-r px-4 gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="flex gap-1">
-              <Input className="h-6 w-24 text-[10px]" defaultValue="Arial" disabled />
-              <Input className="h-6 w-10 text-[10px]" defaultValue="10" disabled />
-            </div>
-            <div className="flex gap-1">
-               <Button variant="ghost" className="h-5 w-5 p-0 text-[10px] font-bold">B</Button>
-               <Button variant="ghost" className="h-5 w-5 p-0 text-[10px] italic">I</Button>
-               <Button variant="ghost" className="h-5 w-5 p-0 text-[10px] underline">U</Button>
-               <Button variant="ghost" className="h-5 w-5 p-0"><Type className="w-3 h-3"/></Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Transform Group */}
-        <div className="flex items-center border-r px-2 gap-2">
-           <div className="flex flex-col gap-0.5">
-             <RibbonIconButton icon={<AlignLeft />} label="Align" />
-             <RibbonIconButton icon={<Group />} label="Group" />
-           </div>
-           <div className="flex flex-col gap-0.5">
-             <DropdownMenu>
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
-                    <RotateCw className="w-3.5 h-3.5 text-slate-600" />
-                    <span className="text-[10px] font-medium text-slate-600">Rotate</span>
+                  <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
+                    <GripHorizontal className="w-5 h-5 text-slate-600" />
+                    <span className="text-[9px] uppercase font-bold text-slate-500">Line Style</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                   <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) + 90 }, true)}>Rotate 90°</DropdownMenuItem>
-                   <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) - 90 }, true)}>Rotate -90°</DropdownMenuItem>
+                <DropdownMenuContent className="p-2 w-48">
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Style</span>
+                      <div className="flex gap-2 mt-1">
+                        {LINE_STYLES.map(s => (
+                          <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Width</span>
+                      <div className="flex gap-1 mt-1">
+                        {LINE_WIDTHS.map(w => (
+                          <Button key={w} variant="outline" className="h-7 w-7 text-[10px] p-0" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeWidth: w }, true)}>{w}px</Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Color</span>
+                       <div className="grid grid-cols-5 gap-1 mt-1">
+                        {COLORS.map(c => (
+                          <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c }, true)} className="w-5 h-5 rounded border cursor-pointer" style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </DropdownMenuContent>
-             </DropdownMenu>
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
-                    <FlipHorizontal className="w-3.5 h-3.5 text-slate-600" />
-                    <span className="text-[10px] font-medium text-slate-600">Flip</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                   <DropdownMenuItem onClick={flipH}>Flip Horizontal</DropdownMenuItem>
-                   <DropdownMenuItem onClick={flipV}>Flip Vertical</DropdownMenuItem>
-                </DropdownMenuContent>
-             </DropdownMenu>
-           </div>
-           <div className="flex flex-col gap-0.5">
-              <RibbonIconButton icon={<BringToFront />} label="Bring to Front" onClick={bringToFront} />
-              <RibbonIconButton icon={<SendToBack />} label="Send to Back" onClick={sendToBack} />
-           </div>
-        </div>
-        
-        <RibbonButton icon={<Eraser />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
+              </DropdownMenu>
+
+              <RibbonIconButton icon={<Star />} label="Effects" />
+            </div>
+
+            {/* Transform Group */}
+            <div className="flex items-center border-r px-2 gap-2">
+               <div className="flex flex-col gap-0.5">
+                 <RibbonIconButton icon={<AlignLeft />} label="Align" />
+                 <RibbonIconButton icon={<Group />} label="Group" />
+               </div>
+               <div className="flex flex-col gap-0.5">
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
+                        <RotateCw className="w-3.5 h-3.5 text-slate-600" />
+                        <span className="text-[10px] font-medium text-slate-600">Rotate</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                       <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) + 90 }, true)}>Rotate 90°</DropdownMenuItem>
+                       <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) - 90 }, true)}>Rotate -90°</DropdownMenuItem>
+                    </DropdownMenuContent>
+                 </DropdownMenu>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
+                        <FlipHorizontal className="w-3.5 h-3.5 text-slate-600" />
+                        <span className="text-[10px] font-medium text-slate-600">Flip</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                       <DropdownMenuItem onClick={flipH}>Flip Horizontal</DropdownMenuItem>
+                       <DropdownMenuItem onClick={flipV}>Flip Vertical</DropdownMenuItem>
+                    </DropdownMenuContent>
+                 </DropdownMenu>
+               </div>
+               <div className="flex flex-col gap-0.5">
+                  <RibbonIconButton icon={<BringToFront />} label="Bring to Front" onClick={bringToFront} />
+                  <RibbonIconButton icon={<SendToBack />} label="Send to Back" onClick={sendToBack} />
+               </div>
+            </div>
+            
+            <RibbonButton icon={<Trash2 />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
+          </>
+        )}
       </div>
 
       {/* Tabs Row */}
       <div className="w-full bg-slate-100 border-b overflow-hidden shrink-0">
-        <div className="w-full overflow-x-auto no-scrollbar">
+        <ScrollArea orientation="horizontal" className="w-full">
           <div className="flex h-11 bg-transparent px-4">
             <Tabs defaultValue="design" className="h-full">
               <TabsList className="flex h-full bg-transparent rounded-none border-none p-0">
@@ -575,7 +616,7 @@ export default function EstimatorClient() {
               </TabsList>
             </Tabs>
           </div>
-        </div>
+        </ScrollArea>
       </div>
 
       <div className="flex-1 flex overflow-hidden bg-[#f8f9fa]">
@@ -585,7 +626,7 @@ export default function EstimatorClient() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Library</span>
             <MenuIcon className="w-3 h-3 text-slate-400"/>
           </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          <ScrollArea className="flex-1">
             <Accordion type="multiple" defaultValue={["tools", "symbols"]} className="w-full">
               <AccordionItem value="tools" className="border-none">
                 <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Walls & Structure</AccordionTrigger>
@@ -605,7 +646,7 @@ export default function EstimatorClient() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-          </div>
+          </ScrollArea>
         </div>
 
         <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
@@ -682,7 +723,7 @@ export default function EstimatorClient() {
                         borderColor: isWall ? 'transparent' : obj.color,
                         borderWidth: isWall ? 0 : (obj.strokeWidth || 1),
                         outline: isSelected ? '2px solid #2563eb' : 'none',
-                        outlineOffset: '2px'
+                        outlineOffset: isSelected ? '2px' : '0'
                       }}>
                       
                       <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
@@ -763,7 +804,7 @@ export default function EstimatorClient() {
             <Settings2 className="w-4 h-4 text-blue-600"/>
             <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">Object Properties</span>
           </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          <ScrollArea className="flex-1">
             <div className="p-4 space-y-6">
               {selectedObject ? (
                 <>
@@ -805,7 +846,7 @@ export default function EstimatorClient() {
                 </div>
               )}
             </div>
-          </div>
+          </ScrollArea>
         </div>
       </div>
     </div>
