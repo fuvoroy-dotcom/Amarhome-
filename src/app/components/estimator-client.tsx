@@ -11,7 +11,8 @@ import {
   BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon,
   Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Table as TableIcon, Columns, Rows, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, ArrowDownToLine, 
-  Merge, Split, Grid, CheckSquare, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TextIcon
+  Merge, Split, Grid, CheckSquare, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TextIcon,
+  Ruler, RotateCcw, Info
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type DesignObject = {
   id: string;
@@ -62,8 +63,6 @@ const LINE_STYLES = [
   { label: 'Dotted', value: 'dotted' }
 ];
 
-const LINE_WIDTHS = [1, 2, 4, 6, 8];
-
 export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
@@ -78,7 +77,9 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); // Default 4" approx
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); 
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
 
   // History for Undo/Redo
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -174,15 +175,20 @@ export default function EstimatorClient() {
   const addObject = (type: DesignObject['type'], subType: string, label: string) => {
     if (subType === 'wall') {
       setInteractionMode('drawing');
+      setSelectedTool('line');
       toast({ title: "Drawing Mode", description: "মাউস দিয়ে টেনে দেয়াল আঁকুন।" });
       return;
     }
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x: 10, y: 10, w: 10, h: subType === 'table' ? 6 : 8,
+      type, subType, x: 10, y: 10, 
+      w: subType === 'table' ? tableCols * 2 : 10, 
+      h: subType === 'table' ? tableRows * 1.5 : 8,
       label, color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid',
-      rotation: 0
+      rotation: 0,
+      rows: subType === 'table' ? tableRows : undefined,
+      cols: subType === 'table' ? tableCols : undefined
     };
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -382,7 +388,7 @@ export default function EstimatorClient() {
   };
 
   return (
-    <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden">
+    <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body">
       {/* Top Header */}
       <div className="h-10 bg-[#f1f3f4] border-b flex items-center px-4 justify-between shrink-0">
         <div className="flex items-center gap-6">
@@ -425,6 +431,7 @@ export default function EstimatorClient() {
             <RibbonButton icon={<Save />} label="Save a Copy" />
             <RibbonButton icon={<Printer />} label="Print" onClick={() => window.print()} />
             <RibbonButton icon={<Settings />} label="Options" />
+            <div className="w-px h-12 bg-slate-200 mx-2" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
@@ -479,7 +486,7 @@ export default function EstimatorClient() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => { addObject('structure', 'wall', 'দেয়াল'); setInteractionMode('drawing'); }}>Insert Wall</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.33); setInteractionMode('drawing'); setSelectedTool('line'); }}>Insert Wall</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => addObject('opening', 'door', 'দরজা')}>Door</DropdownMenuItem>
                 </DropdownMenuContent>
@@ -512,14 +519,21 @@ export default function EstimatorClient() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
                     <GripHorizontal className="w-5 h-5 text-slate-600" />
-                    <span className="text-[9px] uppercase font-bold text-slate-500">Line Style</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-500">Line</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="p-2 w-48">
                   <div className="space-y-3">
+                     <span className="text-[10px] font-bold text-slate-400 uppercase">Style</span>
                     <div className="flex gap-2">
                       {LINE_STYLES.map(s => (
                         <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
+                      ))}
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Color</span>
+                    <div className="grid grid-cols-5 gap-1">
+                      {COLORS.map(c => (
+                        <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c }, true)} className="w-5 h-5 rounded border cursor-pointer" style={{ backgroundColor: c }} />
                       ))}
                     </div>
                   </div>
@@ -543,26 +557,51 @@ export default function EstimatorClient() {
         )}
 
         {activeRibbonTab === 'table' && (
-          <div className="flex items-center">
+          <div className="flex items-center gap-4">
+             <div className="flex flex-col border-r pr-4 gap-1">
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold text-slate-500">Rows:</span>
+                   <Input type="number" value={tableRows} onChange={(e) => setTableRows(parseInt(e.target.value))} className="h-6 w-12 text-xs" />
+                </div>
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold text-slate-500">Cols:</span>
+                   <Input type="number" value={tableCols} onChange={(e) => setTableCols(parseInt(e.target.value))} className="h-6 w-12 text-xs" />
+                </div>
+             </div>
              <RibbonButton icon={<Grid />} label="Insert Table" onClick={() => addObject('shape', 'table', 'Table')} />
+             <div className="flex flex-col border-x px-2">
+                <RibbonIconButton icon={<ArrowUpToLine />} label="Above" />
+                <RibbonIconButton icon={<ArrowDownToLine />} label="Below" />
+             </div>
+             <div className="flex flex-col border-r pr-2">
+                <RibbonIconButton icon={<ArrowLeftToLine />} label="Left" />
+                <RibbonIconButton icon={<ArrowRightToLine />} label="Right" />
+             </div>
+             <div className="flex flex-col border-r pr-2">
+                <RibbonIconButton icon={<Merge />} label="Join" />
+                <RibbonIconButton icon={<Split />} label="Split" />
+             </div>
              <RibbonButton icon={<Trash2 />} label="Remove" onClick={() => deleteObject(selectedObjectId)} />
           </div>
         )}
       </div>
 
       <div className="flex-1 flex overflow-hidden bg-slate-50">
-        {/* New Pro Library Sidebar */}
-        <div className="flex w-[320px] bg-white border-r z-20 shrink-0">
+        {/* Left Library Sidebar */}
+        <div className="flex w-[320px] bg-white border-r z-20 shrink-0 shadow-sm">
           {/* Left Rail */}
           <div className="w-12 border-r bg-slate-50 flex flex-col items-center py-4 gap-6 shrink-0">
-             <Briefcase className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500" />
-             <Database className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500" />
-             <Sparkles className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500" />
+             <Briefcase className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500 transition-colors" />
+             <Database className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500 transition-colors" />
+             <Sparkles className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500 transition-colors" />
+             <div className="mt-auto mb-4">
+                <Info className="w-5 h-5 text-slate-300" />
+             </div>
           </div>
 
           {/* Sidebar Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="p-3 border-b flex items-center justify-between">
+            <div className="p-3 border-b flex items-center justify-between bg-slate-50/50">
                <div className="flex items-center gap-1 cursor-pointer group">
                   <span className="text-sm font-bold text-slate-700">Tools</span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600" />
@@ -597,8 +636,6 @@ export default function EstimatorClient() {
                       <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.5); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 6"</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.66); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 8"</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => { setCurrentWallThickness(1.0); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 12"</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>Custom...</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
 
@@ -611,24 +648,12 @@ export default function EstimatorClient() {
                 {/* Categorized Tools */}
                 <Accordion type="multiple" defaultValue={["recently"]} className="w-full">
                   <AccordionItem value="setup" className="border-none">
-                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Document Setup</AccordionTrigger>
-                    <AccordionContent className="pb-2">Settings...</AccordionContent>
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Document Setup</AccordionTrigger>
+                    <AccordionContent className="pb-2 text-[11px] text-slate-500">Configure page size and units.</AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="adjust" className="border-none">
-                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Adjust Wall</AccordionTrigger>
-                    <AccordionContent className="pb-2">Wall Controls...</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="dims" className="border-none">
-                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Dimensions & Area</AccordionTrigger>
-                    <AccordionContent className="pb-2">Stats...</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="recently" className="border-none">
-                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Recently Used Symbols</AccordionTrigger>
-                    <AccordionContent className="pb-2">
-                       <div className="aspect-square w-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400">
-                          <Square className="w-8 h-8 text-slate-200" />
-                       </div>
-                    </AccordionContent>
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Adjust Wall</AccordionTrigger>
+                    <AccordionContent className="pb-2 text-[11px] text-slate-500">Edit wall connections and corners.</AccordionContent>
                   </AccordionItem>
                 </Accordion>
 
@@ -648,19 +673,17 @@ export default function EstimatorClient() {
 
                   <Accordion type="multiple" className="w-full">
                     <AccordionItem value="room" className="border-none">
-                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Room Outlines</AccordionTrigger>
+                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Room Outlines</AccordionTrigger>
                       <AccordionContent className="grid grid-cols-2 gap-2">
-                         <div onClick={() => addObject('shape', 'room', 'রুম')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400"><Square className="w-6 h-6 text-slate-300" /></div>
-                         <div onClick={() => addObject('shape', 'room', 'L-Room')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400"><LayoutGrid className="w-6 h-6 text-slate-300" /></div>
+                         <div onClick={() => addObject('shape', 'room', 'রুম')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400 shadow-sm transition-all"><Square className="w-6 h-6 text-slate-300" /></div>
+                         <div onClick={() => addObject('shape', 'room', 'L-Room')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400 shadow-sm transition-all"><LayoutGrid className="w-6 h-6 text-slate-300" /></div>
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="doors" className="border-none">
-                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Doors & Windows</AccordionTrigger>
-                      <AccordionContent className="pb-2">Symbols list...</AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="counter" className="border-none">
-                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Countertops</AccordionTrigger>
-                      <AccordionContent className="pb-2">Symbols list...</AccordionContent>
+                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Doors & Windows</AccordionTrigger>
+                      <AccordionContent className="pb-2">
+                         <div onClick={() => addObject('opening', 'door', 'Door')} className="h-16 w-full border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400 shadow-sm"><DoorClosed className="w-6 h-6 text-slate-300" /></div>
+                      </AccordionContent>
                     </AccordionItem>
                   </Accordion>
                 </div>
@@ -669,8 +692,8 @@ export default function EstimatorClient() {
           </div>
         </div>
 
+        {/* Main Canvas Area */}
         <div className="flex-1 relative flex flex-col overflow-hidden">
-          {/* Main Drawing Area */}
           <div 
             id="canvas-workspace"
             className="flex-1 relative bg-white overflow-auto cursor-crosshair no-scrollbar"
@@ -680,10 +703,10 @@ export default function EstimatorClient() {
           >
             <div className="absolute inset-0" style={{ 
                 backgroundImage: `linear-gradient(#f1f3f4 1px, transparent 1px), linear-gradient(90deg, #f1f3f4 1px, transparent 1px)`,
-                backgroundSize: `${zoom}px ${zoom}px`, width: 10000, height: 10000, backgroundColor: 'white'
+                backgroundSize: `${zoom}px ${zoom}px`, width: 5000, height: 5000, backgroundColor: 'white'
               }}>
               {snapPoint && (
-                <div className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-sm pointer-events-none"
+                <div className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-md pointer-events-none"
                   style={{ left: snapPoint.x * zoom - 8, top: snapPoint.y * zoom - 8 }} />
               )}
 
@@ -697,7 +720,7 @@ export default function EstimatorClient() {
                     transformOrigin: '0 50%',
                     transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x)}rad)`
                   }}>
-                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold">
+                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold shadow-sm">
                     {formatFeetInches(Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)))}
                   </span>
                 </div>
@@ -705,6 +728,7 @@ export default function EstimatorClient() {
 
               {designObjects.map(obj => {
                 const isWall = obj.subType === 'wall';
+                const isTable = obj.subType === 'table';
                 const isSelected = selectedObjectId === obj.id;
                 
                 return (
@@ -714,7 +738,7 @@ export default function EstimatorClient() {
                       left: obj.x * zoom, 
                       top: obj.y * zoom, 
                       width: obj.w * zoom, 
-                      height: isWall ? (obj.h * zoom) : obj.h * zoom, 
+                      height: obj.h * zoom, 
                       transformOrigin: '0 50%',
                       transform: `rotate(${obj.rotation}deg)`, 
                       backgroundColor: isWall ? obj.color : obj.fillColor,
@@ -723,15 +747,31 @@ export default function EstimatorClient() {
                       outlineOffset: isSelected ? '2px' : undefined
                     }}>
                     
+                    {isTable && (
+                      <div className="absolute inset-0 grid overflow-hidden" style={{ 
+                        gridTemplateRows: `repeat(${obj.rows}, 1fr)`,
+                        gridTemplateColumns: `repeat(${obj.cols}, 1fr)`
+                      }}>
+                        {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
+                          <div key={i} className="border-[0.5px] border-slate-300/30" />
+                        ))}
+                      </div>
+                    )}
+
                     <div className="absolute -top-7 left-0 right-0 flex justify-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
-                      <span className="bg-white/80 px-1 text-[10px] font-bold text-blue-600 rounded">
+                      <span className="bg-white/90 px-1 text-[10px] font-bold text-blue-600 rounded shadow-sm border border-blue-100">
                         {formatFeetInches(obj.w)}
                         {!isWall && ` x ${formatFeetInches(obj.h)}`}
                       </span>
                     </div>
 
                     {isSelected && (
-                      <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                      <>
+                        <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md hover:scale-125 transition-transform" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-5 h-5 bg-white rounded-full cursor-pointer flex items-center justify-center border shadow-md hover:bg-slate-50" onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}>
+                           <RotateCw className="w-3 h-3 text-slate-600" />
+                        </div>
+                      </>
                     )}
                   </div>
                 );
@@ -739,43 +779,125 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Bottom Property Input Row */}
-          <div className="h-14 bg-white border-t flex items-center px-4 gap-6 z-30 shadow-lg shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Left</span>
-                <Input 
-                  className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                  value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
-                  onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
-                  placeholder={"0' 0\""}
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Top</span>
-                <Input 
-                  className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                  value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
-                  onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
-                  placeholder={"0' 0\""}
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Width</span>
-                <Input 
-                  className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                  value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
-                  onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
-                  placeholder={"0' 0\""}
-                />
-              </div>
-            </div>
-            <div className="ml-auto flex items-center gap-4">
-              <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
-              <Slider value={[zoom]} max={150} min={10} step={5} className="w-24" onValueChange={(val) => setZoom(val[0])} />
-              <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
-            </div>
+          {/* Mini Status Bar */}
+          <div className="h-8 bg-white border-t flex items-center px-4 justify-end gap-4 shrink-0 shadow-sm">
+             <div className="flex items-center gap-2">
+                <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
+                <Slider value={[zoom]} max={150} min={10} step={5} className="w-32" onValueChange={(val) => setZoom(val[0])} />
+                <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
+                <span className="text-[10px] font-bold text-slate-400 ml-2">{zoom}%</span>
+             </div>
           </div>
+        </div>
+
+        {/* Right Edit Panel (Permanent) */}
+        <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-sm">
+           <div className="p-3 border-b bg-slate-50/50 flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-700">Properties</span>
+              <Settings2 className="w-4 h-4 text-slate-400" />
+           </div>
+           
+           <ScrollArea className="flex-1">
+              <div className="p-4 space-y-6">
+                 {selectedObject ? (
+                    <>
+                       <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                             <span className="text-[11px] font-bold text-slate-400 uppercase">Position</span>
+                             <Ruler className="w-3 h-3 text-slate-300" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-1">
+                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Left</Label>
+                                <Input 
+                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   value={formatFeetInches(selectedObject.x)} 
+                                   onChange={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
+                                   placeholder={"0' 0\""}
+                                />
+                             </div>
+                             <div className="space-y-1">
+                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Top</Label>
+                                <Input 
+                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   value={formatFeetInches(selectedObject.y)} 
+                                   onChange={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
+                                   placeholder={"0' 0\""}
+                                />
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="space-y-4 pt-4 border-t">
+                          <div className="flex items-center justify-between">
+                             <span className="text-[11px] font-bold text-slate-400 uppercase">Dimensions</span>
+                             <Maximize2 className="w-3 h-3 text-slate-300" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-1">
+                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Width</Label>
+                                <Input 
+                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   value={formatFeetInches(selectedObject.w)} 
+                                   onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
+                                   placeholder={"0' 0\""}
+                                />
+                             </div>
+                             <div className="space-y-1">
+                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Height</Label>
+                                <Input 
+                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   value={formatFeetInches(selectedObject.h)} 
+                                   onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
+                                   placeholder={"0' 0\""}
+                                />
+                             </div>
+                          </div>
+                          <div className="space-y-1">
+                             <Label className="text-[10px] text-slate-500 font-bold uppercase">Rotation</Label>
+                             <div className="flex items-center gap-3">
+                                <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
+                                <span className="text-[11px] font-mono w-8">{selectedObject.rotation}°</span>
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="space-y-4 pt-4 border-t">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase">Information</span>
+                          <div className="bg-slate-50 p-2 rounded border text-[10px] space-y-2 text-slate-600">
+                             <div className="flex justify-between">
+                                <span className="font-bold">Type:</span>
+                                <span>{selectedObject.subType.toUpperCase()}</span>
+                             </div>
+                             <div className="flex justify-between">
+                                <span className="font-bold">ID:</span>
+                                <span className="font-mono">{selectedObject.id}</span>
+                             </div>
+                             {selectedObject.subType === 'table' && (
+                                <>
+                                   <div className="flex justify-between">
+                                      <span className="font-bold">Rows:</span>
+                                      <span>{selectedObject.rows}</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                      <span className="font-bold">Cols:</span>
+                                      <span>{selectedObject.cols}</span>
+                                   </div>
+                                </>
+                             )}
+                          </div>
+                       </div>
+                    </>
+                 ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-20">
+                       <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
+                          <MousePointer2 className="w-6 h-6 text-slate-300" />
+                       </div>
+                       <p className="text-[11px] text-slate-400 font-medium px-6">Select an object to view and edit its properties.</p>
+                    </div>
+                 )}
+              </div>
+           </ScrollArea>
         </div>
       </div>
     </div>
@@ -786,39 +908,36 @@ function ToolCard({ icon, label, active, onClick }: { icon: React.ReactNode, lab
   return (
     <div onClick={onClick} className={cn(
       "flex flex-col items-center justify-center p-2 rounded-md cursor-pointer transition-all",
-      active ? "bg-amber-100 text-amber-700 shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-100"
+      active ? "bg-amber-100 text-amber-700 shadow-sm border border-amber-200" : "bg-transparent text-slate-500 hover:bg-slate-100"
     )}>
        {React.cloneElement(icon as React.ReactElement, { className: cn("w-4 h-4 mb-1", active && "stroke-[2.5px]") })}
-       <span className="text-[9px] font-bold uppercase">{label}</span>
+       <span className="text-[9px] font-bold uppercase tracking-tighter">{label}</span>
     </div>
   );
 }
 
 function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
   return (
-    <Button variant={variant} disabled={disabled} onClick={onClick} className="h-16 flex flex-col gap-1 px-3 hover:bg-slate-100 min-w-[60px]">
-      {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-600" })}
-      <span className="text-[9px] uppercase font-bold text-slate-500">{label}</span>
+    <Button variant={variant} disabled={disabled} onClick={onClick} className="h-16 flex flex-col gap-1 px-3 hover:bg-slate-100 min-w-[60px] group transition-colors">
+      {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-600 group-hover:text-blue-600" })}
+      <span className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-slate-700">{label}</span>
     </Button>
   );
 }
 
 function RibbonIconButton({ icon, label, onClick, disabled }: { icon: React.ReactNode, label?: string, onClick?: () => void, disabled?: boolean }) {
   return (
-    <Button variant="ghost" disabled={disabled} onClick={onClick} className="h-7 w-full flex gap-2 px-2 items-center justify-start hover:bg-slate-100">
-      {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5 text-slate-600" })}
-      {label && <span className="text-[10px] font-medium text-slate-600">{label}</span>}
+    <Button variant="ghost" disabled={disabled} onClick={onClick} className="h-7 w-full flex gap-2 px-2 items-center justify-start hover:bg-slate-100 group transition-colors">
+      {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5 text-slate-600 group-hover:text-blue-600" })}
+      {label && <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">{label}</span>}
     </Button>
   );
 }
 
-function ToolIconButton({ icon, label, onClick }: { icon: React.ReactNode, label?: string, onClick?: () => void }) {
+function ToolIconButton({ icon, onClick }: { icon: React.ReactNode, onClick?: () => void }) {
   return (
-    <Button variant="ghost" onClick={onClick} className="h-10 px-2 flex flex-col items-center justify-center gap-0.5 hover:bg-slate-100">
-      <div className="flex items-center gap-1">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 text-slate-600" })}
-      </div>
-      {label && <span className="text-[8px] font-bold text-slate-500 leading-none uppercase tracking-tighter">{label}</span>}
+    <Button variant="ghost" onClick={onClick} className="h-6 w-6 p-0 flex items-center justify-center hover:bg-slate-100 transition-colors">
+      {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 text-slate-500" })}
     </Button>
   );
 }
