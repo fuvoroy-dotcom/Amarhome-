@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -46,6 +45,8 @@ type DesignObject = {
   rotation: number;
   flipH?: boolean;
   flipV?: boolean;
+  rows?: number;
+  cols?: number;
 };
 
 const COLORS = [
@@ -74,6 +75,10 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
+  
+  // Table specific state
+  const [tableRowsInput, setTableRowsInput] = useState(4);
+  const [tableColsInput, setTableColsInput] = useState(3);
 
   // History for Undo/Redo
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -174,10 +179,12 @@ export default function EstimatorClient() {
     }
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x: 10, y: 10, w: 10, h: 8,
+      type, subType, x: 10, y: 10, w: 10, h: subType === 'table' ? 6 : 8,
       label, color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid',
-      rotation: 0
+      rotation: 0,
+      rows: subType === 'table' ? tableRowsInput : undefined,
+      cols: subType === 'table' ? tableColsInput : undefined
     };
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -600,12 +607,22 @@ export default function EstimatorClient() {
                <div className="flex items-center gap-2 mb-1">
                  <Rows className="w-3 h-3 text-slate-400" />
                  <span className="text-[10px] font-bold text-slate-500">Rows</span>
-                 <Input type="number" defaultValue={4} className="h-5 w-10 text-[10px] p-1" />
+                 <Input 
+                  type="number" 
+                  value={tableRowsInput} 
+                  onChange={(e) => setTableRowsInput(parseInt(e.target.value) || 1)}
+                  className="h-5 w-10 text-[10px] p-1" 
+                />
                </div>
                <div className="flex items-center gap-2">
                  <Columns className="w-3 h-3 text-slate-400" />
                  <span className="text-[10px] font-bold text-slate-500">Cols</span>
-                 <Input type="number" defaultValue={3} className="h-5 w-10 text-[10px] p-1" />
+                 <Input 
+                  type="number" 
+                  value={tableColsInput} 
+                  onChange={(e) => setTableColsInput(parseInt(e.target.value) || 1)}
+                  className="h-5 w-10 text-[10px] p-1" 
+                />
                </div>
             </div>
             <div className="flex items-center border-r px-2">
@@ -627,7 +644,7 @@ export default function EstimatorClient() {
                <RibbonButton icon={<Split />} label="Split Cells" />
             </div>
             <div className="flex items-center border-r px-2">
-               <RibbonButton icon={<X />} label="Delete" variant="destructive" />
+               <RibbonButton icon={<X />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
@@ -759,6 +776,7 @@ export default function EstimatorClient() {
 
                 {designObjects.map(obj => {
                   const isWall = obj.subType === 'wall';
+                  const isTable = obj.subType === 'table';
                   const isSelected = selectedObjectId === obj.id;
                   
                   return (
@@ -771,14 +789,25 @@ export default function EstimatorClient() {
                         height: isWall ? (obj.strokeWidth || 4) : obj.h * zoom, 
                         transformOrigin: '0 50%',
                         transform: `rotate(${obj.rotation}deg) scaleX(${obj.flipH ? -1 : 1}) scaleY(${obj.flipV ? -1 : 1})`, 
-                        backgroundColor: isWall ? obj.color : obj.fillColor, 
+                        backgroundColor: isWall ? obj.color : obj.fillColor,
                         borderStyle: isWall ? 'none' : (obj.strokeStyle || 'solid'),
                         borderColor: isWall ? 'transparent' : obj.color,
-                        borderWidth: isWall ? 0 : (obj.strokeWidth || 1),
-                        outline: isSelected ? '2px solid #2563eb' : 'none',
-                        outlineOffset: isSelected ? '2px' : '0'
+                        borderWidth: isWall ? undefined : (obj.strokeWidth || 1),
+                        outline: isSelected ? '2px solid #2563eb' : undefined,
+                        outlineOffset: isSelected ? '2px' : undefined
                       }}>
                       
+                      {isTable && (
+                        <div className="absolute inset-0 grid" style={{
+                          gridTemplateColumns: `repeat(${obj.cols || 1}, 1fr)`,
+                          gridTemplateRows: `repeat(${obj.rows || 1}, 1fr)`
+                        }}>
+                          {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
+                            <div key={i} className="border border-slate-300 opacity-50" />
+                          ))}
+                        </div>
+                      )}
+
                       <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
                         <span className="bg-white px-1.5 py-0.5 text-[10px] font-bold text-blue-600 shadow-sm border border-blue-100 rounded-sm whitespace-nowrap">
                           {formatFeetInches(obj.w)}
@@ -809,7 +838,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0&quot;"
+                    placeholder={`0' 0"`}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -818,7 +847,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0&quot;"
+                    placeholder={`0' 0"`}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -827,7 +856,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0&quot;"
+                    placeholder={`0' 0"`}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -837,7 +866,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0&quot;"
+                    placeholder={`0' 0"`}
                   />
                 </div>
               </div>
