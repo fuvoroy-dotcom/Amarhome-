@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -35,8 +35,8 @@ type DesignObject = {
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
-  color: string; // Stroke Color
-  fillColor: string;
+  color: string; // Line/Border Color
+  fillColor: string; // Background Color
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   rotation: number;
@@ -411,7 +411,7 @@ export default function EstimatorClient() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Draw Single Wall</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Insert Wall</DropdownMenuItem>
               <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
               <DropdownMenuItem onClick={() => addObject('shape', 'room', 'L-Room')}>L-Shaped Room</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -453,7 +453,7 @@ export default function EstimatorClient() {
             <DropdownMenuContent className="p-2 w-48">
               <div className="space-y-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Style</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Style</span>
                   <div className="flex gap-2 mt-1">
                     {LINE_STYLES.map(s => (
                       <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
@@ -461,7 +461,7 @@ export default function EstimatorClient() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Width</span>
                   <div className="flex gap-1 mt-1">
                     {LINE_WIDTHS.map(w => (
                       <Button key={w} variant="outline" className="h-7 w-7 text-[10px] p-0" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeWidth: w }, true)}>{w}px</Button>
@@ -469,7 +469,7 @@ export default function EstimatorClient() {
                   </div>
                 </div>
                 <div>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase">Color</span>
+                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Color</span>
                    <div className="grid grid-cols-5 gap-1 mt-1">
                     {COLORS.map(c => (
                       <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c }, true)} className="w-5 h-5 rounded border cursor-pointer" style={{ backgroundColor: c }} />
@@ -497,7 +497,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="w-full bg-slate-100 border-b overflow-hidden shrink-0">
-        <ScrollArea orientation="horizontal" className="w-full">
+        <ScrollArea className="w-full">
           <div className="flex h-11 bg-transparent px-4">
             <Tabs defaultValue="design" className="h-full">
               <TabsList className="flex h-full bg-transparent rounded-none border-none p-0">
@@ -527,7 +527,7 @@ export default function EstimatorClient() {
               <AccordionItem value="tools" className="border-none">
                 <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Walls & Structure</AccordionTrigger>
                 <AccordionContent className="p-3 space-y-2">
-                  <Button variant="outline" className={cn("w-full justify-start text-[11px] h-9 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Draw Single Wall"}</Button>
+                  <Button variant="outline" className={cn("w-full justify-start text-[11px] h-9 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Insert Wall"}</Button>
                   <Button variant="ghost" className="w-full justify-start text-[11px] h-9 gap-2" onClick={() => addObject('opening', 'door', 'দরজা')}><DoorClosed className="w-3 h-3"/> Add Door</Button>
                 </AccordionContent>
               </AccordionItem>
