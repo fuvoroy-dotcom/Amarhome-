@@ -12,7 +12,7 @@ import {
   Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Table as TableIcon, Columns, Rows, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, ArrowDownToLine, 
   Merge, Split, Grid, CheckSquare, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TextIcon,
-  Ruler, RotateCcw, Info
+  Ruler, RotateCcw, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -194,6 +194,7 @@ export default function EstimatorClient() {
     setDesignObjects(next);
     setSelectedObjectId(newObj.id);
     saveToHistory(next);
+    toast({ title: "Object Added", description: `${label} ক্যানভাসে যোগ করা হয়েছে।` });
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
@@ -616,7 +617,33 @@ export default function EstimatorClient() {
                 {/* Tool Selection Bar */}
                 <div className="grid grid-cols-4 gap-1">
                   <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
-                  <ToolCard icon={<Box />} label="Shape" active={selectedTool === 'shape'} onClick={() => setSelectedTool('shape')} />
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div>
+                        <ToolCard icon={<Box />} label="Shape" active={selectedTool === 'shape'} onClick={() => setSelectedTool('shape')} />
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-64 p-3">
+                      <div className="grid grid-cols-4 gap-4">
+                        <ShapeIcon icon={<Square className="w-6 h-6" />} onClick={() => addObject('shape', 'rect', 'Rectangle')} />
+                        <ShapeIcon icon={<Circle className="w-6 h-6" />} onClick={() => addObject('shape', 'oval', 'Oval')} />
+                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 skew-x-12" />} onClick={() => addObject('shape', 'para', 'Parallelogram')} />
+                        <ShapeIcon icon={<Diamond className="w-6 h-6" />} onClick={() => addObject('shape', 'diamond', 'Diamond')} />
+                        
+                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 rounded-r-full" />} onClick={() => addObject('shape', 'arc', 'Arc Shape')} />
+                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 rounded-full" />} onClick={() => addObject('shape', 'circle', 'Circle')} />
+                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 [clip-path:polygon(20%_0%,80%_0%,100%_100%,0%_100%)]" />} onClick={() => addObject('shape', 'trap', 'Trapezoid')} />
+                        <ShapeIcon icon={<Triangle className="w-6 h-6" />} onClick={() => addObject('shape', 'tri', 'Triangle')} />
+                        
+                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 rounded-full h-4" />} onClick={() => addObject('shape', 'capsule', 'Capsule')} />
+                        <ShapeIcon icon={<ArrowRight className="w-6 h-6" />} onClick={() => addObject('shape', 'arrow', 'Arrow')} />
+                        <ShapeIcon icon={<Hexagon className="w-6 h-6" />} onClick={() => addObject('shape', 'hex', 'Hexagon')} />
+                        <ShapeIcon icon={<Octagon className="w-6 h-6" />} onClick={() => addObject('shape', 'oct', 'Octagon')} />
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
                   <ToolCard icon={<TextIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                 </div>
@@ -646,10 +673,14 @@ export default function EstimatorClient() {
                 </div>
 
                 {/* Categorized Tools */}
-                <Accordion type="multiple" defaultValue={["recently"]} className="w-full">
+                <Accordion type="multiple" defaultValue={["setup", "room"]} className="w-full">
                   <AccordionItem value="setup" className="border-none">
                     <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Document Setup</AccordionTrigger>
-                    <AccordionContent className="pb-2 text-[11px] text-slate-500">Configure page size and units.</AccordionContent>
+                    <AccordionContent className="space-y-1">
+                       <LibraryButton icon={<Ruler className="w-4 h-4" />} label="Units & Scale" />
+                       <LibraryButton icon={<Layers className="w-4 h-4" />} label="Scale Image with Ruler" disabled />
+                       <LibraryButton icon={<LayoutGrid className="w-4 h-4" />} label="Add Annotation Layer" />
+                    </AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="adjust" className="border-none">
                     <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Adjust Wall</AccordionTrigger>
@@ -671,7 +702,7 @@ export default function EstimatorClient() {
                     <Input placeholder="Search for symbols..." className="pl-8 h-9 text-xs bg-slate-50 border-none" />
                   </div>
 
-                  <Accordion type="multiple" className="w-full">
+                  <Accordion type="multiple" defaultValue={["room"]} className="w-full">
                     <AccordionItem value="room" className="border-none">
                       <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Room Outlines</AccordionTrigger>
                       <AccordionContent className="grid grid-cols-2 gap-2">
@@ -744,7 +775,8 @@ export default function EstimatorClient() {
                       backgroundColor: isWall ? obj.color : obj.fillColor,
                       border: isWall ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
                       outline: isSelected ? '2px solid #2563eb' : undefined,
-                      outlineOffset: isSelected ? '2px' : undefined
+                      outlineOffset: isSelected ? '2px' : undefined,
+                      borderRadius: (obj.subType === 'oval' || obj.subType === 'circle' || obj.subType === 'capsule') ? '9999px' : '0px'
                     }}>
                     
                     {isTable && (
@@ -913,6 +945,23 @@ function ToolCard({ icon, label, active, onClick }: { icon: React.ReactNode, lab
        {React.cloneElement(icon as React.ReactElement, { className: cn("w-4 h-4 mb-1", active && "stroke-[2.5px]") })}
        <span className="text-[9px] font-bold uppercase tracking-tighter">{label}</span>
     </div>
+  );
+}
+
+function ShapeIcon({ icon, onClick }: { icon: React.ReactNode, onClick: () => void }) {
+  return (
+    <div onClick={onClick} className="flex items-center justify-center p-2 border rounded hover:bg-amber-100 hover:border-amber-400 cursor-pointer transition-all text-slate-600">
+      {icon}
+    </div>
+  )
+}
+
+function LibraryButton({ icon, label, onClick, disabled }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean }) {
+  return (
+    <Button variant="ghost" disabled={disabled} onClick={onClick} className="w-full justify-start gap-2 h-8 px-2 text-slate-700 hover:bg-slate-100 group">
+       {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" })}
+       <span className="text-[11px] font-medium">{label}</span>
+    </Button>
   );
 }
 
