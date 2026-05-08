@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { 
@@ -102,7 +102,7 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [groupToMove, setGroupToMove] = useState<string[]>([]);
   
-  const selectedObject = designObjects.find(obj => obj.id === selectedObjectId);
+  const selectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectId), [designObjects, selectedObjectId]);
 
   // --- Calculator Forms (v61e7980 logic) ---
   const structuralForm = useForm<EstimatorValues>({
@@ -205,10 +205,10 @@ export default function EstimatorClient() {
     let w = 10, h = 10;
     if (subType === 'wall') { 
       w = 10; 
-      h = 0.1; 
+      h = 0.2; // Thin line
     } else if (type === 'opening') { 
       w = 3; 
-      h = 0.1; 
+      h = 0.2; 
     } else if (type === 'furniture') { 
       w = 4; 
       h = 6; 
@@ -223,10 +223,11 @@ export default function EstimatorClient() {
     setSelectedObjectId(newObj.id);
   };
 
+  // Improved Grouping: Find all connected objects recursively
   const getConnectedGroup = (startId: string, allObjs: DesignObject[]) => {
     const connected = new Set<string>();
     const stack = [startId];
-    const snapThreshold = 1.0; 
+    const threshold = 1.2; // 1.2ft snap/connect range
 
     while (stack.length > 0) {
       const currentId = stack.pop()!;
@@ -236,29 +237,19 @@ export default function EstimatorClient() {
       const currentObj = allObjs.find(o => o.id === currentId);
       if (!currentObj) continue;
 
-      const corners = [
-        { x: currentObj.x, y: currentObj.y },
-        { x: currentObj.x + currentObj.w, y: currentObj.y },
-        { x: currentObj.x, y: currentObj.y + currentObj.h },
-        { x: currentObj.x + currentObj.w, y: currentObj.y + currentObj.h }
-      ];
-
+      // Check all other objects to see if they are "connected" to the current set
       allObjs.forEach(other => {
         if (connected.has(other.id)) return;
-        const otherCorners = [
-          { x: other.x, y: other.y }, { x: other.x + other.w, y: other.y },
-          { x: other.x, y: other.y + other.h }, { x: other.x + other.w, y: other.y + other.h }
-        ];
 
-        let isSnap = false;
-        corners.forEach(cc => {
-          otherCorners.forEach(oc => {
-            const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
-            if (dist < snapThreshold) isSnap = true;
-          });
-        });
+        // Simplified bounding box check with threshold
+        const isNear = !(
+          other.x > (currentObj.x + currentObj.w + threshold) ||
+          (other.x + other.w) < (currentObj.x - threshold) ||
+          other.y > (currentObj.y + currentObj.h + threshold) ||
+          (other.y + other.h) < (currentObj.y - threshold)
+        );
 
-        if (isSnap) stack.push(other.id);
+        if (isNear) stack.push(other.id);
       });
     }
     return Array.from(connected);
@@ -304,34 +295,46 @@ export default function EstimatorClient() {
       const snapThreshold = 1.0; 
       let activeSnap: {x: number, y: number} | null = null;
 
-      const corners = [
+      // Check corners of current dragging set against edges/corners of other objects
+      const myCorners = [
         { x: targetX, y: targetY },
         { x: targetX + currentObj.w, y: targetY },
         { x: targetX, y: targetY + currentObj.h },
-        { x: targetX + currentObj.w, y: targetY + currentObj.h }
+        { x: targetX + currentObj.w, y: targetY + currentObj.h },
+        { x: targetX + currentObj.w / 2, y: targetY + currentObj.h / 2 } // Center point snap
       ];
 
       designObjects.forEach(other => {
         if (groupToMove.includes(other.id)) return;
+        
         const otherCorners = [
-          { x: other.x, y: other.y }, { x: other.x + other.w, y: other.y },
-          { x: other.x, y: other.y + other.h }, { x: other.x + other.w, y: other.y + other.h }
+          { x: other.x, y: other.y }, 
+          { x: other.x + other.w, y: other.y },
+          { x: other.x, y: other.y + other.h }, 
+          { x: other.x + other.w, y: other.y + other.h },
+          { x: other.x + other.w/2, y: other.y }, // Edge midpoints
+          { x: other.x, y: other.y + other.h/2 },
+          { x: other.x + other.w, y: other.y + other.h/2 },
+          { x: other.x + other.w/2, y: other.y + other.h }
         ];
 
-        corners.forEach((cc, ci) => {
+        myCorners.forEach((mc, mi) => {
           otherCorners.forEach(oc => {
-            const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
+            const dist = Math.sqrt(Math.pow(mc.x - oc.x, 2) + Math.pow(mc.y - oc.y, 2));
             if (dist < snapThreshold) {
-              if (ci === 0) { finalDeltaX = oc.x - currentObj.x; finalDeltaY = oc.y - currentObj.y; }
-              else if (ci === 1) { finalDeltaX = oc.x - currentObj.w - currentObj.x; finalDeltaY = oc.y - currentObj.y; }
-              else if (ci === 2) { finalDeltaX = oc.x - currentObj.x; finalDeltaY = oc.y - currentObj.h - currentObj.y; }
-              else if (ci === 3) { finalDeltaX = oc.x - currentObj.w - currentObj.x; finalDeltaY = oc.y - currentObj.h - currentObj.y; }
+              // Calculate delta to align mc to oc
+              if (mi === 0) { finalDeltaX = oc.x - currentObj.x; finalDeltaY = oc.y - currentObj.y; }
+              else if (mi === 1) { finalDeltaX = oc.x - currentObj.w - currentObj.x; finalDeltaY = oc.y - currentObj.y; }
+              else if (mi === 2) { finalDeltaX = oc.x - currentObj.x; finalDeltaY = oc.y - currentObj.h - currentObj.y; }
+              else if (mi === 3) { finalDeltaX = oc.x - currentObj.w - currentObj.x; finalDeltaY = oc.y - currentObj.h - currentObj.y; }
+              else if (mi === 4) { finalDeltaX = oc.x - currentObj.w/2 - currentObj.x; finalDeltaY = oc.y - currentObj.h/2 - currentObj.y; }
               activeSnap = { x: oc.x, y: oc.y };
             }
           });
         });
       });
 
+      // If no magnetic snap, snap to grid (0.5ft increments)
       if (!activeSnap) {
         finalDeltaX = Math.round((currentObj.x + finalDeltaX) * 2) / 2 - currentObj.x;
         finalDeltaY = Math.round((currentObj.y + finalDeltaY) * 2) / 2 - currentObj.y;
@@ -472,6 +475,7 @@ export default function EstimatorClient() {
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
+                  <ScrollBar orientation="vertical" />
                 </ScrollArea>
               </div>
 
@@ -685,6 +689,7 @@ export default function EstimatorClient() {
                       <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Select an object <br/> to edit properties</p>
                     </div>
                   )}
+                  <ScrollBar orientation="vertical" />
                 </ScrollArea>
               </div>
             </div>
@@ -764,4 +769,3 @@ function ResultItem({ label, value, unit, highlight }: { label: string, value: s
     </div>
   );
 }
-
