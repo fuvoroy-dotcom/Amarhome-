@@ -1,14 +1,15 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { 
   Building, Plus, DoorClosed, Square, LayoutGrid, 
   RectangleHorizontal, RefreshCw, Trash2, X, MousePointer2,
   Download, Clipboard, Copy, Scissors, Undo2, Redo2,
   Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
   ChevronDown, Type, PaintBucket, Layers, FlipHorizontal, FlipVertical,
-  BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon
+  BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon,
+  Paintbrush, Star, AlignLeft, Group, RotateCw
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -120,7 +121,6 @@ export default function EstimatorClient() {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    // Standard corner points
     const corners = [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
@@ -382,9 +382,10 @@ export default function EstimatorClient() {
         <Button className="bg-orange-400 hover:bg-orange-500 h-7 text-[11px] px-4 font-bold text-white rounded">Buy</Button>
       </div>
 
-      {/* Ribbon Bar */}
-      <div className="h-20 bg-white border-b flex items-center px-4 gap-2 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
-        <div className="flex flex-col items-center border-r pr-2">
+      {/* Professional Ribbon Bar */}
+      <div className="h-20 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
+        {/* Export Group */}
+        <div className="flex flex-col items-center border-r px-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
@@ -400,16 +401,19 @@ export default function EstimatorClient() {
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-1 border-r pr-2">
+        {/* Clipboard Group */}
+        <div className="flex items-center border-r px-2">
           <RibbonButton icon={<Clipboard />} label="Paste" onClick={pasteObject} disabled={!clipboard} />
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col">
             <RibbonIconButton icon={<Copy />} label="Copy" onClick={copyObject} />
             <RibbonIconButton icon={<Scissors />} label="Cut" onClick={() => { copyObject(); deleteObject(selectedObjectId); }} />
+            <RibbonIconButton icon={<Paintbrush />} label="Format Painter" />
           </div>
         </div>
 
-        <div className="flex items-center gap-1 border-r pr-2">
-           <DropdownMenu>
+        {/* Insert Group */}
+        <div className="flex flex-col items-center border-r px-2">
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
                 <Plus className="w-5 h-5 text-slate-600"/>
@@ -426,12 +430,20 @@ export default function EstimatorClient() {
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-1 border-r pr-2">
+        {/* History Group */}
+        <div className="flex items-center border-r px-2">
           <RibbonIconButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
           <RibbonIconButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
         </div>
 
-        <div className="flex items-center gap-1 border-r pr-2">
+        {/* Style Group */}
+        <div className="flex items-center border-r px-2">
+           <RibbonIconButton icon={<Layers />} label="Styles" />
+           <RibbonIconButton icon={<FileText />} label="Themes" />
+        </div>
+
+        {/* Format Group */}
+        <div className="flex items-center border-r px-2 gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
@@ -453,7 +465,7 @@ export default function EstimatorClient() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3" disabled={!selectedObject}>
                 <GripHorizontal className="w-5 h-5 text-slate-600" />
-                <span className="text-[9px] uppercase font-bold text-slate-500">Line</span>
+                <span className="text-[9px] uppercase font-bold text-slate-500">Line Style</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="p-2 w-48">
@@ -485,26 +497,70 @@ export default function EstimatorClient() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <RibbonIconButton icon={<Star />} label="Effects" />
         </div>
 
-        <div className="flex items-center gap-2 border-r pr-2">
+        {/* Font Placeholder Group */}
+        <div className="flex items-center border-r px-4 gap-2">
           <div className="flex flex-col gap-1">
-            <div className="flex gap-2">
-              <RibbonIconButton icon={<BringToFront />} onClick={bringToFront} />
-              <RibbonIconButton icon={<SendToBack />} onClick={sendToBack} />
+            <div className="flex gap-1">
+              <Input className="h-6 w-24 text-[10px]" defaultValue="Arial" disabled />
+              <Input className="h-6 w-10 text-[10px]" defaultValue="10" disabled />
             </div>
-            <div className="flex gap-2">
-              <RibbonIconButton icon={<FlipHorizontal />} onClick={flipH} />
-              <RibbonIconButton icon={<FlipVertical />} onClick={flipV} />
+            <div className="flex gap-1">
+               <Button variant="ghost" className="h-5 w-5 p-0 text-[10px] font-bold">B</Button>
+               <Button variant="ghost" className="h-5 w-5 p-0 text-[10px] italic">I</Button>
+               <Button variant="ghost" className="h-5 w-5 p-0 text-[10px] underline">U</Button>
+               <Button variant="ghost" className="h-5 w-5 p-0"><Type className="w-3 h-3"/></Button>
             </div>
           </div>
-          <RibbonButton icon={<Eraser />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
         </div>
+
+        {/* Transform Group */}
+        <div className="flex items-center border-r px-2 gap-2">
+           <div className="flex flex-col gap-0.5">
+             <RibbonIconButton icon={<AlignLeft />} label="Align" />
+             <RibbonIconButton icon={<Group />} label="Group" />
+           </div>
+           <div className="flex flex-col gap-0.5">
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
+                    <RotateCw className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="text-[10px] font-medium text-slate-600">Rotate</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                   <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) + 90 }, true)}>Rotate 90°</DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) - 90 }, true)}>Rotate -90°</DropdownMenuItem>
+                </DropdownMenuContent>
+             </DropdownMenu>
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
+                    <FlipHorizontal className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="text-[10px] font-medium text-slate-600">Flip</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                   <DropdownMenuItem onClick={flipH}>Flip Horizontal</DropdownMenuItem>
+                   <DropdownMenuItem onClick={flipV}>Flip Vertical</DropdownMenuItem>
+                </DropdownMenuContent>
+             </DropdownMenu>
+           </div>
+           <div className="flex flex-col gap-0.5">
+              <RibbonIconButton icon={<BringToFront />} label="Bring to Front" onClick={bringToFront} />
+              <RibbonIconButton icon={<SendToBack />} label="Send to Back" onClick={sendToBack} />
+           </div>
+        </div>
+        
+        <RibbonButton icon={<Eraser />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
       </div>
 
       {/* Tabs Row */}
       <div className="w-full bg-slate-100 border-b overflow-hidden shrink-0">
-        <ScrollArea className="w-full">
+        <div className="w-full overflow-x-auto no-scrollbar">
           <div className="flex h-11 bg-transparent px-4">
             <Tabs defaultValue="design" className="h-full">
               <TabsList className="flex h-full bg-transparent rounded-none border-none p-0">
@@ -519,7 +575,7 @@ export default function EstimatorClient() {
               </TabsList>
             </Tabs>
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden bg-[#f8f9fa]">
@@ -529,12 +585,12 @@ export default function EstimatorClient() {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Library</span>
             <MenuIcon className="w-3 h-3 text-slate-400"/>
           </div>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto no-scrollbar">
             <Accordion type="multiple" defaultValue={["tools", "symbols"]} className="w-full">
               <AccordionItem value="tools" className="border-none">
                 <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Walls & Structure</AccordionTrigger>
                 <AccordionContent className="p-3 space-y-2">
-                  <Button variant="outline" className={cn("w-full justify-start text-[11px] h-9 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Insert Wall"}</Button>
+                  <Button variant="outline" className={cn("w-full justify-start text-[11px] h-9 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Draw Wall"}</Button>
                   <Button variant="ghost" className="w-full justify-start text-[11px] h-9 gap-2" onClick={() => addObject('opening', 'door', 'দরজা')}><DoorClosed className="w-3 h-3"/> Add Door</Button>
                 </AccordionContent>
               </AccordionItem>
@@ -549,7 +605,7 @@ export default function EstimatorClient() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-          </ScrollArea>
+          </div>
         </div>
 
         <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
@@ -577,7 +633,7 @@ export default function EstimatorClient() {
 
             <div 
               id="canvas-workspace"
-              className="flex-1 relative bg-[#e9ecef] overflow-auto focus:outline-none cursor-crosshair"
+              className="flex-1 relative bg-[#e9ecef] overflow-auto focus:outline-none cursor-crosshair no-scrollbar"
               onMouseDown={(e) => handleMouseDown(e, null)}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -622,9 +678,9 @@ export default function EstimatorClient() {
                         transformOrigin: '0 50%',
                         transform: `rotate(${obj.rotation}deg) scaleX(${obj.flipH ? -1 : 1}) scaleY(${obj.flipV ? -1 : 1})`, 
                         backgroundColor: isWall ? obj.color : obj.fillColor, 
-                        borderColor: isSelected ? '#2563eb' : (isWall ? 'transparent' : obj.color),
-                        borderWidth: isWall ? 0 : (obj.strokeWidth || 1),
                         borderStyle: isWall ? 'none' : (obj.strokeStyle || 'solid'),
+                        borderColor: isWall ? 'transparent' : obj.color,
+                        borderWidth: isWall ? 0 : (obj.strokeWidth || 1),
                         outline: isSelected ? '2px solid #2563eb' : 'none',
                         outlineOffset: '2px'
                       }}>
@@ -659,7 +715,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={"0' 0\""}
+                    placeholder="0' 0''"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -668,7 +724,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={"0' 0\""}
+                    placeholder="0' 0''"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -677,7 +733,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={"0' 0\""}
+                    placeholder="0' 0''"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -687,7 +743,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={"0' 0\""}
+                    placeholder="0' 0''"
                   />
                 </div>
               </div>
@@ -707,7 +763,7 @@ export default function EstimatorClient() {
             <Settings2 className="w-4 h-4 text-blue-600"/>
             <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">Object Properties</span>
           </div>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto no-scrollbar">
             <div className="p-4 space-y-6">
               {selectedObject ? (
                 <>
@@ -749,7 +805,7 @@ export default function EstimatorClient() {
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </div>
