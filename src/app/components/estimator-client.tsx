@@ -35,8 +35,8 @@ type DesignObject = {
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
-  color: string; // Line/Border Color
-  fillColor: string; // Background Color
+  color: string; 
+  fillColor: string; 
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   rotation: number;
@@ -120,10 +120,16 @@ export default function EstimatorClient() {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    return [
+    // Standard corner points
+    const corners = [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
     ];
+    if (obj.subType !== 'wall') {
+      corners.push({ x: obj.x - obj.h * sin, y: obj.y + obj.h * cos });
+      corners.push({ x: obj.x + obj.w * cos - obj.h * sin, y: obj.y + obj.w * sin + obj.h * cos });
+    }
+    return corners;
   };
 
   const getGroup = (startId: string, allObjs: DesignObject[]) => {
@@ -376,7 +382,7 @@ export default function EstimatorClient() {
         <Button className="bg-orange-400 hover:bg-orange-500 h-7 text-[11px] px-4 font-bold text-white rounded">Buy</Button>
       </div>
 
-      {/* Main Functional Ribbon */}
+      {/* Ribbon Bar */}
       <div className="h-20 bg-white border-b flex items-center px-4 gap-2 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
         <div className="flex flex-col items-center border-r pr-2">
           <DropdownMenu>
@@ -496,6 +502,7 @@ export default function EstimatorClient() {
         </div>
       </div>
 
+      {/* Tabs Row */}
       <div className="w-full bg-slate-100 border-b overflow-hidden shrink-0">
         <ScrollArea className="w-full">
           <div className="flex h-11 bg-transparent px-4">
@@ -546,7 +553,7 @@ export default function EstimatorClient() {
         </div>
 
         <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
-          {/* Horizontal Ruler */}
+          {/* Rulers */}
           <div className="h-6 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
             <div className="absolute left-6 h-full flex items-end" style={{ width: 10000 }}>
               {Array.from({ length: 200 }).map((_, i) => (
@@ -558,7 +565,6 @@ export default function EstimatorClient() {
           </div>
 
           <div className="flex flex-1 overflow-hidden relative">
-            {/* Vertical Ruler */}
             <div className="w-6 bg-white border-r flex flex-col items-end relative overflow-hidden z-10 select-none">
               <div className="absolute top-0 w-full flex flex-col items-end" style={{ height: 10000 }}>
                 {Array.from({ length: 200 }).map((_, i) => (
@@ -604,7 +610,6 @@ export default function EstimatorClient() {
                 {designObjects.map(obj => {
                   const isWall = obj.subType === 'wall';
                   const isSelected = selectedObjectId === obj.id;
-                  const borderStyle = obj.strokeStyle === 'solid' ? 'solid' : (obj.strokeStyle === 'dashed' ? 'dashed' : 'dotted');
                   
                   return (
                     <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()} 
@@ -617,10 +622,11 @@ export default function EstimatorClient() {
                         transformOrigin: '0 50%',
                         transform: `rotate(${obj.rotation}deg) scaleX(${obj.flipH ? -1 : 1}) scaleY(${obj.flipV ? -1 : 1})`, 
                         backgroundColor: isWall ? obj.color : obj.fillColor, 
-                        borderColor: isSelected ? '#2563eb' : obj.color,
+                        borderColor: isSelected ? '#2563eb' : (isWall ? 'transparent' : obj.color),
                         borderWidth: isWall ? 0 : (obj.strokeWidth || 1),
-                        borderStyle: borderStyle,
-                        border: isSelected ? '2px solid #2563eb' : undefined
+                        borderStyle: isWall ? 'none' : (obj.strokeStyle || 'solid'),
+                        outline: isSelected ? '2px solid #2563eb' : 'none',
+                        outlineOffset: '2px'
                       }}>
                       
                       <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
@@ -644,8 +650,8 @@ export default function EstimatorClient() {
               </div>
             </div>
 
-            {/* Functional Bottom Bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-14 bg-white border-t flex items-center px-4 gap-4 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
+            {/* Bottom Property Input Row */}
+            <div className="absolute bottom-0 left-0 right-0 h-14 bg-white border-t flex items-center px-4 gap-4 z-30 shadow-lg overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Left</span>
@@ -653,7 +659,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder={"0' 0\""}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -662,7 +668,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder={"0' 0\""}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -671,7 +677,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder={"0' 0\""}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -681,7 +687,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder={"0' 0\""}
                   />
                 </div>
               </div>
@@ -695,7 +701,7 @@ export default function EstimatorClient() {
           </div>
         </div>
 
-        {/* Properties Right Panel */}
+        {/* Right Properties Panel */}
         <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
           <div className="p-3 border-b bg-slate-50 flex items-center gap-2">
             <Settings2 className="w-4 h-4 text-blue-600"/>
