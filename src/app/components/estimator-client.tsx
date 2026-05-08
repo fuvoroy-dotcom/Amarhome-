@@ -9,7 +9,9 @@ import {
   Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
   ChevronDown, Type, PaintBucket, Layers, FlipHorizontal, FlipVertical,
   BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon,
-  Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User
+  Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
+  Table as TableIcon, Columns, Rows, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, ArrowDownToLine, 
+  Merge, Split, Grid, CheckSquare
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +31,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type DesignObject = {
   id: string;
@@ -439,7 +442,6 @@ export default function EstimatorClient() {
 
         {activeRibbonTab === 'home' && (
           <>
-            {/* Export Group */}
             <div className="flex flex-col items-center border-r px-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -456,7 +458,6 @@ export default function EstimatorClient() {
               </DropdownMenu>
             </div>
 
-            {/* Clipboard Group */}
             <div className="flex items-center border-r px-2">
               <RibbonButton icon={<Clipboard />} label="Paste" onClick={pasteObject} disabled={!clipboard} />
               <div className="flex flex-col">
@@ -466,7 +467,6 @@ export default function EstimatorClient() {
               </div>
             </div>
 
-            {/* Insert Group */}
             <div className="flex flex-col items-center border-r px-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -485,19 +485,16 @@ export default function EstimatorClient() {
               </DropdownMenu>
             </div>
 
-            {/* History Group */}
             <div className="flex items-center border-r px-2">
               <RibbonIconButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
               <RibbonIconButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
             </div>
 
-            {/* Style Group */}
             <div className="flex items-center border-r px-2">
                <RibbonIconButton icon={<Layers />} label="Styles" />
                <RibbonIconButton icon={<FileText />} label="Themes" />
             </div>
 
-            {/* Format Group */}
             <div className="flex items-center border-r px-2 gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -556,7 +553,6 @@ export default function EstimatorClient() {
               <RibbonIconButton icon={<Star />} label="Effects" />
             </div>
 
-            {/* Transform Group */}
             <div className="flex items-center border-r px-2 gap-2">
                <div className="flex flex-col gap-0.5">
                  <RibbonIconButton icon={<AlignLeft />} label="Align" />
@@ -596,6 +592,63 @@ export default function EstimatorClient() {
             
             <RibbonButton icon={<Trash2 />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
           </>
+        )}
+
+        {activeRibbonTab === 'table' && (
+          <div className="flex items-center">
+            <div className="flex flex-col items-center border-r px-3">
+               <div className="flex items-center gap-2 mb-1">
+                 <Rows className="w-3 h-3 text-slate-400" />
+                 <span className="text-[10px] font-bold text-slate-500">Rows</span>
+                 <Input type="number" defaultValue={4} className="h-5 w-10 text-[10px] p-1" />
+               </div>
+               <div className="flex items-center gap-2">
+                 <Columns className="w-3 h-3 text-slate-400" />
+                 <span className="text-[10px] font-bold text-slate-500">Cols</span>
+                 <Input type="number" defaultValue={3} className="h-5 w-10 text-[10px] p-1" />
+               </div>
+            </div>
+            <div className="flex items-center border-r px-2">
+               <RibbonButton icon={<Grid />} label="Insert Table" onClick={() => addObject('shape', 'table', 'Table')} />
+               <RibbonButton icon={<Trash2 />} label="Remove Table" onClick={() => deleteObject(selectedObjectId)} />
+            </div>
+            <div className="flex items-center border-r px-2">
+               <div className="flex flex-col gap-1">
+                  <RibbonIconButton icon={<ArrowLeftToLine />} label="Insert Left" />
+                  <RibbonIconButton icon={<ArrowRightToLine />} label="Insert Right" />
+               </div>
+               <div className="flex flex-col gap-1">
+                  <RibbonIconButton icon={<ArrowUpToLine />} label="Insert Above" />
+                  <RibbonIconButton icon={<ArrowDownToLine />} label="Insert Below" />
+               </div>
+            </div>
+            <div className="flex items-center border-r px-2">
+               <RibbonButton icon={<Merge />} label="Join Cells" />
+               <RibbonButton icon={<Split />} label="Split Cells" />
+            </div>
+            <div className="flex items-center border-r px-2">
+               <RibbonButton icon={<X />} label="Delete" variant="destructive" />
+               <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
+                       <LayoutGrid className="w-5 h-5 text-slate-600"/>
+                       <div className="flex items-center gap-0.5">
+                         <span className="text-[9px] uppercase font-bold text-slate-500">Distribute</span>
+                         <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
+                       </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                     <DropdownMenuItem>Distribute Rows</DropdownMenuItem>
+                     <DropdownMenuItem>Distribute Columns</DropdownMenuItem>
+                  </DropdownMenuContent>
+               </DropdownMenu>
+            </div>
+            <div className="flex items-center px-4 gap-2">
+               <Checkbox id="text-edit" checked />
+               <Label htmlFor="text-edit" className="text-[11px] font-bold text-slate-600">Text Editing</Label>
+            </div>
+          </div>
         )}
       </div>
 
@@ -756,7 +809,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder="0' 0&quot;"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -765,7 +818,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder="0' 0&quot;"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -774,7 +827,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder="0' 0&quot;"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -784,7 +837,7 @@ export default function EstimatorClient() {
                     className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                     value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
                     onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} 
-                    placeholder="0' 0''"
+                    placeholder="0' 0&quot;"
                   />
                 </div>
               </div>
