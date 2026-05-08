@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -10,7 +11,7 @@ import {
   BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon,
   Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Table as TableIcon, Columns, Rows, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, ArrowDownToLine, 
-  Merge, Split, Grid, CheckSquare
+  Merge, Split, Grid, CheckSquare, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TextIcon
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@/checkbox";
 
 type DesignObject = {
   id: string;
@@ -47,6 +48,7 @@ type DesignObject = {
   flipV?: boolean;
   rows?: number;
   cols?: number;
+  wallThickness?: number;
 };
 
 const COLORS = [
@@ -68,6 +70,7 @@ export default function EstimatorClient() {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
+  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -75,10 +78,7 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
-  
-  // Table specific state
-  const [tableRowsInput, setTableRowsInput] = useState(4);
-  const [tableColsInput, setTableColsInput] = useState(3);
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); // Default 4" approx
 
   // History for Undo/Redo
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -182,9 +182,7 @@ export default function EstimatorClient() {
       type, subType, x: 10, y: 10, w: 10, h: subType === 'table' ? 6 : 8,
       label, color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid',
-      rotation: 0,
-      rows: subType === 'table' ? tableRowsInput : undefined,
-      cols: subType === 'table' ? tableColsInput : undefined
+      rotation: 0
     };
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -292,7 +290,7 @@ export default function EstimatorClient() {
           id: Math.random().toString(36).substr(2, 9),
           type: 'structure', subType: 'wall', 
           x: drawStart.x, y: drawStart.y, 
-          w: length, h: 0.1,
+          w: length, h: currentWallThickness,
           label: 'Wall', color: '#000000', fillColor: 'transparent',
           strokeWidth: 2, strokeStyle: 'solid',
           rotation: angle
@@ -397,9 +395,7 @@ export default function EstimatorClient() {
               { id: 'file', label: 'File' },
               { id: 'home', label: 'Home' },
               { id: 'design', label: 'Design' },
-              { id: 'page', label: 'Page' },
               { id: 'table', label: 'Table' },
-              { id: 'options', label: 'Options' },
               { id: 'support', label: 'Support' }
             ].map(item => (
               <Button 
@@ -419,7 +415,7 @@ export default function EstimatorClient() {
         <Button className="bg-orange-400 hover:bg-orange-500 h-7 text-[11px] px-4 font-bold text-white rounded">Buy</Button>
       </div>
 
-      {/* Professional Ribbon Bar */}
+      {/* Ribbon Bar */}
       <div className="h-20 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
         {activeRibbonTab === 'file' && (
           <div className="flex items-center">
@@ -458,9 +454,9 @@ export default function EstimatorClient() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PDF</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PNG</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as SVG</DropdownMenuItem>
+                  <DropdownMenuItem>Export as PDF</DropdownMenuItem>
+                  <DropdownMenuItem>Export as PNG</DropdownMenuItem>
+                  <DropdownMenuItem>Export as SVG</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -483,10 +479,8 @@ export default function EstimatorClient() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Insert Wall</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { addObject('structure', 'wall', 'দেয়াল'); setInteractionMode('drawing'); }}>Insert Wall</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => addObject('shape', 'room', 'L-Room')}>L-Shaped Room</DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => addObject('opening', 'door', 'দরজা')}>Door</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -495,11 +489,6 @@ export default function EstimatorClient() {
             <div className="flex items-center border-r px-2">
               <RibbonIconButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
               <RibbonIconButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
-            </div>
-
-            <div className="flex items-center border-r px-2">
-               <RibbonIconButton icon={<Layers />} label="Styles" />
-               <RibbonIconButton icon={<FileText />} label="Themes" />
             </div>
 
             <div className="flex items-center border-r px-2 gap-1">
@@ -513,9 +502,8 @@ export default function EstimatorClient() {
                 <DropdownMenuContent className="p-2 w-48">
                   <div className="grid grid-cols-5 gap-1">
                     {COLORS.map(c => (
-                      <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                      <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer" style={{ backgroundColor: c }} />
                     ))}
-                    <div onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: 'transparent' }, true)} className="w-6 h-6 rounded border cursor-pointer flex items-center justify-center text-[10px] text-slate-400 bg-slate-50">X</div>
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -529,71 +517,24 @@ export default function EstimatorClient() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="p-2 w-48">
                   <div className="space-y-3">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Style</span>
-                      <div className="flex gap-2 mt-1">
-                        {LINE_STYLES.map(s => (
-                          <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Width</span>
-                      <div className="flex gap-1 mt-1">
-                        {LINE_WIDTHS.map(w => (
-                          <Button key={w} variant="outline" className="h-7 w-7 text-[10px] p-0" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeWidth: w }, true)}>{w}px</Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Color</span>
-                       <div className="grid grid-cols-5 gap-1 mt-1">
-                        {COLORS.map(c => (
-                          <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c }, true)} className="w-5 h-5 rounded border cursor-pointer" style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
+                    <div className="flex gap-2">
+                      {LINE_STYLES.map(s => (
+                        <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
+                      ))}
                     </div>
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              <RibbonIconButton icon={<Star />} label="Effects" />
             </div>
 
             <div className="flex items-center border-r px-2 gap-2">
                <div className="flex flex-col gap-0.5">
-                 <RibbonIconButton icon={<AlignLeft />} label="Align" />
-                 <RibbonIconButton icon={<Group />} label="Group" />
+                  <RibbonIconButton icon={<BringToFront />} label="Front" onClick={bringToFront} />
+                  <RibbonIconButton icon={<SendToBack />} label="Back" onClick={sendToBack} />
                </div>
                <div className="flex flex-col gap-0.5">
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
-                        <RotateCw className="w-3.5 h-3.5 text-slate-600" />
-                        <span className="text-[10px] font-medium text-slate-600">Rotate</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                       <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) + 90 }, true)}>Rotate 90°</DropdownMenuItem>
-                       <DropdownMenuItem onClick={() => selectedObjectId && updateObject(selectedObjectId, { rotation: (selectedObject?.rotation || 0) - 90 }, true)}>Rotate -90°</DropdownMenuItem>
-                    </DropdownMenuContent>
-                 </DropdownMenu>
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-7 gap-2 px-2 items-center justify-start hover:bg-slate-100">
-                        <FlipHorizontal className="w-3.5 h-3.5 text-slate-600" />
-                        <span className="text-[10px] font-medium text-slate-600">Flip</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                       <DropdownMenuItem onClick={flipH}>Flip Horizontal</DropdownMenuItem>
-                       <DropdownMenuItem onClick={flipV}>Flip Vertical</DropdownMenuItem>
-                    </DropdownMenuContent>
-                 </DropdownMenu>
-               </div>
-               <div className="flex flex-col gap-0.5">
-                  <RibbonIconButton icon={<BringToFront />} label="Bring to Front" onClick={bringToFront} />
-                  <RibbonIconButton icon={<SendToBack />} label="Send to Back" onClick={sendToBack} />
+                  <RibbonIconButton icon={<FlipHorizontal />} label="Flip H" onClick={flipH} />
+                  <RibbonIconButton icon={<FlipVertical />} label="Flip V" onClick={flipV} />
                </div>
             </div>
             
@@ -603,334 +544,252 @@ export default function EstimatorClient() {
 
         {activeRibbonTab === 'table' && (
           <div className="flex items-center">
-            <div className="flex flex-col items-center border-r px-3">
-               <div className="flex items-center gap-2 mb-1">
-                 <Rows className="w-3 h-3 text-slate-400" />
-                 <span className="text-[10px] font-bold text-slate-500">Rows</span>
-                 <Input 
-                  type="number" 
-                  value={tableRowsInput} 
-                  onChange={(e) => setTableRowsInput(parseInt(e.target.value) || 1)}
-                  className="h-5 w-10 text-[10px] p-1" 
-                />
-               </div>
-               <div className="flex items-center gap-2">
-                 <Columns className="w-3 h-3 text-slate-400" />
-                 <span className="text-[10px] font-bold text-slate-500">Cols</span>
-                 <Input 
-                  type="number" 
-                  value={tableColsInput} 
-                  onChange={(e) => setTableColsInput(parseInt(e.target.value) || 1)}
-                  className="h-5 w-10 text-[10px] p-1" 
-                />
-               </div>
-            </div>
-            <div className="flex items-center border-r px-2">
-               <RibbonButton icon={<Grid />} label="Insert Table" onClick={() => addObject('shape', 'table', 'Table')} />
-               <RibbonButton icon={<Trash2 />} label="Remove Table" onClick={() => deleteObject(selectedObjectId)} />
-            </div>
-            <div className="flex items-center border-r px-2">
-               <div className="flex flex-col gap-1">
-                  <RibbonIconButton icon={<ArrowLeftToLine />} label="Insert Left" />
-                  <RibbonIconButton icon={<ArrowRightToLine />} label="Insert Right" />
-               </div>
-               <div className="flex flex-col gap-1">
-                  <RibbonIconButton icon={<ArrowUpToLine />} label="Insert Above" />
-                  <RibbonIconButton icon={<ArrowDownToLine />} label="Insert Below" />
-               </div>
-            </div>
-            <div className="flex items-center border-r px-2">
-               <RibbonButton icon={<Merge />} label="Join Cells" />
-               <RibbonButton icon={<Split />} label="Split Cells" />
-            </div>
-            <div className="flex items-center border-r px-2">
-               <RibbonButton icon={<X />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
-               <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-16 flex flex-col gap-1 px-3">
-                       <LayoutGrid className="w-5 h-5 text-slate-600"/>
-                       <div className="flex items-center gap-0.5">
-                         <span className="text-[9px] uppercase font-bold text-slate-500">Distribute</span>
-                         <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
-                       </div>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                     <DropdownMenuItem>Distribute Rows</DropdownMenuItem>
-                     <DropdownMenuItem>Distribute Columns</DropdownMenuItem>
-                  </DropdownMenuContent>
-               </DropdownMenu>
-            </div>
-            <div className="flex items-center px-4 gap-2">
-               <Checkbox id="text-edit" checked />
-               <Label htmlFor="text-edit" className="text-[11px] font-bold text-slate-600">Text Editing</Label>
-            </div>
+             <RibbonButton icon={<Grid />} label="Insert Table" onClick={() => addObject('shape', 'table', 'Table')} />
+             <RibbonButton icon={<Trash2 />} label="Remove" onClick={() => deleteObject(selectedObjectId)} />
           </div>
         )}
       </div>
 
-      {/* Tabs Row */}
-      <div className="w-full bg-slate-100 border-b overflow-hidden shrink-0">
-        <ScrollArea orientation="horizontal" className="w-full">
-          <div className="flex h-11 bg-transparent px-4">
-            <Tabs defaultValue="design" className="h-full">
-              <TabsList className="flex h-full bg-transparent rounded-none border-none p-0">
-                <TabsTrigger value="structural" className="px-4 text-[11px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
-                <TabsTrigger value="slab" className="px-4 text-[11px] whitespace-nowrap">ছাদ</TabsTrigger>
-                <TabsTrigger value="stair" className="px-4 text-[11px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
-                <TabsTrigger value="brick" className="px-4 text-[11px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
-                <TabsTrigger value="plaster" className="px-4 text-[11px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
-                <TabsTrigger value="tile" className="px-4 text-[11px] whitespace-nowrap">টাইলস</TabsTrigger>
-                <TabsTrigger value="fullHouse" className="px-4 text-[11px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
-                <TabsTrigger value="design" className="px-4 text-[11px] data-[state=active]:bg-blue-600 data-[state=active]:text-white font-bold whitespace-nowrap">ডিজাইন টুল</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </ScrollArea>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden bg-[#f8f9fa]">
-        {/* Sidebar Library */}
-        <div className="w-60 bg-white border-r flex flex-col z-20 shadow-md shrink-0 overflow-hidden">
-          <div className="p-2 border-b bg-slate-50 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Library</span>
-            <MenuIcon className="w-3 h-3 text-slate-400"/>
-          </div>
-          <ScrollArea className="flex-1">
-            <Accordion type="multiple" defaultValue={["tools", "symbols"]} className="w-full">
-              <AccordionItem value="tools" className="border-none">
-                <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Walls & Structure</AccordionTrigger>
-                <AccordionContent className="p-3 space-y-2">
-                  <Button variant="outline" className={cn("w-full justify-start text-[11px] h-9 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Draw Wall"}</Button>
-                  <Button variant="ghost" className="w-full justify-start text-[11px] h-9 gap-2" onClick={() => addObject('opening', 'door', 'দরজা')}><DoorClosed className="w-3 h-3"/> Add Door</Button>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="symbols" className="border-none">
-                <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Room Symbols</AccordionTrigger>
-                <AccordionContent className="p-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    <SymbolBox icon={<Square />} onClick={() => addObject('shape', 'room', 'রুম')} label="Room" />
-                    <SymbolBox icon={<LayoutGrid />} onClick={() => addObject('shape', 'room', 'L-Room')} label="L-Room" />
-                    <SymbolBox icon={<RectangleHorizontal />} onClick={() => addObject('shape', 'room', 'Hall')} label="Hall" />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </ScrollArea>
-        </div>
-
-        <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
-          {/* Rulers */}
-          <div className="h-6 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
-            <div className="absolute left-6 h-full flex items-end" style={{ width: 10000 }}>
-              {Array.from({ length: 200 }).map((_, i) => (
-                <div key={i} className="border-l border-slate-300 h-2 flex flex-col justify-end text-[8px] text-slate-400 font-mono" style={{ width: zoom, minWidth: zoom }}>
-                  <span className="pl-0.5 pb-0.5">{i}ft</span>
-                </div>
-              ))}
-            </div>
+      <div className="flex-1 flex overflow-hidden bg-slate-50">
+        {/* New Pro Library Sidebar */}
+        <div className="flex w-[320px] bg-white border-r z-20 shrink-0">
+          {/* Left Rail */}
+          <div className="w-12 border-r bg-slate-50 flex flex-col items-center py-4 gap-6 shrink-0">
+             <Briefcase className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500" />
+             <Database className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500" />
+             <Sparkles className="w-5 h-5 text-slate-400 cursor-pointer hover:text-blue-500" />
           </div>
 
-          <div className="flex flex-1 overflow-hidden relative">
-            <div className="w-6 bg-white border-r flex flex-col items-end relative overflow-hidden z-10 select-none">
-              <div className="absolute top-0 w-full flex flex-col items-end" style={{ height: 10000 }}>
-                {Array.from({ length: 200 }).map((_, i) => (
-                  <div key={i} className="border-t border-slate-300 w-2 flex items-center justify-end text-[8px] text-slate-400 font-mono" style={{ height: zoom, minHeight: zoom }}>
-                    <span className="pr-0.5 rotate-90">{i}ft</span>
+          {/* Sidebar Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="p-3 border-b flex items-center justify-between">
+               <div className="flex items-center gap-1 cursor-pointer group">
+                  <span className="text-sm font-bold text-slate-700">Tools</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600" />
+               </div>
+               <div className="flex items-center gap-1">
+                  <MenuIcon className="w-4 h-4 text-slate-400" />
+               </div>
+            </div>
+
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-6">
+                {/* Tool Selection Bar */}
+                <div className="grid grid-cols-4 gap-1">
+                  <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
+                  <ToolCard icon={<Box />} label="Shape" active={selectedTool === 'shape'} onClick={() => setSelectedTool('shape')} />
+                  <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
+                  <ToolCard icon={<TextIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+                </div>
+
+                {/* Add Wall Section */}
+                <div className="space-y-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-slate-700 hover:bg-slate-100 font-medium">
+                        <Pencil className="w-4 h-4" />
+                        <span className="text-xs">Add Wall</span>
+                        <ChevronDown className="ml-auto w-3.5 h-3.5 text-slate-400" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.33); setInteractionMode('drawing'); setSelectedTool('line'); }}>Interior Wall 4"</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.5); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 6"</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.66); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 8"</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(1.0); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 12"</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>Custom...</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-slate-700 hover:bg-slate-100 font-medium">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-xs">Add Wall Opening</span>
+                  </Button>
+                </div>
+
+                {/* Categorized Tools */}
+                <Accordion type="multiple" defaultValue={["recently"]} className="w-full">
+                  <AccordionItem value="setup" className="border-none">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Document Setup</AccordionTrigger>
+                    <AccordionContent className="pb-2">Settings...</AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="adjust" className="border-none">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Adjust Wall</AccordionTrigger>
+                    <AccordionContent className="pb-2">Wall Controls...</AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="dims" className="border-none">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Dimensions & Area</AccordionTrigger>
+                    <AccordionContent className="pb-2">Stats...</AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="recently" className="border-none">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Recently Used Symbols</AccordionTrigger>
+                    <AccordionContent className="pb-2">
+                       <div className="aspect-square w-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400">
+                          <Square className="w-8 h-8 text-slate-200" />
+                       </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+
+                {/* Symbols Header */}
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                     <span className="text-sm font-bold text-slate-700">Symbols</span>
+                     <div className="flex items-center gap-1 text-blue-600 cursor-pointer">
+                        <span className="text-[10px] font-bold">More</span>
+                        <Plus className="w-2.5 h-2.5" />
+                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div 
-              id="canvas-workspace"
-              className="flex-1 relative bg-[#e9ecef] overflow-auto focus:outline-none cursor-crosshair no-scrollbar"
-              onMouseDown={(e) => handleMouseDown(e, null)}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-            >
-              <div className="absolute inset-0" style={{ 
-                  backgroundImage: `linear-gradient(#dee2e6 1px, transparent 1px), linear-gradient(90deg, #dee2e6 1px, transparent 1px)`,
-                  backgroundSize: `${zoom}px ${zoom}px`, width: 10000, height: 10000, backgroundColor: 'white'
-                }}>
-                {snapPoint && (
-                  <div className="absolute w-5 h-5 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
-                    style={{ left: snapPoint.x * zoom - 10, top: snapPoint.y * zoom - 10 }} />
-                )}
-
-                {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                  <div className="absolute bg-blue-500/20 border-2 border-blue-500 z-40 pointer-events-none"
-                    style={{ 
-                      left: drawStart.x * zoom, 
-                      top: drawStart.y * zoom, 
-                      width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
-                      height: 4,
-                      transformOrigin: '0 50%',
-                      transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x)}rad)`
-                    }}>
-                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold shadow-sm">
-                      {formatFeetInches(Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)))}
-                    </span>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
+                    <Input placeholder="Search for symbols..." className="pl-8 h-9 text-xs bg-slate-50 border-none" />
                   </div>
-                )}
 
-                {designObjects.map(obj => {
-                  const isWall = obj.subType === 'wall';
-                  const isTable = obj.subType === 'table';
-                  const isSelected = selectedObjectId === obj.id;
-                  
-                  return (
-                    <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()} 
-                      className={cn("absolute flex items-center justify-center cursor-move select-none transition-shadow", isSelected ? "z-30 shadow-2xl" : "z-10 shadow-sm")}
-                      style={{ 
-                        left: obj.x * zoom, 
-                        top: obj.y * zoom, 
-                        width: obj.w * zoom, 
-                        height: isWall ? (obj.strokeWidth || 4) : obj.h * zoom, 
-                        transformOrigin: '0 50%',
-                        transform: `rotate(${obj.rotation}deg) scaleX(${obj.flipH ? -1 : 1}) scaleY(${obj.flipV ? -1 : 1})`, 
-                        backgroundColor: isWall ? obj.color : obj.fillColor,
-                        borderStyle: isWall ? 'none' : (obj.strokeStyle || 'solid'),
-                        borderColor: isWall ? 'transparent' : obj.color,
-                        borderWidth: isWall ? undefined : (obj.strokeWidth || 1),
-                        outline: isSelected ? '2px solid #2563eb' : undefined,
-                        outlineOffset: isSelected ? '2px' : undefined
-                      }}>
-                      
-                      {isTable && (
-                        <div className="absolute inset-0 grid" style={{
-                          gridTemplateColumns: `repeat(${obj.cols || 1}, 1fr)`,
-                          gridTemplateRows: `repeat(${obj.rows || 1}, 1fr)`
-                        }}>
-                          {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
-                            <div key={i} className="border border-slate-300 opacity-50" />
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
-                        <span className="bg-white px-1.5 py-0.5 text-[10px] font-bold text-blue-600 shadow-sm border border-blue-100 rounded-sm whitespace-nowrap">
-                          {formatFeetInches(obj.w)}
-                          {!isWall && ` x ${formatFeetInches(obj.h)}`}
-                        </span>
-                      </div>
-
-                      {isSelected && (
-                        <>
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-7 h-7 bg-white border-2 border-blue-600 rounded-full shadow-lg flex items-center justify-center cursor-pointer z-40" onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}>
-                            <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
-                          </div>
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bottom Property Input Row */}
-            <div className="absolute bottom-0 left-0 right-0 h-14 bg-white border-t flex items-center px-4 gap-4 z-30 shadow-lg overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Left</span>
-                  <Input 
-                    className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                    value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
-                    onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={`0' 0"`}
-                  />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Top</span>
-                  <Input 
-                    className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                    value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
-                    onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={`0' 0"`}
-                  />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Width</span>
-                  <Input 
-                    className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                    value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
-                    onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={`0' 0"`}
-                  />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Height</span>
-                  <Input 
-                    disabled={selectedObject?.subType === 'wall'} 
-                    className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                    value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
-                    onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} 
-                    placeholder={`0' 0"`}
-                  />
+                  <Accordion type="multiple" className="w-full">
+                    <AccordionItem value="room" className="border-none">
+                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Room Outlines</AccordionTrigger>
+                      <AccordionContent className="grid grid-cols-2 gap-2">
+                         <div onClick={() => addObject('shape', 'room', 'রুম')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400"><Square className="w-6 h-6 text-slate-300" /></div>
+                         <div onClick={() => addObject('shape', 'room', 'L-Room')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400"><LayoutGrid className="w-6 h-6 text-slate-300" /></div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="doors" className="border-none">
+                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Doors & Windows</AccordionTrigger>
+                      <AccordionContent className="pb-2">Symbols list...</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="counter" className="border-none">
+                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600">Countertops</AccordionTrigger>
+                      <AccordionContent className="pb-2">Symbols list...</AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               </div>
-              <div className="ml-auto flex items-center gap-4 shrink-0">
-                <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
-                <Slider value={[zoom]} max={150} min={10} step={5} className="w-24" onValueChange={(val) => setZoom(val[0])} />
-                <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
-                <span className="text-[10px] font-mono text-slate-500 w-10 text-right">{Math.round((zoom/30)*100)}%</span>
-              </div>
-            </div>
+            </ScrollArea>
           </div>
         </div>
 
-        {/* Right Properties Panel */}
-        <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
-          <div className="p-3 border-b bg-slate-50 flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-blue-600"/>
-            <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">Object Properties</span>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="p-4 space-y-6">
-              {selectedObject ? (
-                <>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{selectedObject.label} Edit</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
-                  </div>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 uppercase font-bold">Width</Label>
-                      <Input value={formatFeetInches(selectedObject.w)} onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} className="h-9 font-mono bg-slate-50" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] text-slate-500 uppercase font-bold">Height</Label>
-                      <Input disabled={selectedObject.subType === 'wall'} value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} className="h-9 font-mono bg-slate-50" />
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-[10px] text-slate-500 uppercase font-bold">Rotation (°)</Label>
-                      <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 }, true)} className="h-9 w-20 text-center font-mono bg-slate-50" />
-                    </div>
-                    <Slider value={[selectedObject.rotation]} max={360} min={-360} step={15} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                     <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x - 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Left</Button>
-                     <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x + 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Right</Button>
-                     <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y - 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Up</Button>
-                     <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y + 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Down</Button>
-                  </div>
-                  <Separator />
-                  <Button variant="destructive" className="w-full text-xs font-bold py-5" onClick={() => deleteObject(selectedObjectId)}><Eraser className="w-4 h-4 mr-2"/> DELETE OBJECT</Button>
-                </>
-              ) : (
-                <div className="h-[400px] flex flex-col items-center justify-center text-center text-slate-300">
-                  <MousePointer2 className="w-12 h-12 mb-4 opacity-10 animate-pulse" />
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Select an object <br/> to edit</p>
+        <div className="flex-1 relative flex flex-col overflow-hidden">
+          {/* Main Drawing Area */}
+          <div 
+            id="canvas-workspace"
+            className="flex-1 relative bg-white overflow-auto cursor-crosshair no-scrollbar"
+            onMouseDown={(e) => handleMouseDown(e, null)}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
+            <div className="absolute inset-0" style={{ 
+                backgroundImage: `linear-gradient(#f1f3f4 1px, transparent 1px), linear-gradient(90deg, #f1f3f4 1px, transparent 1px)`,
+                backgroundSize: `${zoom}px ${zoom}px`, width: 10000, height: 10000, backgroundColor: 'white'
+              }}>
+              {snapPoint && (
+                <div className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-sm pointer-events-none"
+                  style={{ left: snapPoint.x * zoom - 8, top: snapPoint.y * zoom - 8 }} />
+              )}
+
+              {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
+                <div className="absolute bg-blue-500/10 border-2 border-blue-500 z-40 pointer-events-none"
+                  style={{ 
+                    left: drawStart.x * zoom, 
+                    top: drawStart.y * zoom, 
+                    width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
+                    height: 4,
+                    transformOrigin: '0 50%',
+                    transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x)}rad)`
+                  }}>
+                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold">
+                    {formatFeetInches(Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)))}
+                  </span>
                 </div>
               )}
+
+              {designObjects.map(obj => {
+                const isWall = obj.subType === 'wall';
+                const isSelected = selectedObjectId === obj.id;
+                
+                return (
+                  <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()} 
+                    className={cn("absolute flex items-center justify-center cursor-move select-none", isSelected ? "z-30" : "z-10")}
+                    style={{ 
+                      left: obj.x * zoom, 
+                      top: obj.y * zoom, 
+                      width: obj.w * zoom, 
+                      height: isWall ? (obj.h * zoom) : obj.h * zoom, 
+                      transformOrigin: '0 50%',
+                      transform: `rotate(${obj.rotation}deg)`, 
+                      backgroundColor: isWall ? obj.color : obj.fillColor,
+                      border: isWall ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
+                      outline: isSelected ? '2px solid #2563eb' : undefined,
+                      outlineOffset: isSelected ? '2px' : undefined
+                    }}>
+                    
+                    <div className="absolute -top-7 left-0 right-0 flex justify-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
+                      <span className="bg-white/80 px-1 text-[10px] font-bold text-blue-600 rounded">
+                        {formatFeetInches(obj.w)}
+                        {!isWall && ` x ${formatFeetInches(obj.h)}`}
+                      </span>
+                    </div>
+
+                    {isSelected && (
+                      <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </ScrollArea>
+          </div>
+
+          {/* Bottom Property Input Row */}
+          <div className="h-14 bg-white border-t flex items-center px-4 gap-6 z-30 shadow-lg shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Left</span>
+                <Input 
+                  className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
+                  value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
+                  onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
+                  placeholder={"0' 0\""}
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Top</span>
+                <Input 
+                  className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
+                  value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
+                  onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
+                  placeholder={"0' 0\""}
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Width</span>
+                <Input 
+                  className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
+                  value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
+                  onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
+                  placeholder={"0' 0\""}
+                />
+              </div>
+            </div>
+            <div className="ml-auto flex items-center gap-4">
+              <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
+              <Slider value={[zoom]} max={150} min={10} step={5} className="w-24" onValueChange={(val) => setZoom(val[0])} />
+              <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
+            </div>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ToolCard({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <div onClick={onClick} className={cn(
+      "flex flex-col items-center justify-center p-2 rounded-md cursor-pointer transition-all",
+      active ? "bg-amber-100 text-amber-700 shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-100"
+    )}>
+       {React.cloneElement(icon as React.ReactElement, { className: cn("w-4 h-4 mb-1", active && "stroke-[2.5px]") })}
+       <span className="text-[9px] font-bold uppercase">{label}</span>
     </div>
   );
 }
@@ -961,16 +820,5 @@ function ToolIconButton({ icon, label, onClick }: { icon: React.ReactNode, label
       </div>
       {label && <span className="text-[8px] font-bold text-slate-500 leading-none uppercase tracking-tighter">{label}</span>}
     </Button>
-  );
-}
-
-function SymbolBox({ icon, onClick, label }: { icon: React.ReactNode, onClick: () => void, label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1 group cursor-pointer" onClick={onClick}>
-      <div className="aspect-square w-full border border-slate-200 rounded-md flex items-center justify-center group-hover:bg-blue-50 group-hover:border-blue-400 transition-all bg-white shadow-sm">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6 text-slate-400 group-hover:text-blue-500" })}
-      </div>
-      <span className="text-[9px] font-bold text-slate-400 group-hover:text-blue-600 uppercase tracking-tighter">{label}</span>
-    </div>
   );
 }
