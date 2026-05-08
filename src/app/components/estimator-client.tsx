@@ -6,7 +6,9 @@ import {
   Building, Plus, DoorClosed, Square, LayoutGrid, 
   RectangleHorizontal, RefreshCw, Trash2, X, MousePointer2,
   Download, Clipboard, Copy, Scissors, Undo2, Redo2,
-  Settings2, Move, Pencil, ZoomIn, ZoomOut
+  Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
+  ChevronDown, Type, PaintBucket, Layers, FlipHorizontal, FlipVertical,
+  BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,13 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 
 type DesignObject = {
   id: string;
@@ -26,12 +35,15 @@ type DesignObject = {
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; color: string; rotation: number;
+  flipH?: boolean;
+  flipV?: boolean;
 };
 
 export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
@@ -229,281 +241,437 @@ export default function EstimatorClient() {
     setDesignObjects(objs => objs.map(o => o.id === id ? { ...o, ...updates } : o));
   };
 
-  const deleteObject = (id: string) => {
+  const deleteObject = (id: string | null) => {
+    if (!id) return;
     setDesignObjects(designObjects.filter(o => o.id !== id));
     setSelectedObjectId(null);
   };
 
+  const copyObject = () => {
+    if (selectedObject) {
+      setClipboard({ ...selectedObject, id: Math.random().toString(36).substr(2, 9) });
+      toast({ title: "Copied", description: `${selectedObject.label} copied to clipboard.` });
+    }
+  };
+
+  const pasteObject = () => {
+    if (clipboard) {
+      const newObj = { ...clipboard, x: clipboard.x + 2, y: clipboard.y + 2, id: Math.random().toString(36).substr(2, 9) };
+      setDesignObjects([...designObjects, newObj]);
+      setSelectedObjectId(newObj.id);
+      toast({ title: "Pasted", description: "Object pasted into workspace." });
+    }
+  };
+
+  const bringToFront = () => {
+    if (!selectedObjectId) return;
+    const item = designObjects.find(o => o.id === selectedObjectId);
+    if (!item) return;
+    const filtered = designObjects.filter(o => o.id !== selectedObjectId);
+    setDesignObjects([...filtered, item]);
+  };
+
+  const sendToBack = () => {
+    if (!selectedObjectId) return;
+    const item = designObjects.find(o => o.id === selectedObjectId);
+    if (!item) return;
+    const filtered = designObjects.filter(o => o.id !== selectedObjectId);
+    setDesignObjects([item, ...filtered]);
+  };
+
+  const flipH = () => {
+    if (selectedObjectId) updateObject(selectedObjectId, { flipH: !selectedObject?.flipH });
+  };
+
+  const flipV = () => {
+    if (selectedObjectId) updateObject(selectedObjectId, { flipV: !selectedObject?.flipV });
+  };
+
   return (
     <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden">
-      <Card className="shadow-none border-none overflow-hidden rounded-none bg-white flex-1 flex flex-col">
-        <div className="bg-[#0f172a] p-2 text-white text-center shrink-0">
-          <h1 className="text-sm font-bold flex items-center justify-center gap-2">
-             <Building className="w-4 h-4 text-blue-400" /> আমার বাড়ি প্রফেশনাল ডিজাইন টুল (SmartDraw)
-          </h1>
+      {/* Top Header */}
+      <div className="h-10 bg-[#f1f3f4] border-b flex items-center px-4 justify-between shrink-0">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Building className="w-5 h-5 text-blue-600" />
+            <span className="font-bold text-sm text-slate-700">smartdraw</span>
+          </div>
+          <nav className="flex gap-4">
+            {['File', 'Home', 'Design', 'Page', 'Table', 'Options', 'Support'].map(item => (
+              <Button key={item} variant="ghost" className="h-8 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-200">{item}</Button>
+            ))}
+          </nav>
+        </div>
+        <Button className="bg-orange-400 hover:bg-orange-500 h-7 text-[11px] px-4 font-bold text-white rounded">Buy</Button>
+      </div>
+
+      {/* Main Functional Ribbon */}
+      <div className="h-16 bg-white border-b flex items-center px-4 gap-2 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
+        <div className="flex flex-col items-center border-r pr-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-12 flex flex-col gap-1 px-3">
+                <Download className="w-4 h-4 text-slate-600"/>
+                <span className="text-[9px] uppercase font-bold text-slate-500">Export</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as PNG</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Exporting..." })}>Export as SVG</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <Tabs defaultValue="design" className="w-full flex-1 flex flex-col overflow-hidden">
-          <div className="w-full bg-slate-100 border-b overflow-hidden">
-            <ScrollArea orientation="horizontal" className="w-full h-12">
-              <div className="flex h-full bg-transparent px-4">
-                <TabsList className="flex h-full bg-transparent rounded-none border-none p-0">
-                  <TabsTrigger value="structural" className="px-4 text-[12px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
-                  <TabsTrigger value="slab" className="px-4 text-[12px] whitespace-nowrap">ছাদ</TabsTrigger>
-                  <TabsTrigger value="stair" className="px-4 text-[12px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
-                  <TabsTrigger value="brick" className="px-4 text-[12px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
-                  <TabsTrigger value="plaster" className="px-4 text-[12px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
-                  <TabsTrigger value="tile" className="px-4 text-[12px] whitespace-nowrap">টাইলস</TabsTrigger>
-                  <TabsTrigger value="fullHouse" className="px-4 text-[12px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
-                  <TabsTrigger value="design" className="px-4 text-[12px] bg-blue-600 text-white data-[state=active]:bg-blue-700 font-bold whitespace-nowrap">ডিজাইন টুল</TabsTrigger>
-                </TabsList>
-              </div>
-            </ScrollArea>
+        <div className="flex items-center gap-1 border-r pr-2">
+          <RibbonButton icon={<Clipboard />} label="Paste" onClick={pasteObject} disabled={!clipboard} />
+          <div className="flex flex-col gap-1">
+            <RibbonIconButton icon={<Copy />} label="Copy" onClick={copyObject} />
+            <RibbonIconButton icon={<Scissors />} label="Cut" onClick={() => { copyObject(); deleteObject(selectedObjectId); }} />
           </div>
+          <RibbonButton icon={<Pencil />} label="Format Painter" />
+        </div>
 
-          <TabsContent value="design" className="p-0 m-0 bg-[#f8f9fa] flex flex-col flex-1 overflow-hidden">
-            <div className="h-12 bg-white border-b flex items-center px-4 gap-4 shrink-0 shadow-sm z-30">
-              <div className="flex items-center gap-1 border-r pr-4">
-                <ToolIconButton icon={<Download />} label="Export" />
-                <ToolIconButton icon={<Clipboard />} label="Paste" />
-                <ToolIconButton icon={<Copy />} label="Copy" />
-                <ToolIconButton icon={<Scissors />} label="Cut" />
+        <div className="flex items-center gap-1 border-r pr-2">
+           <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-12 flex flex-col gap-1 px-3">
+                <Plus className="w-4 h-4 text-slate-600"/>
+                <span className="text-[9px] uppercase font-bold text-slate-500">Insert</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Wall (Free Draw)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => addObject('shape', 'room', 'L-Room')}>L-Shaped Room</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => addObject('opening', 'door', 'দরজা')}>Door</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="flex items-center gap-1 border-r pr-2">
+          <RibbonIconButton icon={<Undo2 />} label="Undo" />
+          <RibbonIconButton icon={<Redo2 />} label="Redo" />
+        </div>
+
+        <div className="flex items-center gap-1 border-r pr-2">
+          <RibbonButton icon={<PaintBucket />} label="Fill" />
+          <RibbonButton icon={<GripHorizontal />} label="Line Style" />
+          <RibbonButton icon={<Maximize2 />} label="Effects" />
+        </div>
+
+        <div className="flex items-center gap-3 border-r pr-2">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <select className="h-6 w-24 text-[10px] border rounded bg-slate-50">
+                <option>Arial</option>
+                <option>Times New Roman</option>
+                <option>Inter</option>
+              </select>
+              <select className="h-6 w-12 text-[10px] border rounded bg-slate-50">
+                <option>10</option>
+                <option>12</option>
+                <option>14</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Type className="w-3 h-3 text-slate-400"/>
+              <span className="font-bold text-xs">B I U</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-2">
+              <RibbonIconButton icon={<BringToFront />} onClick={bringToFront} />
+              <RibbonIconButton icon={<SendToBack />} onClick={sendToBack} />
+            </div>
+            <div className="flex gap-2">
+              <RibbonIconButton icon={<FlipHorizontal />} onClick={flipH} />
+              <RibbonIconButton icon={<FlipVertical />} onClick={flipV} />
+            </div>
+          </div>
+          <RibbonButton icon={<Eraser />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
+        </div>
+      </div>
+
+      <Tabs defaultValue="design" className="w-full flex-1 flex flex-col overflow-hidden">
+        <div className="w-full bg-slate-100 border-b overflow-hidden shrink-0">
+          <ScrollArea orientation="horizontal" className="w-full h-11">
+            <div className="flex h-full bg-transparent px-4">
+              <TabsList className="flex h-full bg-transparent rounded-none border-none p-0">
+                <TabsTrigger value="structural" className="px-4 text-[11px] whitespace-nowrap">স্ট্রাকচার</TabsTrigger>
+                <TabsTrigger value="slab" className="px-4 text-[11px] whitespace-nowrap">ছাদ</TabsTrigger>
+                <TabsTrigger value="stair" className="px-4 text-[11px] whitespace-nowrap">সিঁড়ি</TabsTrigger>
+                <TabsTrigger value="brick" className="px-4 text-[11px] whitespace-nowrap">গাঁথুনি</TabsTrigger>
+                <TabsTrigger value="plaster" className="px-4 text-[11px] whitespace-nowrap">প্লাস্টার</TabsTrigger>
+                <TabsTrigger value="tile" className="px-4 text-[11px] whitespace-nowrap">টাইলস</TabsTrigger>
+                <TabsTrigger value="fullHouse" className="px-4 text-[11px] whitespace-nowrap">পূর্ণ বাড়ি</TabsTrigger>
+                <TabsTrigger value="design" className="px-4 text-[11px] data-[state=active]:bg-blue-600 data-[state=active]:text-white font-bold whitespace-nowrap">ডিজাইন টুল</TabsTrigger>
+              </TabsList>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
+
+        <TabsContent value="design" className="p-0 m-0 bg-[#f8f9fa] flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 flex overflow-hidden">
+            {/* Sidebar Library */}
+            <div className="w-60 bg-white border-r flex flex-col z-20 shadow-md shrink-0 overflow-hidden">
+              <div className="p-2 border-b bg-slate-50 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Library</span>
+                <MenuIcon className="w-3 h-3 text-slate-400"/>
               </div>
-              <div className="flex items-center gap-1 border-r pr-4">
-                <ToolIconButton icon={<Plus />} label="Insert" />
-                <ToolIconButton icon={<Undo2 />} />
-                <ToolIconButton icon={<Redo2 />} />
-              </div>
-              <div className="flex items-center gap-1">
-                <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
-                <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
-              </div>
+              <ScrollArea className="flex-1">
+                <Accordion type="multiple" defaultValue={["tools", "symbols"]} className="w-full">
+                  <AccordionItem value="tools" className="border-none">
+                    <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Walls & Structure</AccordionTrigger>
+                    <AccordionContent className="p-3 space-y-2">
+                      <Button variant="outline" className={cn("w-full justify-start text-[11px] h-9 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Draw Single Wall"}</Button>
+                      <Button variant="ghost" className="w-full justify-start text-[11px] h-9 gap-2" onClick={() => addObject('opening', 'door', 'দরজা')}><DoorClosed className="w-3 h-3"/> Add Door</Button>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="symbols" className="border-none">
+                    <AccordionTrigger className="px-3 py-2 hover:no-underline text-[11px] font-bold text-slate-600 bg-slate-50/30">Room Symbols</AccordionTrigger>
+                    <AccordionContent className="p-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <SymbolBox icon={<Square />} onClick={() => addObject('shape', 'room', 'রুম')} label="Room" />
+                        <SymbolBox icon={<LayoutGrid />} onClick={() => addObject('shape', 'room', 'L-Room')} label="L-Room" />
+                        <SymbolBox icon={<RectangleHorizontal />} onClick={() => addObject('shape', 'room', 'Hall')} label="Hall" />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                <ScrollBar orientation="vertical" />
+              </ScrollArea>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
-              <div className="w-64 bg-white border-r flex flex-col z-20 shadow-lg shrink-0 overflow-hidden">
-                <ScrollArea className="flex-1">
-                  <Accordion type="multiple" defaultValue={["tools", "symbols"]} className="w-full">
-                    <AccordionItem value="tools" className="border-none">
-                      <AccordionTrigger className="px-4 py-2 hover:no-underline text-[12px] font-bold text-slate-700 bg-slate-50/50 uppercase tracking-wider">Design Tools</AccordionTrigger>
-                      <AccordionContent className="p-4 space-y-2">
-                        <Button variant="outline" className={cn("w-full justify-start text-[11px] h-10 gap-2 font-bold", interactionMode === 'drawing' ? "bg-blue-600 text-white" : "bg-slate-900 text-white")} onClick={() => addObject('structure', 'wall', 'দেয়াল')}><Pencil className="w-3 h-3"/> {interactionMode === 'drawing' ? "Drawing..." : "Draw Single Wall"}</Button>
-                        <Button variant="ghost" className="w-full justify-start text-[11px] h-9 gap-2" onClick={() => addObject('opening', 'door', 'দরজা')}><DoorClosed className="w-3 h-3"/> Add Door</Button>
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="symbols" className="border-none">
-                      <AccordionTrigger className="px-4 py-2 hover:no-underline text-[12px] font-bold text-slate-700 bg-slate-50/50 uppercase tracking-wider">Room Shapes</AccordionTrigger>
-                      <AccordionContent className="p-4">
-                        <div className="grid grid-cols-3 gap-2">
-                          <SymbolBox icon={<Square />} onClick={() => addObject('shape', 'room', 'রুম')} label="Room" />
-                          <SymbolBox icon={<LayoutGrid />} onClick={() => addObject('shape', 'room', 'L-Room')} label="L-Room" />
-                          <SymbolBox icon={<RectangleHorizontal />} onClick={() => addObject('shape', 'room', 'Hall')} label="Hall" />
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </ScrollArea>
+            <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
+              {/* Horizontal Ruler */}
+              <div className="h-6 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
+                <div className="absolute left-6 h-full flex items-end" style={{ width: 10000 }}>
+                  {Array.from({ length: 200 }).map((_, i) => (
+                    <div key={i} className="border-l border-slate-300 h-2 flex flex-col justify-end text-[8px] text-slate-400 font-mono" style={{ width: zoom, minWidth: zoom }}>
+                      <span className="pl-0.5 pb-0.5">{i}ft</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
-                <div className="h-6 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
-                  <div className="absolute left-6 h-full flex items-end" style={{ width: 10000 }}>
+              <div className="flex flex-1 overflow-hidden relative">
+                {/* Vertical Ruler */}
+                <div className="w-6 bg-white border-r flex flex-col items-end relative overflow-hidden z-10 select-none">
+                  <div className="absolute top-0 w-full flex flex-col items-end" style={{ height: 10000 }}>
                     {Array.from({ length: 200 }).map((_, i) => (
-                      <div key={i} className="border-l border-slate-300 h-2 flex flex-col justify-end text-[8px] text-slate-400 font-mono" style={{ width: zoom, minWidth: zoom }}>
-                        <span className="pl-0.5 pb-0.5">{i}ft</span>
+                      <div key={i} className="border-t border-slate-300 w-2 flex items-center justify-end text-[8px] text-slate-400 font-mono" style={{ height: zoom, minHeight: zoom }}>
+                        <span className="pr-0.5 rotate-90">{i}ft</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex flex-1 overflow-hidden relative">
-                  <div className="w-6 bg-white border-r flex flex-col items-end relative overflow-hidden z-10 select-none">
-                    <div className="absolute top-0 w-full flex flex-col items-end" style={{ height: 10000 }}>
-                      {Array.from({ length: 200 }).map((_, i) => (
-                        <div key={i} className="border-t border-slate-300 w-2 flex items-center justify-end text-[8px] text-slate-400 font-mono" style={{ height: zoom, minHeight: zoom }}>
-                          <span className="pr-0.5 rotate-90">{i}ft</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <div 
+                  id="canvas-workspace"
+                  className="flex-1 relative bg-[#e9ecef] overflow-auto focus:outline-none cursor-crosshair"
+                  onMouseDown={(e) => handleMouseDown(e, null)}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                >
+                  <div className="absolute inset-0" style={{ 
+                      backgroundImage: `linear-gradient(#dee2e6 1px, transparent 1px), linear-gradient(90deg, #dee2e6 1px, transparent 1px)`,
+                      backgroundSize: `${zoom}px ${zoom}px`, width: 10000, height: 10000, backgroundColor: 'white'
+                    }}>
+                    {snapPoint && (
+                      <div className="absolute w-5 h-5 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
+                        style={{ left: snapPoint.x * zoom - 10, top: snapPoint.y * zoom - 10 }} />
+                    )}
 
-                  <div 
-                    id="canvas-workspace"
-                    className="flex-1 relative bg-[#e9ecef] overflow-auto focus:outline-none cursor-crosshair"
-                    onMouseDown={(e) => handleMouseDown(e, null)}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                  >
-                    <div className="absolute inset-0" style={{ 
-                        backgroundImage: `linear-gradient(#dee2e6 1px, transparent 1px), linear-gradient(90deg, #dee2e6 1px, transparent 1px)`,
-                        backgroundSize: `${zoom}px ${zoom}px`, width: 10000, height: 10000, backgroundColor: 'white'
-                      }}>
-                      {snapPoint && (
-                        <div className="absolute w-5 h-5 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-lg pointer-events-none"
-                          style={{ left: snapPoint.x * zoom - 10, top: snapPoint.y * zoom - 10 }} />
-                      )}
-
-                      {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                        <div className="absolute bg-blue-500/20 border-2 border-blue-500 z-40 pointer-events-none"
-                          style={{ 
-                            left: drawStart.x * zoom, 
-                            top: drawStart.y * zoom, 
-                            width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
-                            height: 4,
-                            transformOrigin: '0 50%',
-                            transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x)}rad)`
-                          }}>
-                          <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold shadow-sm">
-                            {formatFeetInches(Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)))}
-                          </span>
-                        </div>
-                      )}
-
-                      {designObjects.map(obj => {
-                        const isWall = obj.subType === 'wall';
-                        return (
-                          <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()} 
-                            className={cn("absolute flex items-center justify-center cursor-move select-none", selectedObjectId === obj.id ? "z-30" : "z-10")}
-                            style={{ 
-                              left: obj.x * zoom, 
-                              top: obj.y * zoom, 
-                              width: obj.w * zoom, 
-                              height: isWall ? 4 : obj.h * zoom, 
-                              transformOrigin: '0 50%',
-                              transform: `rotate(${obj.rotation}deg)`, 
-                              backgroundColor: isWall ? '#000' : obj.color, 
-                              border: selectedObjectId === obj.id ? '2px solid #2563eb' : (isWall ? 'none' : '1px solid #ccc') 
-                            }}>
-                            
-                            <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
-                              <span className="bg-white px-1.5 py-0.5 text-[10px] font-bold text-blue-600 shadow-sm border border-blue-100 rounded-sm whitespace-nowrap">
-                                {formatFeetInches(obj.w)}
-                                {!isWall && ` x ${formatFeetInches(obj.h)}`}
-                              </span>
-                            </div>
-
-                            {selectedObjectId === obj.id && (
-                              <>
-                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-7 h-7 bg-white border-2 border-blue-600 rounded-full shadow-lg flex items-center justify-center cursor-pointer z-40" onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}>
-                                  <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="h-14 bg-white border-t flex items-center px-4 gap-4 shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Left</span>
-                      <Input 
-                        className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                        value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) })} 
-                        placeholder="0' 0''" 
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Top</span>
-                      <Input 
-                        className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                        value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) })} 
-                        placeholder="0' 0''" 
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Width</span>
-                      <Input 
-                        className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                        value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} 
-                        placeholder="0' 0''" 
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Height</span>
-                      <Input 
-                        disabled={selectedObject?.subType === 'wall'} 
-                        className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
-                        value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
-                        onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} 
-                        placeholder="0' 0''" 
-                      />
-                    </div>
-                  </div>
-                  <div className="ml-auto flex items-center gap-4 shrink-0">
-                    <Slider value={[zoom]} max={150} min={10} step={5} className="w-24" onValueChange={(val) => setZoom(val[0])} />
-                    <span className="text-[10px] font-mono text-slate-500 w-10 text-right">{Math.round((zoom/30)*100)}%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
-                <div className="p-3 border-b bg-slate-50 flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-blue-600"/>
-                  <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">Properties</span>
-                </div>
-                <ScrollArea className="flex-1">
-                  <div className="p-4 space-y-6">
-                    {selectedObject ? (
-                      <>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{selectedObject.label} Edit</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
-                        </div>
-                        <Separator />
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Width</Label>
-                            <Input value={formatFeetInches(selectedObject.w)} onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} className="h-9 font-mono bg-slate-50" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Height</Label>
-                            <Input disabled={selectedObject.subType === 'wall'} value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} className="h-9 font-mono bg-slate-50" />
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <Label className="text-[10px] text-slate-500 uppercase font-bold">Rotation (°)</Label>
-                            <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center font-mono bg-slate-50" />
-                          </div>
-                          <Slider value={[selectedObject.rotation]} max={360} min={-360} step={15} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                           <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x - 0.5 })}><Move className="w-3 h-3 mr-1"/> Left</Button>
-                           <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x + 0.5 })}><Move className="w-3 h-3 mr-1"/> Right</Button>
-                           <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y - 0.5 })}><Move className="w-3 h-3 mr-1"/> Up</Button>
-                           <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y + 0.5 })}><Move className="w-3 h-3 mr-1"/> Down</Button>
-                        </div>
-                        <Separator />
-                        <Button variant="destructive" className="w-full text-xs font-bold py-5" onClick={() => deleteObject(selectedObject.id)}><Trash2 className="w-4 h-4 mr-2"/> DELETE OBJECT</Button>
-                      </>
-                    ) : (
-                      <div className="h-[400px] flex flex-col items-center justify-center text-center text-slate-300">
-                        <MousePointer2 className="w-12 h-12 mb-4 opacity-10 animate-pulse" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Select an object <br/> to edit</p>
+                    {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
+                      <div className="absolute bg-blue-500/20 border-2 border-blue-500 z-40 pointer-events-none"
+                        style={{ 
+                          left: drawStart.x * zoom, 
+                          top: drawStart.y * zoom, 
+                          width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
+                          height: 4,
+                          transformOrigin: '0 50%',
+                          transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x)}rad)`
+                        }}>
+                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold shadow-sm">
+                          {formatFeetInches(Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)))}
+                        </span>
                       </div>
                     )}
+
+                    {designObjects.map(obj => {
+                      const isWall = obj.subType === 'wall';
+                      const isSelected = selectedObjectId === obj.id;
+                      return (
+                        <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()} 
+                          className={cn("absolute flex items-center justify-center cursor-move select-none", isSelected ? "z-30" : "z-10")}
+                          style={{ 
+                            left: obj.x * zoom, 
+                            top: obj.y * zoom, 
+                            width: obj.w * zoom, 
+                            height: isWall ? 4 : obj.h * zoom, 
+                            transformOrigin: '0 50%',
+                            transform: `rotate(${obj.rotation}deg) scaleX(${obj.flipH ? -1 : 1}) scaleY(${obj.flipV ? -1 : 1})`, 
+                            backgroundColor: isWall ? '#000' : obj.color, 
+                            border: isSelected ? '2px solid #2563eb' : (isWall ? 'none' : '1px solid #ccc') 
+                          }}>
+                          
+                          <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
+                            <span className="bg-white px-1.5 py-0.5 text-[10px] font-bold text-blue-600 shadow-sm border border-blue-100 rounded-sm whitespace-nowrap">
+                              {formatFeetInches(obj.w)}
+                              {!isWall && ` x ${formatFeetInches(obj.h)}`}
+                            </span>
+                          </div>
+
+                          {isSelected && (
+                            <>
+                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-7 h-7 bg-white border-2 border-blue-600 rounded-full shadow-lg flex items-center justify-center cursor-pointer z-40" onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}>
+                                <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </ScrollArea>
+                </div>
+              </div>
+
+              {/* Functional Bottom Bar */}
+              <div className="h-14 bg-white border-t flex items-center px-4 gap-4 shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Left</span>
+                    <Input 
+                      className="h-8 w-24 text-[11px] font-mono" 
+                      value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) })} 
+                      placeholder="0' 0&quot;" 
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Top</span>
+                    <Input 
+                      className="h-8 w-24 text-[11px] font-mono" 
+                      value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) })} 
+                      placeholder="0' 0&quot;" 
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
+                    <Input 
+                      className="h-8 w-24 text-[11px] font-mono" 
+                      value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} 
+                      placeholder="0' 0&quot;" 
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
+                    <Input 
+                      disabled={selectedObject?.subType === 'wall'} 
+                      className="h-8 w-24 text-[11px] font-mono" 
+                      value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} 
+                      placeholder="0' 0&quot;" 
+                    />
+                  </div>
+                </div>
+                <div className="ml-auto flex items-center gap-4 shrink-0">
+                  <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
+                  <Slider value={[zoom]} max={150} min={10} step={5} className="w-24" onValueChange={(val) => setZoom(val[0])} />
+                  <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
+                  <span className="text-[10px] font-mono text-slate-500 w-10 text-right">{Math.round((zoom/30)*100)}%</span>
+                </div>
               </div>
             </div>
-          </TabsContent>
 
-          <TabsContent value="structural" className="p-6 bg-white overflow-auto h-full">
-             <div className="max-w-4xl mx-auto p-8 text-center text-slate-400">
-                <p>এখানে স্ট্রাকচার ক্যালকুলেটর লোড হবে...</p>
-             </div>
-          </TabsContent>
-        </Tabs>
-      </Card>
+            {/* Properties Right Panel */}
+            <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
+              <div className="p-3 border-b bg-slate-50 flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-blue-600"/>
+                <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">Object Properties</span>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-6">
+                  {selectedObject ? (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{selectedObject.label} Edit</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedObjectId(null)}><X className="w-3 h-3"/></Button>
+                      </div>
+                      <Separator />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] text-slate-500 uppercase font-bold">Width</Label>
+                          <Input value={formatFeetInches(selectedObject.w)} onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} className="h-9 font-mono bg-slate-50" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] text-slate-500 uppercase font-bold">Height</Label>
+                          <Input disabled={selectedObject.subType === 'wall'} value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} className="h-9 font-mono bg-slate-50" />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-[10px] text-slate-500 uppercase font-bold">Rotation (°)</Label>
+                          <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center font-mono bg-slate-50" />
+                        </div>
+                        <Slider value={[selectedObject.rotation]} max={360} min={-360} step={15} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x - 0.5 })}><Move className="w-3 h-3 mr-1"/> Left</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x + 0.5 })}><Move className="w-3 h-3 mr-1"/> Right</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y - 0.5 })}><Move className="w-3 h-3 mr-1"/> Up</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y + 0.5 })}><Move className="w-3 h-3 mr-1"/> Down</Button>
+                      </div>
+                      <Separator />
+                      <Button variant="destructive" className="w-full text-xs font-bold py-5" onClick={() => deleteObject(selectedObjectId)}><Eraser className="w-4 h-4 mr-2"/> DELETE OBJECT</Button>
+                    </>
+                  ) : (
+                    <div className="h-[400px] flex flex-col items-center justify-center text-center text-slate-300">
+                      <MousePointer2 className="w-12 h-12 mb-4 opacity-10 animate-pulse" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Select an object <br/> to edit</p>
+                    </div>
+                  )}
+                </div>
+                <ScrollBar orientation="vertical" />
+              </ScrollArea>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="structural" className="p-6 bg-white overflow-auto h-full">
+           <div className="max-w-4xl mx-auto p-8 text-center text-slate-400">
+              <p>এখানে স্ট্রাকচার ক্যালকুলেটর লোড হবে...</p>
+           </div>
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
+  return (
+    <Button variant={variant} disabled={disabled} onClick={onClick} className="h-12 flex flex-col gap-1 px-3 hover:bg-slate-100 min-w-[60px]">
+      {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 text-slate-600" })}
+      <span className="text-[9px] uppercase font-bold text-slate-500">{label}</span>
+    </Button>
+  );
+}
+
+function RibbonIconButton({ icon, label, onClick, disabled }: { icon: React.ReactNode, label?: string, onClick?: () => void, disabled?: boolean }) {
+  return (
+    <Button variant="ghost" disabled={disabled} onClick={onClick} className="h-7 w-full flex gap-2 px-2 items-center justify-start hover:bg-slate-100">
+      {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5 text-slate-600" })}
+      {label && <span className="text-[10px] font-medium text-slate-600">{label}</span>}
+    </Button>
   );
 }
 
