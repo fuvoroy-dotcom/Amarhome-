@@ -7,12 +7,11 @@ import {
   RectangleHorizontal, RefreshCw, Trash2, X, MousePointer2,
   Download, Clipboard, Copy, Scissors, Undo2, Redo2,
   Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
-  ChevronDown, Type, PaintBucket, Layers, FlipHorizontal, FlipVertical,
+  ChevronDown, PaintBucket, Layers, FlipHorizontal, FlipVertical,
   BringToFront, SendToBack, Eraser, GripHorizontal, FileText, Menu as MenuIcon,
-  Paintbrush, Star, AlignLeft, Group, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
-  Table as TableIcon, Columns, Rows, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, ArrowDownToLine, 
-  Merge, Split, Grid, CheckSquare, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TextIcon,
-  Ruler, RotateCcw, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon
+  Paintbrush, Star, AlignLeft, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
+  Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type,
+  Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,7 +80,6 @@ export default function EstimatorClient() {
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
 
-  // History for Undo/Redo
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
@@ -173,18 +171,12 @@ export default function EstimatorClient() {
   };
 
   const addObject = (type: DesignObject['type'], subType: string, label: string) => {
-    if (subType === 'wall') {
-      setInteractionMode('drawing');
-      setSelectedTool('line');
-      toast({ title: "Drawing Mode", description: "মাউস দিয়ে টেনে দেয়াল আঁকুন।" });
-      return;
-    }
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, x: 10, y: 10, 
       w: subType === 'table' ? tableCols * 2 : 10, 
       h: subType === 'table' ? tableRows * 1.5 : 8,
-      label, color: '#000000', fillColor: '#ffffff',
+      label, color: '#000000', fillColor: subType === 'wall' ? 'transparent' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid',
       rotation: 0,
       rows: subType === 'table' ? tableRows : undefined,
@@ -194,7 +186,6 @@ export default function EstimatorClient() {
     setDesignObjects(next);
     setSelectedObjectId(newObj.id);
     saveToHistory(next);
-    toast({ title: "Object Added", description: `${label} ক্যানভাসে যোগ করা হয়েছে।` });
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
@@ -571,16 +562,8 @@ export default function EstimatorClient() {
              </div>
              <RibbonButton icon={<Grid />} label="Insert Table" onClick={() => addObject('shape', 'table', 'Table')} />
              <div className="flex flex-col border-x px-2">
-                <RibbonIconButton icon={<ArrowUpToLine />} label="Above" />
-                <RibbonIconButton icon={<ArrowDownToLine />} label="Below" />
-             </div>
-             <div className="flex flex-col border-r pr-2">
-                <RibbonIconButton icon={<ArrowLeftToLine />} label="Left" />
-                <RibbonIconButton icon={<ArrowRightToLine />} label="Right" />
-             </div>
-             <div className="flex flex-col border-r pr-2">
-                <RibbonIconButton icon={<Merge />} label="Join" />
-                <RibbonIconButton icon={<Split />} label="Split" />
+                <RibbonIconButton icon={<RectangleHorizontal />} label="Above" />
+                <RibbonIconButton icon={<RectangleHorizontal className="rotate-180" />} label="Below" />
              </div>
              <RibbonButton icon={<Trash2 />} label="Remove" onClick={() => deleteObject(selectedObjectId)} />
           </div>
@@ -614,7 +597,6 @@ export default function EstimatorClient() {
 
             <ScrollArea className="flex-1">
               <div className="p-3 space-y-6">
-                {/* Tool Selection Bar */}
                 <div className="grid grid-cols-4 gap-1">
                   <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
                   
@@ -645,10 +627,9 @@ export default function EstimatorClient() {
                   </DropdownMenu>
 
                   <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
-                  <ToolCard icon={<Type as any />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+                  <ToolCard icon={<Type />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                 </div>
 
-                {/* Add Wall Section */}
                 <div className="space-y-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -672,23 +653,16 @@ export default function EstimatorClient() {
                   </Button>
                 </div>
 
-                {/* Categorized Tools */}
                 <Accordion type="multiple" defaultValue={["setup", "room"]} className="w-full">
                   <AccordionItem value="setup" className="border-none">
                     <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Document Setup</AccordionTrigger>
                     <AccordionContent className="space-y-1">
                        <LibraryButton icon={<Ruler className="w-4 h-4" />} label="Units & Scale" />
-                       <LibraryButton icon={<Layers className="w-4 h-4" />} label="Scale Image with Ruler" disabled />
-                       <LibraryButton icon={<LayoutGrid className="w-4 h-4" />} label="Add Annotation Layer" />
+                       <LibraryButton icon={<Layers className="w-4 h-4" />} label="Add Annotation Layer" />
                     </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="adjust" className="border-none">
-                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Adjust Wall</AccordionTrigger>
-                    <AccordionContent className="pb-2 text-[11px] text-slate-500">Edit wall connections and corners.</AccordionContent>
                   </AccordionItem>
                 </Accordion>
 
-                {/* Symbols Header */}
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex items-center justify-between">
                      <span className="text-sm font-bold text-slate-700">Symbols</span>
@@ -699,7 +673,7 @@ export default function EstimatorClient() {
                   </div>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
-                    <Input placeholder="Search for symbols..." className="pl-8 h-9 text-xs bg-slate-50 border-none" />
+                    <Input placeholder="Search symbols..." className="pl-8 h-9 text-xs bg-slate-50 border-none" />
                   </div>
 
                   <Accordion type="multiple" defaultValue={["room"]} className="w-full">
@@ -708,12 +682,6 @@ export default function EstimatorClient() {
                       <AccordionContent className="grid grid-cols-2 gap-2">
                          <div onClick={() => addObject('shape', 'room', 'রুম')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400 shadow-sm transition-all"><Square className="w-6 h-6 text-slate-300" /></div>
                          <div onClick={() => addObject('shape', 'room', 'L-Room')} className="h-16 border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400 shadow-sm transition-all"><LayoutGrid className="w-6 h-6 text-slate-300" /></div>
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="doors" className="border-none">
-                      <AccordionTrigger className="h-9 px-0 hover:no-underline text-xs font-bold text-slate-600 uppercase tracking-tighter">Doors & Windows</AccordionTrigger>
-                      <AccordionContent className="pb-2">
-                         <div onClick={() => addObject('opening', 'door', 'Door')} className="h-16 w-full border rounded bg-white flex items-center justify-center cursor-pointer hover:border-blue-400 shadow-sm"><DoorClosed className="w-6 h-6 text-slate-300" /></div>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -737,7 +705,7 @@ export default function EstimatorClient() {
                 backgroundSize: `${zoom}px ${zoom}px`, width: 5000, height: 5000, backgroundColor: 'white'
               }}>
               {snapPoint && (
-                <div className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 animate-pulse border-2 border-white shadow-md pointer-events-none"
+                <div className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 border-2 border-white shadow-md pointer-events-none"
                   style={{ left: snapPoint.x * zoom - 8, top: snapPoint.y * zoom - 8 }} />
               )}
 
@@ -775,7 +743,6 @@ export default function EstimatorClient() {
                       backgroundColor: isWall ? obj.color : obj.fillColor,
                       border: isWall ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
                       outline: isSelected ? '2px solid #2563eb' : undefined,
-                      outlineOffset: isSelected ? '2px' : undefined,
                       borderRadius: (obj.subType === 'oval' || obj.subType === 'circle' || obj.subType === 'capsule') ? '9999px' : '0px'
                     }}>
                     
@@ -811,7 +778,6 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Mini Status Bar */}
           <div className="h-8 bg-white border-t flex items-center px-4 justify-end gap-4 shrink-0 shadow-sm">
              <div className="flex items-center gap-2">
                 <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
@@ -822,36 +788,36 @@ export default function EstimatorClient() {
           </div>
         </div>
 
-        {/* Right Edit Panel (Permanent) */}
+        {/* Right Properties Panel */}
         <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-sm">
-           <div className="p-3 border-b bg-slate-50/50 flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-700">Properties</span>
-              <Settings2 className="w-4 h-4 text-slate-400" />
+           <div className="p-2.5 border-b bg-slate-50/50 flex items-center justify-between">
+              <span className="text-[13px] font-bold text-slate-700">Properties</span>
+              <Settings2 className="w-3.5 h-3.5 text-slate-400" />
            </div>
            
            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-4">
+              <div className="p-2.5 space-y-3">
                  {selectedObject ? (
                     <>
-                       <div className="space-y-3">
+                       <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase">Position</span>
-                             <Ruler className="w-3 h-3 text-slate-300" />
+                             <span className="text-[9px] font-bold text-slate-400 uppercase">Position</span>
+                             <Ruler className="w-2.5 h-2.5 text-slate-300" />
                           </div>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-2 gap-2">
                              <div className="space-y-1">
-                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Left</Label>
+                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Left</Label>
                                 <Input 
-                                   className="h-7 text-[10px] font-mono bg-slate-50" 
+                                   className="h-6.5 text-[10px] font-mono bg-slate-50 px-2" 
                                    value={formatFeetInches(selectedObject.x)} 
                                    onChange={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                              <div className="space-y-1">
-                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Top</Label>
+                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Top</Label>
                                 <Input 
-                                   className="h-7 text-[10px] font-mono bg-slate-50" 
+                                   className="h-6.5 text-[10px] font-mono bg-slate-50 px-2" 
                                    value={formatFeetInches(selectedObject.y)} 
                                    onChange={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -860,25 +826,25 @@ export default function EstimatorClient() {
                           </div>
                        </div>
 
-                       <div className="space-y-3 pt-3 border-t">
+                       <div className="space-y-2 pt-2 border-t">
                           <div className="flex items-center justify-between">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase">Dimensions</span>
-                             <Maximize2 className="w-3 h-3 text-slate-300" />
+                             <span className="text-[9px] font-bold text-slate-400 uppercase">Dimensions</span>
+                             <Maximize2 className="w-2.5 h-2.5 text-slate-300" />
                           </div>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-2 gap-2">
                              <div className="space-y-1">
-                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Width</Label>
+                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Width</Label>
                                 <Input 
-                                   className="h-7 text-[10px] font-mono bg-slate-50" 
+                                   className="h-6.5 text-[10px] font-mono bg-slate-50 px-2" 
                                    value={formatFeetInches(selectedObject.w)} 
                                    onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                              <div className="space-y-1">
-                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Height</Label>
+                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Height</Label>
                                 <Input 
-                                   className="h-7 text-[10px] font-mono bg-slate-50" 
+                                   className="h-6.5 text-[10px] font-mono bg-slate-50 px-2" 
                                    value={formatFeetInches(selectedObject.h)} 
                                    onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -886,46 +852,32 @@ export default function EstimatorClient() {
                              </div>
                           </div>
                           <div className="space-y-1">
-                             <Label className="text-[9px] text-slate-500 font-bold uppercase">Rotation</Label>
-                             <div className="flex items-center gap-3">
+                             <Label className="text-[8px] text-slate-500 font-bold uppercase">Rotation</Label>
+                             <div className="flex items-center gap-2">
                                 <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
-                                <span className="text-[10px] font-mono w-8">{selectedObject.rotation}°</span>
+                                <span className="text-[9px] font-mono w-6 text-right">{selectedObject.rotation}°</span>
                              </div>
                           </div>
                        </div>
 
-                       <div className="space-y-3 pt-3 border-t">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">Information</span>
-                          <div className="bg-slate-50 p-2 rounded border text-[9px] space-y-1 text-slate-600">
+                       <div className="space-y-2 pt-2 border-t">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Information</span>
+                          <div className="bg-slate-50 p-1.5 rounded border text-[9px] space-y-1 text-slate-600">
                              <div className="flex justify-between">
                                 <span className="font-bold">Type:</span>
                                 <span>{selectedObject.subType.toUpperCase()}</span>
                              </div>
                              <div className="flex justify-between">
                                 <span className="font-bold">ID:</span>
-                                <span className="font-mono">{selectedObject.id}</span>
+                                <span className="font-mono text-[8px]">{selectedObject.id}</span>
                              </div>
-                             {selectedObject.subType === 'table' && (
-                                <>
-                                   <div className="flex justify-between">
-                                      <span className="font-bold">Rows:</span>
-                                      <span>{selectedObject.rows}</span>
-                                   </div>
-                                   <div className="flex justify-between">
-                                      <span className="font-bold">Cols:</span>
-                                      <span>{selectedObject.cols}</span>
-                                   </div>
-                                </>
-                             )}
                           </div>
                        </div>
                     </>
                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-20">
-                       <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center">
-                          <MousePointer2 className="w-6 h-6 text-slate-300" />
-                       </div>
-                       <p className="text-[11px] text-slate-400 font-medium px-6">Select an object to view and edit its properties.</p>
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-20">
+                       <MousePointer2 className="w-5 h-5 text-slate-200" />
+                       <p className="text-[10px] text-slate-400 font-medium px-6">Select an object to edit.</p>
                     </div>
                  )}
               </div>
