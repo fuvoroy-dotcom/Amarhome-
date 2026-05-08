@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { 
   Building, Plus, DoorClosed, Square, LayoutGrid, 
   RectangleHorizontal, RefreshCw, Trash2, X, MousePointer2,
@@ -51,6 +51,35 @@ export default function EstimatorClient() {
   const [zoom, setZoom] = useState(30);
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
+
+  // History for Undo/Redo
+  const [history, setHistory] = useState<DesignObject[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const saveToHistory = useCallback((newObjects: DesignObject[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newObjects.map(obj => ({...obj}))]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      setHistoryIndex(prevIndex);
+      setDesignObjects([...history[prevIndex].map(obj => ({...obj}))]);
+      setSelectedObjectId(null);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      setHistoryIndex(nextIndex);
+      setDesignObjects([...history[nextIndex].map(obj => ({...obj}))]);
+      setSelectedObjectId(null);
+    }
+  };
   
   const selectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectId), [designObjects, selectedObjectId]);
 
@@ -71,9 +100,12 @@ export default function EstimatorClient() {
 
   const getPoints = (obj: DesignObject) => {
     const rad = obj.rotation * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    // Return start and end points of the base line (for wall/length)
     return [
       { x: obj.x, y: obj.y },
-      { x: obj.x + obj.w * Math.cos(rad), y: obj.y + obj.w * Math.sin(rad) }
+      { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
     ];
   };
 
@@ -110,16 +142,18 @@ export default function EstimatorClient() {
   const addObject = (type: DesignObject['type'], subType: string, label: string) => {
     if (subType === 'wall') {
       setInteractionMode('drawing');
-      toast({ title: "Drawing Mode", description: "Click and drag to draw a wall." });
+      toast({ title: "Drawing Mode", description: "মাউস দিয়ে টেনে দেয়াল আঁকুন।" });
       return;
     }
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x: 10, y: 10, w: 10, h: 5,
+      type, subType, x: 10, y: 10, w: 10, h: 8,
       label, color: '#ffffff', rotation: 0
     };
-    setDesignObjects([...designObjects, newObj]);
+    const next = [...designObjects, newObj];
+    setDesignObjects(next);
     setSelectedObjectId(newObj.id);
+    saveToHistory(next);
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
@@ -225,41 +259,54 @@ export default function EstimatorClient() {
           w: length, h: 0.1,
           label: 'Wall', color: '#000000', rotation: angle
         };
-        setDesignObjects([...designObjects, newWall]);
+        const next = [...designObjects, newWall];
+        setDesignObjects(next);
         setSelectedObjectId(newWall.id);
+        saveToHistory(next);
       }
       setDrawStart(null);
       setTempDrawEnd(null);
       setInteractionMode('none');
+    } else if (interactionMode !== 'none') {
+      // Save move/resize/rotate result to history
+      saveToHistory(designObjects);
+      setInteractionMode('none');
     }
-    setInteractionMode('none');
     setSnapPoint(null);
     setConnectedGroup([]);
   };
 
-  const updateObject = (id: string, updates: Partial<DesignObject>) => {
-    setDesignObjects(objs => objs.map(o => o.id === id ? { ...o, ...updates } : o));
+  const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
+    setDesignObjects(objs => {
+      const next = objs.map(o => o.id === id ? { ...o, ...updates } : o);
+      if (save) saveToHistory(next);
+      return next;
+    });
   };
 
   const deleteObject = (id: string | null) => {
     if (!id) return;
-    setDesignObjects(designObjects.filter(o => o.id !== id));
+    const next = designObjects.filter(o => o.id !== id);
+    setDesignObjects(next);
     setSelectedObjectId(null);
+    saveToHistory(next);
   };
 
   const copyObject = () => {
     if (selectedObject) {
       setClipboard({ ...selectedObject, id: Math.random().toString(36).substr(2, 9) });
-      toast({ title: "Copied", description: `${selectedObject.label} copied to clipboard.` });
+      toast({ title: "Copied", description: `${selectedObject.label} copied.` });
     }
   };
 
   const pasteObject = () => {
     if (clipboard) {
       const newObj = { ...clipboard, x: clipboard.x + 2, y: clipboard.y + 2, id: Math.random().toString(36).substr(2, 9) };
-      setDesignObjects([...designObjects, newObj]);
+      const next = [...designObjects, newObj];
+      setDesignObjects(next);
       setSelectedObjectId(newObj.id);
-      toast({ title: "Pasted", description: "Object pasted into workspace." });
+      saveToHistory(next);
+      toast({ title: "Pasted", description: "Object pasted." });
     }
   };
 
@@ -268,7 +315,9 @@ export default function EstimatorClient() {
     const item = designObjects.find(o => o.id === selectedObjectId);
     if (!item) return;
     const filtered = designObjects.filter(o => o.id !== selectedObjectId);
-    setDesignObjects([...filtered, item]);
+    const next = [...filtered, item];
+    setDesignObjects(next);
+    saveToHistory(next);
   };
 
   const sendToBack = () => {
@@ -276,15 +325,17 @@ export default function EstimatorClient() {
     const item = designObjects.find(o => o.id === selectedObjectId);
     if (!item) return;
     const filtered = designObjects.filter(o => o.id !== selectedObjectId);
-    setDesignObjects([item, ...filtered]);
+    const next = [item, ...filtered];
+    setDesignObjects(next);
+    saveToHistory(next);
   };
 
   const flipH = () => {
-    if (selectedObjectId) updateObject(selectedObjectId, { flipH: !selectedObject?.flipH });
+    if (selectedObjectId) updateObject(selectedObjectId, { flipH: !selectedObject?.flipH }, true);
   };
 
   const flipV = () => {
-    if (selectedObjectId) updateObject(selectedObjectId, { flipV: !selectedObject?.flipV });
+    if (selectedObjectId) updateObject(selectedObjectId, { flipV: !selectedObject?.flipV }, true);
   };
 
   return (
@@ -341,7 +392,7 @@ export default function EstimatorClient() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Wall (Free Draw)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => addObject('structure', 'wall', 'দেয়াল')}>Add Single Wall</DropdownMenuItem>
               <DropdownMenuItem onClick={() => addObject('shape', 'room', 'রুম')}>Square Room</DropdownMenuItem>
               <DropdownMenuItem onClick={() => addObject('shape', 'room', 'L-Room')}>L-Shaped Room</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -351,8 +402,8 @@ export default function EstimatorClient() {
         </div>
 
         <div className="flex items-center gap-1 border-r pr-2">
-          <RibbonIconButton icon={<Undo2 />} label="Undo" />
-          <RibbonIconButton icon={<Redo2 />} label="Redo" />
+          <RibbonIconButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
+          <RibbonIconButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
         </div>
 
         <div className="flex items-center gap-1 border-r pr-2">
@@ -412,7 +463,6 @@ export default function EstimatorClient() {
                 <TabsTrigger value="design" className="px-4 text-[11px] data-[state=active]:bg-blue-600 data-[state=active]:text-white font-bold whitespace-nowrap">ডিজাইন টুল</TabsTrigger>
               </TabsList>
             </div>
-            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
 
@@ -444,7 +494,6 @@ export default function EstimatorClient() {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
-                <ScrollBar orientation="vertical" />
               </ScrollArea>
             </div>
 
@@ -547,40 +596,40 @@ export default function EstimatorClient() {
               <div className="h-14 bg-white border-t flex items-center px-4 gap-4 shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Left</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Left</span>
                     <Input 
-                      className="h-8 w-24 text-[11px] font-mono" 
+                      className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                       value={selectedObject ? formatFeetInches(selectedObject.x) : ''} 
-                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) })} 
-                      placeholder="0' 0&quot;" 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)} 
+                      placeholder={'0\' 0"'} 
                     />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Top</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Top</span>
                     <Input 
-                      className="h-8 w-24 text-[11px] font-mono" 
+                      className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                       value={selectedObject ? formatFeetInches(selectedObject.y) : ''} 
-                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) })} 
-                      placeholder="0' 0&quot;" 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)} 
+                      placeholder={'0\' 0"'} 
                     />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Width</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Width</span>
                     <Input 
-                      className="h-8 w-24 text-[11px] font-mono" 
+                      className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                       value={selectedObject ? formatFeetInches(selectedObject.w) : ''} 
-                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} 
-                      placeholder="0' 0&quot;" 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} 
+                      placeholder={'0\' 0"'} 
                     />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Height</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Height</span>
                     <Input 
                       disabled={selectedObject?.subType === 'wall'} 
-                      className="h-8 w-24 text-[11px] font-mono" 
+                      className="h-8 w-24 text-[11px] font-mono bg-slate-50 border-slate-200" 
                       value={selectedObject ? formatFeetInches(selectedObject.h) : ''} 
-                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} 
-                      placeholder="0' 0&quot;" 
+                      onChange={(e) => selectedObject && updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} 
+                      placeholder={'0\' 0"'} 
                     />
                   </div>
                 </div>
@@ -611,25 +660,25 @@ export default function EstimatorClient() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label className="text-[10px] text-slate-500 uppercase font-bold">Width</Label>
-                          <Input value={formatFeetInches(selectedObject.w)} onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) })} className="h-9 font-mono bg-slate-50" />
+                          <Input value={formatFeetInches(selectedObject.w)} onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)} className="h-9 font-mono bg-slate-50" />
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-[10px] text-slate-500 uppercase font-bold">Height</Label>
-                          <Input disabled={selectedObject.subType === 'wall'} value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) })} className="h-9 font-mono bg-slate-50" />
+                          <Input disabled={selectedObject.subType === 'wall'} value={formatFeetInches(selectedObject.h)} onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)} className="h-9 font-mono bg-slate-50" />
                         </div>
                       </div>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <Label className="text-[10px] text-slate-500 uppercase font-bold">Rotation (°)</Label>
-                          <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 })} className="h-9 w-20 text-center font-mono bg-slate-50" />
+                          <Input type="number" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObject.id, { rotation: parseInt(e.target.value) || 0 }, true)} className="h-9 w-20 text-center font-mono bg-slate-50" />
                         </div>
-                        <Slider value={[selectedObject.rotation]} max={360} min={-360} step={15} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] })} />
+                        <Slider value={[selectedObject.rotation]} max={360} min={-360} step={15} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x - 0.5 })}><Move className="w-3 h-3 mr-1"/> Left</Button>
-                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x + 0.5 })}><Move className="w-3 h-3 mr-1"/> Right</Button>
-                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y - 0.5 })}><Move className="w-3 h-3 mr-1"/> Up</Button>
-                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y + 0.5 })}><Move className="w-3 h-3 mr-1"/> Down</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x - 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Left</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { x: selectedObject.x + 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Right</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y - 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Up</Button>
+                         <Button variant="outline" className="h-8 text-[10px]" onClick={() => updateObject(selectedObject.id, { y: selectedObject.y + 0.5 }, true)}><Move className="w-3 h-3 mr-1"/> Down</Button>
                       </div>
                       <Separator />
                       <Button variant="destructive" className="w-full text-xs font-bold py-5" onClick={() => deleteObject(selectedObjectId)}><Eraser className="w-4 h-4 mr-2"/> DELETE OBJECT</Button>
@@ -641,7 +690,6 @@ export default function EstimatorClient() {
                     </div>
                   )}
                 </div>
-                <ScrollBar orientation="vertical" />
               </ScrollArea>
             </div>
           </div>
