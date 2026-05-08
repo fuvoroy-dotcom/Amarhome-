@@ -205,7 +205,7 @@ export default function EstimatorClient() {
     let w = 10, h = 10;
     if (subType === 'wall') { 
       w = 10; 
-      h = 0.1; // Very thin height to represent a single line wall
+      h = 0.1; 
     } else if (type === 'opening') { 
       w = 3; 
       h = 0.1; 
@@ -226,7 +226,7 @@ export default function EstimatorClient() {
   const getConnectedGroup = (startId: string, allObjs: DesignObject[]) => {
     const connected = new Set<string>();
     const stack = [startId];
-    const snapThreshold = 0.8;
+    const snapThreshold = 1.0; 
 
     while (stack.length > 0) {
       const currentId = stack.pop()!;
@@ -236,7 +236,7 @@ export default function EstimatorClient() {
       const currentObj = allObjs.find(o => o.id === currentId);
       if (!currentObj) continue;
 
-      const currentCorners = [
+      const corners = [
         { x: currentObj.x, y: currentObj.y },
         { x: currentObj.x + currentObj.w, y: currentObj.y },
         { x: currentObj.x, y: currentObj.y + currentObj.h },
@@ -246,14 +246,12 @@ export default function EstimatorClient() {
       allObjs.forEach(other => {
         if (connected.has(other.id)) return;
         const otherCorners = [
-          { x: other.x, y: other.y },
-          { x: other.x + other.w, y: other.y },
-          { x: other.x, y: other.y + other.h },
-          { x: other.x + other.w, y: other.y + other.h }
+          { x: other.x, y: other.y }, { x: other.x + other.w, y: other.y },
+          { x: other.x, y: other.y + other.h }, { x: other.x + other.w, y: other.y + other.h }
         ];
 
         let isSnap = false;
-        currentCorners.forEach(cc => {
+        corners.forEach(cc => {
           otherCorners.forEach(oc => {
             const dist = Math.sqrt(Math.pow(cc.x - oc.x, 2) + Math.pow(cc.y - oc.y, 2));
             if (dist < snapThreshold) isSnap = true;
@@ -297,22 +295,20 @@ export default function EstimatorClient() {
     if (!currentObj) return;
 
     if (interactionMode === 'dragging') {
-      const deltaX = currentX - dragOffset.x - currentObj.x;
-      const deltaY = currentY - dragOffset.y - currentObj.y;
+      const targetX = currentX - dragOffset.x;
+      const targetY = currentY - dragOffset.y;
       
-      let finalDeltaX = deltaX;
-      let finalDeltaY = deltaY;
+      let finalDeltaX = targetX - currentObj.x;
+      let finalDeltaY = targetY - currentObj.y;
 
-      const nextX = currentObj.x + deltaX;
-      const nextY = currentObj.y + deltaY;
-      const snapThreshold = 0.8; 
+      const snapThreshold = 1.0; 
       let activeSnap: {x: number, y: number} | null = null;
 
       const corners = [
-        { x: nextX, y: nextY },
-        { x: nextX + currentObj.w, y: nextY },
-        { x: nextX, y: nextY + currentObj.h },
-        { x: nextX + currentObj.w, y: nextY + currentObj.h }
+        { x: targetX, y: targetY },
+        { x: targetX + currentObj.w, y: targetY },
+        { x: targetX, y: targetY + currentObj.h },
+        { x: targetX + currentObj.w, y: targetY + currentObj.h }
       ];
 
       designObjects.forEach(other => {
@@ -337,8 +333,8 @@ export default function EstimatorClient() {
       });
 
       if (!activeSnap) {
-        finalDeltaX = Math.round((currentObj.x + deltaX) * 2) / 2 - currentObj.x;
-        finalDeltaY = Math.round((currentObj.y + deltaY) * 2) / 2 - currentObj.y;
+        finalDeltaX = Math.round((currentObj.x + finalDeltaX) * 2) / 2 - currentObj.x;
+        finalDeltaY = Math.round((currentObj.y + finalDeltaY) * 2) / 2 - currentObj.y;
       }
 
       setSnapPoint(activeSnap);
@@ -351,7 +347,7 @@ export default function EstimatorClient() {
 
     } else if (interactionMode === 'resizing') {
       const nextW = Math.max(0.1, Math.round((currentX - currentObj.x) * 2) / 2);
-      const nextH = Math.max(currentObj.subType === 'wall' ? 0.1 : 0.1, Math.round((currentY - currentObj.y) * 2) / 2);
+      const nextH = Math.max(0.1, Math.round((currentY - currentObj.y) * 2) / 2);
       setDesignObjects(objs => objs.map(o => o.id === selectedObjectId ? { ...o, w: nextW, h: nextH } : o));
     } else if (interactionMode === 'rotating') {
       const centerX = currentObj.x + currentObj.w / 2;
@@ -392,7 +388,6 @@ export default function EstimatorClient() {
   return (
     <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col">
       <Card className="shadow-none border-none overflow-hidden rounded-none bg-white flex-1 flex flex-col">
-        {/* Header Ribbon */}
         <div className="bg-[#0f172a] p-2 text-white text-center shrink-0">
           <h1 className="text-sm font-bold flex items-center justify-center gap-2">
              <Building className="w-4 h-4 text-blue-400" /> আমার বাড়ি এস্টিমেটর ও প্রফেশনাল ডিজাইন টুল
@@ -420,7 +415,6 @@ export default function EstimatorClient() {
           </div>
 
           <TabsContent value="design" className="p-0 m-0 bg-[#f8f9fa] flex flex-col flex-1 overflow-hidden">
-            {/* 1. Top Toolbar */}
             <div className="h-14 bg-white border-b flex items-center px-4 gap-6 shrink-0 shadow-sm z-30 overflow-x-auto whitespace-nowrap">
               <div className="flex items-center gap-1 border-r pr-4">
                 <ToolIconButton icon={<Download />} label="Export" dropdown />
@@ -452,9 +446,7 @@ export default function EstimatorClient() {
               </div>
             </div>
 
-            {/* Main Editor Layout */}
             <div className="flex-1 flex overflow-hidden">
-              {/* 2. Left Sidebar */}
               <div className="w-64 bg-white border-r flex flex-col z-20 shadow-lg shrink-0 overflow-hidden">
                 <div className="p-3 border-b bg-slate-50 flex items-center justify-between">
                   <span className="font-bold text-xs uppercase tracking-wider text-slate-600">Library</span>
@@ -483,9 +475,7 @@ export default function EstimatorClient() {
                 </ScrollArea>
               </div>
 
-              {/* 3. Central Canvas Area */}
               <div className="flex-1 relative flex flex-col bg-[#e9ecef] overflow-hidden">
-                {/* Horizontal Ruler */}
                 <div className="h-6 bg-white border-b flex items-end relative overflow-hidden z-10 select-none">
                   <div className="absolute left-6 h-full flex items-end" style={{ width: 10000 }}>
                     {Array.from({ length: 200 }).map((_, i) => (
@@ -497,7 +487,6 @@ export default function EstimatorClient() {
                 </div>
 
                 <div className="flex flex-1 overflow-hidden relative">
-                  {/* Vertical Ruler */}
                   <div className="w-6 bg-white border-r flex flex-col items-end relative overflow-hidden z-10 select-none">
                     <div className="absolute top-0 w-full flex flex-col items-end" style={{ height: 10000 }}>
                       {Array.from({ length: 200 }).map((_, i) => (
@@ -508,7 +497,6 @@ export default function EstimatorClient() {
                     </div>
                   </div>
 
-                  {/* Canvas Workspace */}
                   <div 
                     id="canvas-workspace"
                     className="flex-1 relative bg-[#e9ecef] overflow-auto focus:outline-none"
@@ -551,7 +539,6 @@ export default function EstimatorClient() {
                             border: selectedObjectId === obj.id ? '2px solid #2563eb' : (obj.subType === 'wall' ? 'none' : '1px solid #000'),
                           }}
                         >
-                          {/* Dimension Label - Width (Always shown) */}
                           <div className="absolute -top-7 left-0 right-0 flex flex-col items-center pointer-events-none">
                             <div className="w-full h-[1px] bg-blue-400 relative">
                                <div className="absolute left-0 -top-1 w-[1px] h-2 bg-blue-400" />
@@ -562,7 +549,6 @@ export default function EstimatorClient() {
                             </span>
                           </div>
 
-                          {/* Dimension Label - Height (Only for Rooms, not single walls) */}
                           {obj.subType !== 'wall' && (
                              <div className="absolute -right-10 top-0 bottom-0 flex flex-row items-center pointer-events-none">
                                 <div className="h-full w-[1px] bg-blue-400 relative">
@@ -592,7 +578,6 @@ export default function EstimatorClient() {
                   </div>
                 </div>
 
-                {/* 4. Bottom Property Bar - ACTIVE */}
                 <div className="h-12 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto whitespace-nowrap">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
@@ -639,7 +624,6 @@ export default function EstimatorClient() {
                 </div>
               </div>
 
-              {/* 5. Fixed Right Edit Panel */}
               <div className="w-72 bg-white border-l flex flex-col z-20 shadow-xl shrink-0">
                 <div className="p-3 border-b bg-slate-50 flex items-center gap-2">
                   <Settings2 className="w-4 h-4 text-blue-600"/>
@@ -706,8 +690,7 @@ export default function EstimatorClient() {
             </div>
           </TabsContent>
 
-          {/* Calculator Contents (v61e7980 logic) */}
-          <TabsContent value="structural" className="p-6 bg-white overflow-auto">
+          <TabsContent value="structural" className="p-6 bg-white overflow-auto h-full">
             <Form {...structuralForm}>
               <form onSubmit={structuralForm.handleSubmit(calculateStructural)} className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                 <div className="space-y-4">
@@ -744,14 +727,11 @@ export default function EstimatorClient() {
               </form>
             </Form>
           </TabsContent>
-          {/* Other tabs follow same logic as original v61e7980 */}
         </Tabs>
       </Card>
     </div>
   );
 }
-
-// --- Helper UI Components ---
 
 function ToolIconButton({ icon, label, dropdown }: { icon: React.ReactNode, label?: string, dropdown?: boolean }) {
   return (
@@ -784,3 +764,4 @@ function ResultItem({ label, value, unit, highlight }: { label: string, value: s
     </div>
   );
 }
+
