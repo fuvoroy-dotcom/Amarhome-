@@ -645,7 +645,7 @@ export default function EstimatorClient() {
                   </DropdownMenu>
 
                   <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
-                  <ToolCard icon={<TextIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+                  <ToolCard icon={<Type as any />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                 </div>
 
                 {/* Add Wall Section */}
@@ -830,28 +830,28 @@ export default function EstimatorClient() {
            </div>
            
            <ScrollArea className="flex-1">
-              <div className="p-4 space-y-6">
+              <div className="p-3 space-y-4">
                  {selectedObject ? (
                     <>
-                       <div className="space-y-4">
+                       <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                             <span className="text-[11px] font-bold text-slate-400 uppercase">Position</span>
+                             <span className="text-[10px] font-bold text-slate-400 uppercase">Position</span>
                              <Ruler className="w-3 h-3 text-slate-300" />
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3">
                              <div className="space-y-1">
-                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Left</Label>
+                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Left</Label>
                                 <Input 
-                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   className="h-7 text-[10px] font-mono bg-slate-50" 
                                    value={formatFeetInches(selectedObject.x)} 
                                    onChange={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                              <div className="space-y-1">
-                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Top</Label>
+                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Top</Label>
                                 <Input 
-                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   className="h-7 text-[10px] font-mono bg-slate-50" 
                                    value={formatFeetInches(selectedObject.y)} 
                                    onChange={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -860,25 +860,25 @@ export default function EstimatorClient() {
                           </div>
                        </div>
 
-                       <div className="space-y-4 pt-4 border-t">
+                       <div className="space-y-3 pt-3 border-t">
                           <div className="flex items-center justify-between">
-                             <span className="text-[11px] font-bold text-slate-400 uppercase">Dimensions</span>
+                             <span className="text-[10px] font-bold text-slate-400 uppercase">Dimensions</span>
                              <Maximize2 className="w-3 h-3 text-slate-300" />
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3">
                              <div className="space-y-1">
-                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Width</Label>
+                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Width</Label>
                                 <Input 
-                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   className="h-7 text-[10px] font-mono bg-slate-50" 
                                    value={formatFeetInches(selectedObject.w)} 
                                    onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                              <div className="space-y-1">
-                                <Label className="text-[10px] text-slate-500 font-bold uppercase">Height</Label>
+                                <Label className="text-[9px] text-slate-500 font-bold uppercase">Height</Label>
                                 <Input 
-                                   className="h-8 text-[11px] font-mono bg-slate-50" 
+                                   className="h-7 text-[10px] font-mono bg-slate-50" 
                                    value={formatFeetInches(selectedObject.h)} 
                                    onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -886,17 +886,17 @@ export default function EstimatorClient() {
                              </div>
                           </div>
                           <div className="space-y-1">
-                             <Label className="text-[10px] text-slate-500 font-bold uppercase">Rotation</Label>
+                             <Label className="text-[9px] text-slate-500 font-bold uppercase">Rotation</Label>
                              <div className="flex items-center gap-3">
                                 <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
-                                <span className="text-[11px] font-mono w-8">{selectedObject.rotation}°</span>
+                                <span className="text-[10px] font-mono w-8">{selectedObject.rotation}°</span>
                              </div>
                           </div>
                        </div>
 
-                       <div className="space-y-4 pt-4 border-t">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase">Information</span>
-                          <div className="bg-slate-50 p-2 rounded border text-[10px] space-y-2 text-slate-600">
+                       <div className="space-y-3 pt-3 border-t">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Information</span>
+                          <div className="bg-slate-50 p-2 rounded border text-[9px] space-y-1 text-slate-600">
                              <div className="flex justify-between">
                                 <span className="font-bold">Type:</span>
                                 <span>{selectedObject.subType.toUpperCase()}</span>
