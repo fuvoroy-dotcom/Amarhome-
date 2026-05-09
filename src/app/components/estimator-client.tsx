@@ -142,6 +142,73 @@ export default function EstimatorClient() {
     }
   }, [selectedObjectId, selectedObject]);
 
+  const updateObject = useCallback((id: string, updates: Partial<DesignObject>, save = false) => {
+    setDesignObjects(objs => {
+      const next = objs.map(o => o.id === id ? { ...o, ...updates } : o);
+      if (save) saveToHistory(next);
+      return next;
+    });
+  }, [saveToHistory]);
+
+  const deleteObject = useCallback((id: string | null) => {
+    if (!id) return;
+    const next = designObjects.filter(o => o.id !== id);
+    setDesignObjects(next);
+    setSelectedObjectId(null);
+    saveToHistory(next);
+  }, [designObjects, saveToHistory]);
+
+  const copySelected = useCallback(() => {
+    if (selectedObject) {
+      setClipboard({ ...selectedObject });
+      toast({ title: "Copied to clipboard" });
+    }
+  }, [selectedObject, toast]);
+
+  const pasteObject = useCallback(() => {
+    if (clipboard) {
+      const newObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 0.5, y: clipboard.y + 0.5 };
+      const next = [...designObjects, newObj];
+      setDesignObjects(next);
+      setSelectedObjectId(newObj.id);
+      saveToHistory(next);
+      toast({ title: "Pasted object" });
+    }
+  }, [clipboard, designObjects, saveToHistory, toast]);
+
+  // Keybindings for shortcuts and precise movement
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      const step = 0.08 / 12; // 0.08 inch movement per user request
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault(); copySelected();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault(); pasteObject();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault(); undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault(); redo();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault(); deleteObject(selectedObjectId);
+      } else if (selectedObjectId && selectedObject) {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault(); updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault(); updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault(); updateObject(selectedObjectId, { x: selectedObject.x - step }, true);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault(); updateObject(selectedObjectId, { x: selectedObject.x + step }, true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObjectId, selectedObject, copySelected, pasteObject, deleteObject, undo, redo, updateObject]);
+
   const getPoints = (obj: DesignObject) => {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
@@ -213,14 +280,6 @@ export default function EstimatorClient() {
     return Array.from(connected);
   };
 
-  const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
-    setDesignObjects(objs => {
-      const next = objs.map(o => o.id === id ? { ...o, ...updates } : o);
-      if (save) saveToHistory(next);
-      return next;
-    });
-  };
-
   const addObject = (type: DesignObject['type'], subType: string, label: string, overrides: Partial<DesignObject> = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
@@ -243,64 +302,6 @@ export default function EstimatorClient() {
     setSelectedObjectId(newObj.id);
     saveToHistory(next);
   };
-
-  const deleteObject = useCallback((id: string | null) => {
-    if (!id) return;
-    const next = designObjects.filter(o => o.id !== id);
-    setDesignObjects(next);
-    setSelectedObjectId(null);
-    saveToHistory(next);
-  }, [designObjects, saveToHistory]);
-
-  const copySelected = useCallback(() => {
-    if (selectedObject) {
-      setClipboard({ ...selectedObject });
-      toast({ title: "Copied to clipboard" });
-    }
-  }, [selectedObject, toast]);
-
-  const pasteObject = useCallback(() => {
-    if (clipboard) {
-      const newObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 0.5, y: clipboard.y + 0.5 };
-      const next = [...designObjects, newObj];
-      setDesignObjects(next);
-      setSelectedObjectId(newObj.id);
-      saveToHistory(next);
-      toast({ title: "Pasted object" });
-    }
-  }, [clipboard, designObjects, saveToHistory, toast]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
-
-      const step = 0.001 / 12; // 0.001 inch precision movement per user request
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        e.preventDefault(); copySelected();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        e.preventDefault(); pasteObject();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault(); undo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault(); redo();
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault(); deleteObject(selectedObjectId);
-      } else if (selectedObjectId && selectedObject) {
-        if (e.key === 'ArrowUp') {
-          e.preventDefault(); updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault(); updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
-        } else if (e.key === 'ArrowLeft') {
-          e.preventDefault(); updateObject(selectedObjectId, { x: selectedObject.x - step }, true);
-        } else if (e.key === 'ArrowRight') {
-          e.preventDefault(); updateObject(selectedObjectId, { x: selectedObject.x + step }, true);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedObjectId, selectedObject, copySelected, pasteObject, deleteObject, undo, redo]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null, mode: any = 'dragging') => {
     const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
@@ -543,9 +544,8 @@ export default function EstimatorClient() {
                   <AccordionItem value="furniture" className="border-slate-200">
                     <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Furniture</AccordionTrigger>
                     <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
-                      <SymbolButton icon={<Bed />} label="Bed" onClick={() => addObject('furniture', 'bed', 'Bed')} />
-                      <SymbolButton icon={<Sofa />} label="Sofa" onClick={() => addObject('furniture', 'sofa', 'Sofa')} />
-                      <SymbolButton icon={<Utensils />} label="Dining" onClick={() => addObject('furniture', 'table', 'Dining')} />
+                      <BedIcon onClick={() => addObject('furniture', 'bed', 'Bed')} />
+                      <SofaIcon onClick={() => addObject('furniture', 'sofa', 'Sofa')} />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -690,6 +690,24 @@ function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: 
   );
 }
 
+function BedIcon({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white hover:bg-slate-50 shadow-sm group">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-blue-600"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+      <span className="text-[9px] font-bold uppercase">Bed</span>
+    </Button>
+  );
+}
+
+function SofaIcon({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white hover:bg-slate-50 shadow-sm group">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-blue-600"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><rect x="2" y="9" width="20" height="8" rx="2"/><path d="M4 17v2"/><path d="M20 17v2"/></svg>
+      <span className="text-[9px] font-bold uppercase">Sofa</span>
+    </Button>
+  );
+}
+
 function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
   return (
     <Button variant={variant} disabled={disabled} onClick={onClick} className="h-20 flex flex-col gap-1.5 px-4 hover:bg-slate-50 min-w-[80px] group transition-colors rounded-none">
@@ -698,3 +716,4 @@ function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { i
     </Button>
   );
 }
+
