@@ -87,8 +87,31 @@ export default function EstimatorClient() {
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
 
+  // Local state for properties inputs to prevent cursor jump/formatting issues
+  const [localPropX, setLocalPropX] = useState("");
+  const [localPropY, setLocalPropY] = useState("");
+  const [localPropW, setLocalPropW] = useState("");
+  const [localPropH, setLocalPropH] = useState("");
+
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  const formatFeetInches = (val: number) => {
+    const feet = Math.floor(val);
+    const inches = Math.round((val - feet) * 12);
+    return `${feet}' ${inches}"`;
+  };
+
+  const parseFeetInches = (str: string) => {
+    if (!str) return 0;
+    // Match something like 4' 6"
+    const match = str.match(/(\d+)'\s*(\d+)"/);
+    if (match) return parseInt(match[1]) + parseInt(match[2]) / 12;
+    // Match plain decimal
+    const decimalMatch = str.match(/^(\d+(\.\d+)?)$/);
+    if (decimalMatch) return parseFloat(str);
+    return 0;
+  };
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -117,20 +140,20 @@ export default function EstimatorClient() {
   
   const selectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectId), [designObjects, selectedObjectId]);
 
-  const formatFeetInches = (val: number) => {
-    const feet = Math.floor(val);
-    const inches = Math.round((val - feet) * 12);
-    return `${feet}' ${inches}"`;
-  };
-
-  const parseFeetInches = (str: string) => {
-    if (!str) return 0;
-    const match = str.match(/(\d+)'\s*(\d+)"/);
-    if (match) return parseInt(match[1]) + parseInt(match[2]) / 12;
-    const decimalMatch = str.match(/^(\d+(\.\d+)?)$/);
-    if (decimalMatch) return parseFloat(str);
-    return 0;
-  };
+  // Synchronize local input state when selection changes
+  useEffect(() => {
+    if (selectedObject) {
+      setLocalPropX(formatFeetInches(selectedObject.x));
+      setLocalPropY(formatFeetInches(selectedObject.y));
+      setLocalPropW(formatFeetInches(selectedObject.w));
+      setLocalPropH(formatFeetInches(selectedObject.h));
+    } else {
+      setLocalPropX("");
+      setLocalPropY("");
+      setLocalPropW("");
+      setLocalPropH("");
+    }
+  }, [selectedObjectId]);
 
   const getPoints = (obj: DesignObject) => {
     const rad = obj.rotation * (Math.PI / 180);
@@ -804,8 +827,9 @@ export default function EstimatorClient() {
                                 <Label className="text-[8px] text-slate-400">Left</Label>
                                 <Input 
                                    className="h-7 text-[10px] bg-slate-50 border-slate-200" 
-                                   value={formatFeetInches(selectedObject.x)} 
-                                   onChange={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
+                                   value={localPropX} 
+                                   onChange={(e) => setLocalPropX(e.target.value)}
+                                   onBlur={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
@@ -813,8 +837,9 @@ export default function EstimatorClient() {
                                 <Label className="text-[8px] text-slate-400">Top</Label>
                                 <Input 
                                    className="h-7 text-[10px] bg-slate-50 border-slate-200" 
-                                   value={formatFeetInches(selectedObject.y)} 
-                                   onChange={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
+                                   value={localPropY} 
+                                   onChange={(e) => setLocalPropY(e.target.value)}
+                                   onBlur={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
@@ -828,8 +853,9 @@ export default function EstimatorClient() {
                                 <Label className="text-[8px] text-slate-400">Width</Label>
                                 <Input 
                                    className="h-7 text-[10px] bg-slate-50 border-slate-200" 
-                                   value={formatFeetInches(selectedObject.w)} 
-                                   onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
+                                   value={localPropW} 
+                                   onChange={(e) => setLocalPropW(e.target.value)}
+                                   onBlur={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
@@ -837,8 +863,9 @@ export default function EstimatorClient() {
                                 <Label className="text-[8px] text-slate-400">Height</Label>
                                 <Input 
                                    className="h-7 text-[10px] bg-slate-50 border-slate-200" 
-                                   value={formatFeetInches(selectedObject.h)} 
-                                   onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
+                                   value={localPropH} 
+                                   onChange={(e) => setLocalPropH(e.target.value)}
+                                   onBlur={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
@@ -934,4 +961,3 @@ function ToolIconButton({ icon, onClick }: { icon: React.ReactNode, onClick?: ()
     </Button>
   );
 }
-
