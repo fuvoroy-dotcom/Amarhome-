@@ -168,7 +168,7 @@ export default function EstimatorClient() {
     const gx = Math.round(x * 12) / 12;
     const gy = Math.round(y * 12) / 12;
     const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
-    if (gd < 0.15) {
+    if (gd < 0.1) {
       bestSnap = { x: gx, y: gy };
       minDist = gd;
     }
@@ -204,7 +204,7 @@ export default function EstimatorClient() {
         currPoints.forEach(p1 => {
           otherPoints.forEach(p2 => {
             const dist = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-            if (dist < 0.2) isNear = true;
+            if (dist < 0.15) isNear = true;
           });
         });
         if (isNear) stack.push(other.id);
@@ -261,7 +261,7 @@ export default function EstimatorClient() {
 
   const pasteObject = useCallback(() => {
     if (clipboard) {
-      const newObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 1, y: clipboard.y + 1 };
+      const newObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 0.5, y: clipboard.y + 0.5 };
       const next = [...designObjects, newObj];
       setDesignObjects(next);
       setSelectedObjectId(newObj.id);
@@ -270,48 +270,34 @@ export default function EstimatorClient() {
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
-  // Keyboard Event Listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if user is typing in an input or textarea
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
-        return;
-      }
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
-      const step = 1 / 12; // 1 inch movement
+      const step = 0.001 / 12; // 0.001 inch precision movement per user request
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        e.preventDefault();
-        copySelected();
+        e.preventDefault(); copySelected();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        e.preventDefault();
-        pasteObject();
+        e.preventDefault(); pasteObject();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        undo();
+        e.preventDefault(); undo();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        redo();
+        e.preventDefault(); redo();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteObject(selectedObjectId);
+        e.preventDefault(); deleteObject(selectedObjectId);
       } else if (selectedObjectId && selectedObject) {
         if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
+          e.preventDefault(); updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
         } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
+          e.preventDefault(); updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
         } else if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          updateObject(selectedObjectId, { x: selectedObject.x - step }, true);
+          e.preventDefault(); updateObject(selectedObjectId, { x: selectedObject.x - step }, true);
         } else if (e.key === 'ArrowRight') {
-          e.preventDefault();
-          updateObject(selectedObjectId, { x: selectedObject.x + step }, true);
+          e.preventDefault(); updateObject(selectedObjectId, { x: selectedObject.x + step }, true);
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedObjectId, selectedObject, copySelected, pasteObject, deleteObject, undo, redo]);
@@ -476,12 +462,11 @@ export default function EstimatorClient() {
                   <Button variant={selectedObject?.isBold ? "secondary" : "ghost"} size="icon" className="h-7 w-7 border" onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject?.isBold }, true)}><Bold className="w-3.5 h-3.5" /></Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" className="h-7 w-7 border p-0"><PaintBucket className="w-3.5 h-3.5" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent className="p-2 w-48"><div className="grid grid-cols-5 gap-1">{COLORS.map(c => (<div key={c} onClick={() => {
-                        if(selectedObjectId) {
-                          const updates: any = { color: c, fillColor: c };
-                          updateObject(selectedObjectId, updates, true);
-                        }
-                    }} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}</div></DropdownMenuContent>
+                    <DropdownMenuContent className="p-2 w-48">
+                      <div className="grid grid-cols-5 gap-1">
+                        {COLORS.map(c => (<div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c, fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}
+                      </div>
+                    </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
@@ -546,14 +531,13 @@ export default function EstimatorClient() {
                     <AccordionContent className="space-y-1">
                        <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><Ruler className="w-3.5 h-3.5" /> Units & Scale</Button>
                        <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><Maximize2 className="w-3.5 h-3.5" /> Scale Image</Button>
-                       <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><PenLine className="w-3.5 h-3.5" /> Add Annotation Layer</Button>
                     </AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="openings" className="border-slate-200">
                     <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Doors & Windows</AccordionTrigger>
                     <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
                       <SymbolButton icon={<DoorOpen />} label="Single Door" onClick={() => addObject('opening', 'door', 'Door')} />
-                      <SymbolButton icon={<Wind />} label="Sash Window" onClick={() => addObject('opening', 'window', 'Window')} />
+                      <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
                     </AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="furniture" className="border-slate-200">
@@ -585,12 +569,13 @@ export default function EstimatorClient() {
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
-                    backgroundColor: (obj.subType === 'wall' || obj.type === 'text') ? obj.color : obj.fillColor, 
+                    backgroundColor: (obj.subType === 'wall' || obj.type === 'text') ? 'transparent' : obj.fillColor, 
                     borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                     color: obj.color, 
                     fontSize: obj.type === 'text' ? (obj.fontSize || 14) * (zoom/40) : 'inherit', 
                     fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' 
                   }}>
+                  {obj.subType === 'wall' && <div className="absolute inset-0 bg-slate-900 border-y border-slate-700" style={{ backgroundColor: obj.color }} />}
                   {obj.subType === 'door' && (
                     <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
                       <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
@@ -662,21 +647,14 @@ export default function EstimatorClient() {
                           </div>
                        )}
                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Left Position</Label><Input className="h-7 text-[10px]" value={localPropX} onChange={(e) => setLocalPropX(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} placeholder={"0' 0\""} /></div>
-                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Top Position</Label><Input className="h-7 text-[10px]" value={localPropY} onChange={(e) => setLocalPropY(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} placeholder={"0' 0\""} /></div>
-                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Width / Length</Label><Input className="h-7 text-[10px]" value={localPropW} onChange={(e) => setLocalPropW(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} placeholder={"0' 0\""} /></div>
-                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Height / Thick</Label><Input className="h-7 text-[10px]" value={localPropH} onChange={(e) => setLocalPropH(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Left Pos</Label><Input className="h-7 text-[10px]" value={localPropX} onChange={(e) => setLocalPropX(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Top Pos</Label><Input className="h-7 text-[10px]" value={localPropY} onChange={(e) => setLocalPropY(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Width</Label><Input className="h-7 text-[10px]" value={localPropW} onChange={(e) => setLocalPropW(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Height</Label><Input className="h-7 text-[10px]" value={localPropH} onChange={(e) => setLocalPropH(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} placeholder={"0' 0\""} /></div>
                        </div>
                        <div className="space-y-1 pt-2 border-t">
                           <Label className="text-[8px] font-bold text-slate-500 uppercase">Rotation: {selectedObject.rotation}°</Label>
                           <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
-                       </div>
-                       <div className="space-y-1 pt-2 border-t">
-                          <Label className="text-[8px] font-bold text-slate-500 uppercase">Layer Priority</Label>
-                          <div className="flex gap-2">
-                             <Button variant="outline" size="sm" className="flex-1 h-7 text-[9px] font-bold" onClick={() => toast({ title: "Moved to Front" })}><BringToFront className="w-3 h-3 mr-1" /> FRONT</Button>
-                             <Button variant="outline" size="sm" className="flex-1 h-7 text-[9px] font-bold" onClick={() => toast({ title: "Moved to Back" })}><SendToBack className="w-3 h-3 mr-1" /> BACK</Button>
-                          </div>
                        </div>
                     </div>
                  ) : (
