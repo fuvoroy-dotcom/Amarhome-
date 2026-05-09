@@ -147,7 +147,7 @@ export default function EstimatorClient() {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    // Return start and end points of a wall/line
+    // Walls are drawn from their center line
     return [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
@@ -155,9 +155,20 @@ export default function EstimatorClient() {
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.5; // Aggressive snapping for corners
+    const threshold = 0.4;
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
+    
+    // Snap to grid
+    const gx = Math.round(x * 2) / 2;
+    const gy = Math.round(y * 2) / 2;
+    const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
+    if (gd < 0.2) {
+      bestSnap = { x: gx, y: gy };
+      minDist = gd;
+    }
+
+    // Snap to other objects
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       const points = getPoints(obj);
@@ -283,7 +294,7 @@ export default function EstimatorClient() {
       const dy = targetY - curr.y;
       setDesignObjects(objs => objs.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
     } else if (interactionMode === 'resizing') {
-      updateObject(selectedObjectId, { w: Math.max(0.5, curX - curr.x), h: Math.max(0.5, curY - curr.y) });
+      updateObject(selectedObjectId, { w: Math.max(0.2, curX - curr.x), h: Math.max(0.1, curY - curr.y) });
     } else if (interactionMode === 'rotating') {
       const cx = curr.x + curr.w / 2;
       const cy = curr.y + curr.h / 2;
@@ -504,7 +515,7 @@ export default function EstimatorClient() {
                     selectedObjectId === obj.id ? "z-30 ring-2 ring-blue-600 shadow-xl" : "z-10")}
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
-                    transformOrigin: '0 50%', transform: `rotate(${obj.rotation}deg)`,
+                    transformOrigin: '0 50%', transform: `translateY(-50%) rotate(${obj.rotation}deg)`,
                     backgroundColor: obj.subType === 'wall' ? obj.color : obj.fillColor, 
                     borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                     color: obj.color, 
@@ -512,21 +523,21 @@ export default function EstimatorClient() {
                     fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' 
                   }}>
                   {obj.subType === 'door' && (
-                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible translate-y-[50%]">
                       <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
                       <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="2" strokeDasharray="4 2" />
                     </svg>
                   )}
                   {obj.subType === 'window' && (
-                    <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white">
+                    <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white translate-y-[50%]">
                       <div className="w-full h-[1px] bg-slate-900" />
                       <div className="w-full h-[2px] bg-slate-400" />
                       <div className="w-full h-[1px] bg-slate-900" />
                     </div>
                   )}
-                  {obj.type === 'text' && <div className="px-2">{obj.textContent}</div>}
+                  {obj.type === 'text' && <div className="px-2 translate-y-[50%]">{obj.textContent}</div>}
                   {obj.type === 'table' && (
-                    <div className="grid w-full h-full border border-slate-300" style={{ gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
+                    <div className="grid w-full h-full border border-slate-300 translate-y-[50%]" style={{ gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
                       {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
                         <div key={i} className="border border-slate-200 bg-white/50" />
                       ))}
@@ -539,7 +550,7 @@ export default function EstimatorClient() {
                 </div>
               ))}
               
-              {/* Drawing Preview - Crucial for visual feedback */}
+              {/* Drawing Preview */}
               {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
                 <div className="absolute bg-blue-400/40 pointer-events-none z-50 border border-blue-600 border-dashed"
                   style={{
@@ -548,7 +559,7 @@ export default function EstimatorClient() {
                     width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
                     height: currentWallThickness * zoom,
                     transformOrigin: '0 50%',
-                    transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
+                    transform: `translateY(-50%) rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
                   }}
                 />
               )}
@@ -571,7 +582,7 @@ export default function EstimatorClient() {
           </div>
         </div>
 
-        {/* Right Properties Panel - Fixed Compact Version */}
+        {/* Right Properties Panel */}
         <div className="w-[260px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-2 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Properties</span><Settings2 className="w-3.5 h-3.5 text-slate-400" /></div>
            <ScrollArea className="flex-1">
