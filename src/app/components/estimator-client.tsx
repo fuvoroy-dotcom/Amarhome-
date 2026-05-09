@@ -147,7 +147,7 @@ export default function EstimatorClient() {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    // Walls are drawn from their center line
+    // Wall points for snapping
     return [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
@@ -155,13 +155,13 @@ export default function EstimatorClient() {
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.4;
+    const threshold = 0.3;
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
     
-    // Snap to grid
-    const gx = Math.round(x * 2) / 2;
-    const gy = Math.round(y * 2) / 2;
+    // Snap to grid (1 inch precision)
+    const gx = Math.round(x * 12) / 12;
+    const gy = Math.round(y * 12) / 12;
     const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
     if (gd < 0.2) {
       bestSnap = { x: gx, y: gy };
@@ -247,7 +247,7 @@ export default function EstimatorClient() {
     if (selectedTool === 'wall' || interactionMode === 'drawing') {
       e.stopPropagation();
       const snapped = findSnapPoint(curX, curY);
-      const startPos = snapped || { x: Math.round(curX * 2) / 2, y: Math.round(curY * 2) / 2 };
+      const startPos = snapped || { x: Math.round(curX * 12) / 12, y: Math.round(curY * 12) / 12 };
       setDrawStart(startPos);
       setTempDrawEnd(startPos);
       setInteractionMode('drawing');
@@ -276,7 +276,7 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'drawing' && drawStart) {
       const snapped = findSnapPoint(curX, curY, []);
-      setTempDrawEnd(snapped || { x: Math.round(curX * 2) / 2, y: Math.round(curY * 2) / 2 });
+      setTempDrawEnd(snapped || { x: Math.round(curX * 12) / 12, y: Math.round(curY * 12) / 12 });
       setSnapPoint(snapped);
       return;
     }
@@ -287,14 +287,14 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'dragging') {
       const snapped = findSnapPoint(curX - dragOffset.x, curY - dragOffset.y, connectedGroup);
-      const targetX = snapped ? snapped.x : (Math.round((curX - dragOffset.x) * 2) / 2);
-      const targetY = snapped ? snapped.y : (Math.round((curY - dragOffset.y) * 2) / 2);
+      const targetX = snapped ? snapped.x : (Math.round((curX - dragOffset.x) * 12) / 12);
+      const targetY = snapped ? snapped.y : (Math.round((curY - dragOffset.y) * 12) / 12);
       
       const dx = targetX - curr.x;
       const dy = targetY - curr.y;
       setDesignObjects(objs => objs.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
     } else if (interactionMode === 'resizing') {
-      updateObject(selectedObjectId, { w: Math.max(0.2, curX - curr.x), h: Math.max(0.1, curY - curr.y) });
+      updateObject(selectedObjectId, { w: Math.max(0.1, curX - curr.x), h: Math.max(0.1, curY - curr.y) });
     } else if (interactionMode === 'rotating') {
       const cx = curr.x + curr.w / 2;
       const cy = curr.y + curr.h / 2;
@@ -308,7 +308,7 @@ export default function EstimatorClient() {
       const dx = tempDrawEnd.x - drawStart.x;
       const dy = tempDrawEnd.y - drawStart.y;
       const length = Math.sqrt(dx * dx + dy * dy);
-      if (length > 0.3) {
+      if (length > 0.1) {
         const angle = Math.atan2(dy, dx) * (180 / Math.PI);
         const newWall: DesignObject = {
           id: Math.random().toString(36).substr(2, 9),
@@ -423,7 +423,6 @@ export default function EstimatorClient() {
                <div className="flex items-center gap-2"><Label className="text-[9px] font-bold w-10 text-slate-500">COLS</Label><Input type="number" value={tableCols} onChange={(e) => setTableCols(parseInt(e.target.value))} className="h-7 w-16 text-[10px] font-bold" /></div>
             </div>
             <RibbonButton icon={<LayoutGrid />} label="Insert Table" onClick={() => addObject('table', 'table', 'Table', { rows: tableRows, cols: tableCols })} />
-            <RibbonButton icon={<Grid />} label="Remove Table" onClick={() => deleteObject(selectedObjectId)} />
           </div>
         )}
       </div>
