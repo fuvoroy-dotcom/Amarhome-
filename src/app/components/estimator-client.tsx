@@ -1,16 +1,16 @@
 
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { 
   Building, Plus, LayoutGrid, 
   RectangleHorizontal, RefreshCw, Trash2, 
-  Download, Clipboard, Copy, Scissors, Undo2, Redo2,
+  Download, Clipboard as ClipboardIcon, Copy as CopyIcon, Scissors, Undo2, Redo2,
   Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
   ChevronDown, PaintBucket, Layers, FlipHorizontal, FlipVertical,
   BringToFront, SendToBack, GripHorizontal, Menu as MenuIcon,
   Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
-  Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type,
+  Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, Bed, Sofa, Bath, Utensils
 } from "lucide-react";
@@ -79,6 +79,7 @@ export default function EstimatorClient() {
   const [currentWallThickness, setCurrentWallThickness] = useState(0.5); 
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
+  const [clipboard, setClipboard] = useState<DesignObject | null>(null);
 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -110,23 +111,23 @@ export default function EstimatorClient() {
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
-  const undo = () => {
+  const undo = useCallback(() => {
     if (historyIndex > 0) {
       const prevIndex = historyIndex - 1;
       setHistoryIndex(prevIndex);
       setDesignObjects([...history[prevIndex].map(obj => ({...obj}))]);
       setSelectedObjectId(null);
     }
-  };
+  }, [history, historyIndex]);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const nextIndex = historyIndex + 1;
       setHistoryIndex(nextIndex);
       setDesignObjects([...history[nextIndex].map(obj => ({...obj}))]);
       setSelectedObjectId(null);
     }
-  };
+  }, [history, historyIndex]);
   
   const selectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectId), [designObjects, selectedObjectId]);
 
@@ -212,6 +213,14 @@ export default function EstimatorClient() {
     return Array.from(connected);
   };
 
+  const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
+    setDesignObjects(objs => {
+      const next = objs.map(o => o.id === id ? { ...o, ...updates } : o);
+      if (save) saveToHistory(next);
+      return next;
+    });
+  };
+
   const addObject = (type: DesignObject['type'], subType: string, label: string, overrides: Partial<DesignObject> = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
@@ -234,6 +243,78 @@ export default function EstimatorClient() {
     setSelectedObjectId(newObj.id);
     saveToHistory(next);
   };
+
+  const deleteObject = useCallback((id: string | null) => {
+    if (!id) return;
+    const next = designObjects.filter(o => o.id !== id);
+    setDesignObjects(next);
+    setSelectedObjectId(null);
+    saveToHistory(next);
+  }, [designObjects, saveToHistory]);
+
+  const copySelected = useCallback(() => {
+    if (selectedObject) {
+      setClipboard({ ...selectedObject });
+      toast({ title: "Copied to clipboard" });
+    }
+  }, [selectedObject, toast]);
+
+  const pasteObject = useCallback(() => {
+    if (clipboard) {
+      const newObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 1, y: clipboard.y + 1 };
+      const next = [...designObjects, newObj];
+      setDesignObjects(next);
+      setSelectedObjectId(newObj.id);
+      saveToHistory(next);
+      toast({ title: "Pasted object" });
+    }
+  }, [clipboard, designObjects, saveToHistory, toast]);
+
+  // Keyboard Event Listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if user is typing in an input or textarea
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const step = 1 / 12; // 1 inch movement
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        copySelected();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        pasteObject();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteObject(selectedObjectId);
+      } else if (selectedObjectId && selectedObject) {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          updateObject(selectedObjectId, { x: selectedObject.x - step }, true);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          updateObject(selectedObjectId, { x: selectedObject.x + step }, true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObjectId, selectedObject, copySelected, pasteObject, deleteObject, undo, redo]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null, mode: any = 'dragging') => {
     const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
@@ -335,22 +416,6 @@ export default function EstimatorClient() {
     setSnapPoint(null); setConnectedGroup([]);
   };
 
-  const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
-    setDesignObjects(objs => {
-      const next = objs.map(o => o.id === id ? { ...o, ...updates } : o);
-      if (save) saveToHistory(next);
-      return next;
-    });
-  };
-
-  const deleteObject = (id: string | null) => {
-    if (!id) return;
-    const next = designObjects.filter(o => o.id !== id);
-    setDesignObjects(next);
-    setSelectedObjectId(null);
-    saveToHistory(next);
-  };
-
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
       {/* Header Bar */}
@@ -395,9 +460,9 @@ export default function EstimatorClient() {
               <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
             </div>
             <div className="flex items-center border-r px-3 h-full gap-1">
-              <RibbonButton icon={<Clipboard />} label="Paste" />
+              <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteObject} />
               <div className="flex flex-col gap-1">
-                <Button variant="ghost" size="sm" className="h-7 px-2 justify-start gap-2 text-[10px] font-bold uppercase"><Copy className="w-3.5 h-3.5" /> Copy</Button>
+                <Button variant="ghost" size="sm" onClick={copySelected} className="h-7 px-2 justify-start gap-2 text-[10px] font-bold uppercase"><CopyIcon className="w-3.5 h-3.5" /> Copy</Button>
                 <Button variant="ghost" size="sm" className="h-7 px-2 justify-start gap-2 text-[10px] font-bold uppercase"><Scissors className="w-3.5 h-3.5" /> Cut</Button>
               </div>
             </div>
@@ -413,8 +478,7 @@ export default function EstimatorClient() {
                     <DropdownMenuTrigger asChild><Button variant="ghost" className="h-7 w-7 border p-0"><PaintBucket className="w-3.5 h-3.5" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent className="p-2 w-48"><div className="grid grid-cols-5 gap-1">{COLORS.map(c => (<div key={c} onClick={() => {
                         if(selectedObjectId) {
-                          const updates: any = { fillColor: c };
-                          if (selectedObject?.subType === 'wall' || selectedObject?.type === 'text') updates.color = c;
+                          const updates: any = { color: c, fillColor: c };
                           updateObject(selectedObjectId, updates, true);
                         }
                     }} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}</div></DropdownMenuContent>
@@ -463,7 +527,7 @@ export default function EstimatorClient() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
-                  <ToolCard icon={<Type />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+                  <ToolCard icon={<TypeIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                 </div>
 
                 <DropdownMenu>
@@ -520,7 +584,7 @@ export default function EstimatorClient() {
                     selectedObjectId === obj.id ? "z-30 ring-2 ring-blue-600 shadow-xl" : "z-10")}
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
-                    transformOrigin: '0 50%', transform: `translateY(-50%) rotate(${obj.rotation}deg)`,
+                    transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
                     backgroundColor: (obj.subType === 'wall' || obj.type === 'text') ? obj.color : obj.fillColor, 
                     borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                     color: obj.color, 
@@ -528,21 +592,21 @@ export default function EstimatorClient() {
                     fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' 
                   }}>
                   {obj.subType === 'door' && (
-                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible translate-y-[50%]">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
                       <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
                       <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="2" strokeDasharray="4 2" />
                     </svg>
                   )}
                   {obj.subType === 'window' && (
-                    <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white translate-y-[50%]">
+                    <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white">
                       <div className="w-full h-[1px] bg-slate-900" />
                       <div className="w-full h-[2px] bg-slate-400" />
                       <div className="w-full h-[1px] bg-slate-900" />
                     </div>
                   )}
-                  {obj.type === 'text' && <div className="px-2 translate-y-[50%]">{obj.textContent}</div>}
+                  {obj.type === 'text' && <div className="px-2">{obj.textContent}</div>}
                   {obj.type === 'table' && (
-                    <div className="grid w-full h-full border border-slate-300 translate-y-[50%]" style={{ gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
+                    <div className="grid w-full h-full border border-slate-300" style={{ gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
                       {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
                         <div key={i} className="border border-slate-200 bg-white/50" />
                       ))}
@@ -563,8 +627,8 @@ export default function EstimatorClient() {
                     top: drawStart.y * zoom,
                     width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
                     height: currentWallThickness * zoom,
-                    transformOrigin: '0 50%',
-                    transform: `translateY(-50%) rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
+                    transformOrigin: '0 0',
+                    transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
                   }}
                 />
               )}
