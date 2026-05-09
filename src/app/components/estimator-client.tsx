@@ -182,7 +182,7 @@ export default function EstimatorClient() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
-      const step = 0.08; // Set step to 0.08 inch per press as requested
+      const step = 0.08; 
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault(); copySelected();
@@ -252,7 +252,7 @@ export default function EstimatorClient() {
       minDist = gd;
     }
 
-    // Wall segment snap
+    // Advanced Wall segment snap (Anywhere on line)
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       const pts = getPoints(obj);
@@ -626,10 +626,10 @@ export default function EstimatorClient() {
                 />
               )}
               
-              {/* Snap Indicator (Blue Circle) */}
+              {/* Large Snap Indicator (Blue Circle) */}
               {snapPoint && (
-                <div className="absolute w-3 h-3 bg-blue-500 rounded-full border-2 border-white z-50 pointer-events-none shadow-lg"
-                  style={{ left: snapPoint.x * zoom - 6, top: snapPoint.y * zoom - 6 }} />
+                <div className="absolute w-6 h-6 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-lg animate-pulse"
+                  style={{ left: snapPoint.x * zoom - 12, top: snapPoint.y * zoom - 12 }} />
               )}
             </div>
           </div>
