@@ -84,6 +84,7 @@ export default function EstimatorClient() {
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
+  // Local state for precision inputs to prevent cursor jumps
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -176,12 +177,12 @@ export default function EstimatorClient() {
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
-  // Keybindings for shortcuts and precise movement
+  // Handle Keyboard Interactions
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
-      const step = 0.08; // Moved to 0.08 inch per press as requested
+      const step = 0.08; // Set step to 0.08 inch per press as requested
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault(); copySelected();
@@ -251,12 +252,11 @@ export default function EstimatorClient() {
       minDist = gd;
     }
 
-    // Segment and End-point snap
+    // Wall segment snap
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       const pts = getPoints(obj);
       if (obj.subType === 'wall' && pts.length === 2) {
-        // Snap to entire segment
         const cp = getClosestPointOnSegment({x, y}, pts[0], pts[1]);
         const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
         if (d < minDist) {
@@ -264,7 +264,6 @@ export default function EstimatorClient() {
           bestSnap = cp;
         }
       } else {
-        // Snap to points for other shapes
         pts.forEach(p => {
           const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
           if (d < minDist) {
@@ -386,7 +385,9 @@ export default function EstimatorClient() {
       
       const dx = targetX - curr.x;
       const dy = targetY - curr.y;
+      
       setDesignObjects(objs => objs.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+      setSnapPoint(snapped);
     } else if (interactionMode === 'resizing') {
       updateObject(selectedObjectId, { w: Math.max(0.1, curX - curr.x), h: Math.max(0.1, curY - curr.y) });
     } else if (interactionMode === 'rotating') {
@@ -625,7 +626,7 @@ export default function EstimatorClient() {
                 />
               )}
               
-              {/* Snap Indicator */}
+              {/* Snap Indicator (Blue Circle) */}
               {snapPoint && (
                 <div className="absolute w-3 h-3 bg-blue-500 rounded-full border-2 border-white z-50 pointer-events-none shadow-lg"
                   style={{ left: snapPoint.x * zoom - 6, top: snapPoint.y * zoom - 6 }} />
