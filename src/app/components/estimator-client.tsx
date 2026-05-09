@@ -61,19 +61,12 @@ const COLORS = [
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b', '#d1d5db'
 ];
 
-const LINE_STYLES = [
-  { label: 'Solid', value: 'solid' },
-  { label: 'Dashed', value: 'dashed' },
-  { label: 'Dotted', value: 'dotted' }
-];
-
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
 
 export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
-  const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
   const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
@@ -87,14 +80,15 @@ export default function EstimatorClient() {
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
 
+  // History for Undo/Redo
+  const [history, setHistory] = useState<DesignObject[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
   // Local state for properties inputs to prevent cursor jump
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
   const [localPropH, setLocalPropH] = useState("");
-
-  const [history, setHistory] = useState<DesignObject[][]>([[]]);
-  const [historyIndex, setHistoryIndex] = useState(0);
 
   const formatFeetInches = (val: number) => {
     const feet = Math.floor(val);
@@ -147,16 +141,35 @@ export default function EstimatorClient() {
     } else {
       setLocalPropX(""); setLocalPropY(""); setLocalPropW(""); setLocalPropH("");
     }
-  }, [selectedObjectId]);
+  }, [selectedObjectId, selectedObject]);
 
   const getPoints = (obj: DesignObject) => {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
+    // Return start and end points of a wall/line
     return [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
     ];
+  };
+
+  const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
+    const threshold = 0.5; // Aggressive snapping for corners
+    let bestSnap: {x: number, y: number} | null = null;
+    let minDist = threshold;
+    designObjects.forEach(obj => {
+      if (excludeIds.includes(obj.id)) return;
+      const points = getPoints(obj);
+      points.forEach(p => {
+        const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
+        if (d < minDist) {
+          minDist = d;
+          bestSnap = p;
+        }
+      });
+    });
+    return bestSnap;
   };
 
   const getGroup = (startId: string, allObjs: DesignObject[]) => {
@@ -176,7 +189,7 @@ export default function EstimatorClient() {
         currPoints.forEach(p1 => {
           otherPoints.forEach(p2 => {
             const dist = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-            if (dist < 0.5) isNear = true;
+            if (dist < 0.2) isNear = true;
           });
         });
         if (isNear) stack.push(other.id);
@@ -189,7 +202,7 @@ export default function EstimatorClient() {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, 
-      x: 10, y: 10, 
+      x: 5, y: 5, 
       w: subType === 'door' ? 3 : subType === 'window' ? 4 : 8, 
       h: subType === 'door' ? 3 : subType === 'window' ? 0.6 : 6,
       label, color: '#000000', 
@@ -208,24 +221,6 @@ export default function EstimatorClient() {
     saveToHistory(next);
   };
 
-  const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.8;
-    let bestSnap: {x: number, y: number} | null = null;
-    let minDist = threshold;
-    designObjects.forEach(obj => {
-      if (excludeIds.includes(obj.id)) return;
-      const points = getPoints(obj);
-      points.forEach(p => {
-        const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
-        if (d < minDist) {
-          minDist = d;
-          bestSnap = p;
-        }
-      });
-    });
-    return bestSnap;
-  };
-
   const handleMouseDown = (e: React.MouseEvent, id: string | null, mode: any = 'dragging') => {
     const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
     if (!rect) return;
@@ -238,7 +233,7 @@ export default function EstimatorClient() {
       return;
     }
 
-    if (interactionMode === 'drawing' || selectedTool === 'wall') {
+    if (selectedTool === 'wall' || interactionMode === 'drawing') {
       e.stopPropagation();
       const snapped = findSnapPoint(curX, curY);
       const startPos = snapped || { x: Math.round(curX * 2) / 2, y: Math.round(curY * 2) / 2 };
@@ -269,7 +264,7 @@ export default function EstimatorClient() {
     const curY = (e.clientY - rect.top) / zoom;
 
     if (interactionMode === 'drawing' && drawStart) {
-      const snapped = findSnapPoint(curX, curY);
+      const snapped = findSnapPoint(curX, curY, []);
       setTempDrawEnd(snapped || { x: Math.round(curX * 2) / 2, y: Math.round(curY * 2) / 2 });
       setSnapPoint(snapped);
       return;
@@ -280,8 +275,12 @@ export default function EstimatorClient() {
     if (!curr) return;
 
     if (interactionMode === 'dragging') {
-      const dx = (Math.round((curX - dragOffset.x) * 2) / 2) - curr.x;
-      const dy = (Math.round((curY - dragOffset.y) * 2) / 2) - curr.y;
+      const snapped = findSnapPoint(curX - dragOffset.x, curY - dragOffset.y, connectedGroup);
+      const targetX = snapped ? snapped.x : (Math.round((curX - dragOffset.x) * 2) / 2);
+      const targetY = snapped ? snapped.y : (Math.round((curY - dragOffset.y) * 2) / 2);
+      
+      const dx = targetX - curr.x;
+      const dy = targetY - curr.y;
       setDesignObjects(objs => objs.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
     } else if (interactionMode === 'resizing') {
       updateObject(selectedObjectId, { w: Math.max(0.5, curX - curr.x), h: Math.max(0.5, curY - curr.y) });
@@ -298,15 +297,15 @@ export default function EstimatorClient() {
       const dx = tempDrawEnd.x - drawStart.x;
       const dy = tempDrawEnd.y - drawStart.y;
       const length = Math.sqrt(dx * dx + dy * dy);
-      if (length > 0.5) {
+      if (length > 0.3) {
         const angle = Math.atan2(dy, dx) * (180 / Math.PI);
         const newWall: DesignObject = {
           id: Math.random().toString(36).substr(2, 9),
           type: 'structure', subType: 'wall', 
           x: drawStart.x, y: drawStart.y, 
           w: length, h: currentWallThickness,
-          label: 'Wall', color: '#000000', fillColor: 'transparent',
-          strokeWidth: 2, strokeStyle: 'solid',
+          label: 'Wall', color: '#000000', fillColor: '#000000',
+          strokeWidth: 0, strokeStyle: 'solid',
           rotation: angle
         };
         const next = [...designObjects, newWall];
@@ -340,101 +339,160 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
+      {/* Top Header Bar */}
       <div className="h-10 bg-slate-200 border-b flex items-center px-4 justify-between shrink-0">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-6 h-full">
+          <div className="flex items-center gap-2 pr-4 border-r border-slate-300">
             <Building className="w-5 h-5 text-blue-600" />
             <span className="font-bold text-sm text-slate-700 tracking-tighter uppercase">SmartDraw Pro</span>
           </div>
-          <nav className="flex gap-4 h-full pt-2">
+          <nav className="flex gap-1 h-full pt-1">
             {['File', 'Home', 'Design', 'Table'].map(item => (
               <Button key={item} variant="ghost" onClick={() => setActiveRibbonTab(item.toLowerCase())}
-                className={cn("h-8 px-4 text-[11px] font-bold transition-all rounded-t-sm rounded-b-none border-b-2 border-transparent",
-                  activeRibbonTab === item.toLowerCase() ? "bg-white text-blue-600 border-blue-600 shadow-sm" : "text-slate-600 hover:bg-slate-300")}>{item}</Button>
+                className={cn("h-9 px-4 text-[11px] font-bold transition-all rounded-t-md rounded-b-none border-b-2",
+                  activeRibbonTab === item.toLowerCase() ? "bg-white text-blue-600 border-blue-600 shadow-sm" : "text-slate-600 hover:bg-slate-300 border-transparent")}>{item}</Button>
             ))}
           </nav>
         </div>
-        <User className="w-5 h-5 text-slate-500 cursor-pointer" />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-white rounded px-2 py-1 shadow-inner border">
+             <span className="text-[10px] font-bold text-blue-600">PREMIUM</span>
+          </div>
+          <User className="w-5 h-5 text-slate-500 cursor-pointer" />
+        </div>
       </div>
 
+      {/* Ribbon Toolbar */}
       <div className="h-24 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30 overflow-x-auto no-scrollbar">
+        {activeRibbonTab === 'file' && (
+          <div className="flex items-center h-full gap-2 px-2">
+            <RibbonButton icon={<FilePlus />} label="New" onClick={() => { setDesignObjects([]); saveToHistory([]); }} />
+            <RibbonButton icon={<FolderOpen />} label="Open" />
+            <RibbonButton icon={<Save />} label="Save" onClick={() => toast({ title: "Saved Successfully" })} />
+            <div className="w-[1px] h-12 bg-slate-200 mx-2" />
+            <RibbonButton icon={<Printer />} label="Print" onClick={() => window.print()} />
+            <RibbonButton icon={<Download />} label="Export" />
+          </div>
+        )}
         {activeRibbonTab === 'home' && (
           <>
-            <div className="flex items-center border-r px-3 h-full gap-2">
+            <div className="flex items-center border-r px-3 h-full gap-1">
               <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} disabled={historyIndex <= 0} />
               <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} disabled={historyIndex >= history.length - 1} />
             </div>
+            <div className="flex items-center border-r px-3 h-full gap-1">
+              <RibbonButton icon={<Clipboard />} label="Paste" />
+              <div className="flex flex-col gap-1">
+                <Button variant="ghost" size="sm" className="h-7 px-2 justify-start gap-2 text-[10px] font-bold uppercase"><Copy className="w-3.5 h-3.5" /> Copy</Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 justify-start gap-2 text-[10px] font-bold uppercase"><Scissors className="w-3.5 h-3.5" /> Cut</Button>
+              </div>
+            </div>
             <div className="flex items-center border-r px-3 h-full gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><Button variant="ghost" className="h-16 flex flex-col gap-1 px-3 group"><PaintBucket className="w-5 h-5 text-slate-600" /><span className="text-[9px] uppercase font-bold text-slate-500">Fill</span></Button></DropdownMenuTrigger>
-                <DropdownMenuContent className="p-2 w-48"><div className="grid grid-cols-5 gap-1">{COLORS.map(c => (<div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}</div></DropdownMenuContent>
-              </DropdownMenu>
-              <Select value={selectedObject?.fontSize?.toString() || "14"} onValueChange={(val) => selectedObjectId && updateObject(selectedObjectId, { fontSize: parseInt(val) }, true)}>
-                <SelectTrigger className="h-7 w-16 text-[10px]"><SelectValue placeholder="14" /></SelectTrigger>
-                <SelectContent>{FONT_SIZES.map(s => (<SelectItem key={s} value={s.toString()}>{s}</SelectItem>))}</SelectContent>
-              </Select>
-              <Button variant={selectedObject?.isBold ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject?.isBold }, true)}><Bold className="w-3.5 h-3.5" /></Button>
+              <div className="flex flex-col gap-1">
+                <Select value={selectedObject?.fontSize?.toString() || "14"} onValueChange={(val) => selectedObjectId && updateObject(selectedObjectId, { fontSize: parseInt(val) }, true)}>
+                  <SelectTrigger className="h-7 w-20 text-[10px] font-bold"><SelectValue placeholder="Size" /></SelectTrigger>
+                  <SelectContent>{FONT_SIZES.map(s => (<SelectItem key={s} value={s.toString()}>{s} pt</SelectItem>))}</SelectContent>
+                </Select>
+                <div className="flex gap-1">
+                  <Button variant={selectedObject?.isBold ? "secondary" : "ghost"} size="icon" className="h-7 w-7 border" onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject?.isBold }, true)}><Bold className="w-3.5 h-3.5" /></Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" className="h-7 w-7 border p-0"><PaintBucket className="w-3.5 h-3.5" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent className="p-2 w-48"><div className="grid grid-cols-5 gap-1">{COLORS.map(c => (<div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}</div></DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             </div>
             <RibbonButton icon={<Trash2 />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
           </>
         )}
         {activeRibbonTab === 'table' && (
           <div className="flex items-center h-full">
-            <div className="flex flex-col gap-1 px-3 border-r">
-               <div className="flex items-center gap-2"><Label className="text-[9px] font-bold w-8">ROWS</Label><Input type="number" value={tableRows} onChange={(e) => setTableRows(parseInt(e.target.value))} className="h-6 w-12 text-[10px]" /></div>
-               <div className="flex items-center gap-2"><Label className="text-[9px] font-bold w-8">COLS</Label><Input type="number" value={tableCols} onChange={(e) => setTableCols(parseInt(e.target.value))} className="h-6 w-12 text-[10px]" /></div>
+            <div className="flex flex-col gap-1 px-4 border-r mr-2">
+               <div className="flex items-center gap-2"><Label className="text-[9px] font-bold w-10 text-slate-500">ROWS</Label><Input type="number" value={tableRows} onChange={(e) => setTableRows(parseInt(e.target.value))} className="h-7 w-16 text-[10px] font-bold" /></div>
+               <div className="flex items-center gap-2"><Label className="text-[9px] font-bold w-10 text-slate-500">COLS</Label><Input type="number" value={tableCols} onChange={(e) => setTableCols(parseInt(e.target.value))} className="h-7 w-16 text-[10px] font-bold" /></div>
             </div>
             <RibbonButton icon={<LayoutGrid />} label="Insert Table" onClick={() => addObject('table', 'table', 'Table', { rows: tableRows, cols: tableCols })} />
+            <RibbonButton icon={<Grid />} label="Remove Table" onClick={() => deleteObject(selectedObjectId)} />
           </div>
         )}
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-[300px] bg-slate-50 border-r z-20 shrink-0 flex flex-col shadow-lg">
-          <div className="p-3 border-b flex items-center justify-between bg-white"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Library & Tools</span></div>
-          <ScrollArea className="flex-1">
-            <div className="p-3 space-y-4">
-              <div className="grid grid-cols-4 gap-2">
-                <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
+        {/* Left Library Panel */}
+        <div className="w-[320px] bg-slate-50 border-r z-20 shrink-0 flex shadow-lg">
+          {/* Side Rail */}
+          <div className="w-12 bg-slate-800 flex flex-col items-center py-4 gap-6 shrink-0">
+             <Briefcase className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
+             <Database className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
+             <Sparkles className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
+          </div>
+          
+          <div className="flex-1 flex flex-col bg-white overflow-hidden">
+            <div className="p-3 border-b flex items-center justify-between bg-slate-50"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Library</span><Search className="w-3.5 h-3.5 text-slate-400" /></div>
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-4">
+                {/* Tool Icons */}
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><div><ToolCard icon={<Box />} label="Shape" active={selectedTool === 'shape'} onClick={() => setSelectedTool('shape')} /></div></DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-64 p-3 grid grid-cols-4 gap-3">
+                      {[
+                        {s:'rect', i:<Square />}, {s:'oval', i:<Circle />}, {s:'tri', i:<Triangle />}, 
+                        {s:'diamond', i:<Diamond />}, {s:'arrow', i:<ArrowRight />}, {s:'hex', i:<Hexagon />}, 
+                        {s:'oct', i:<Octagon />}
+                      ].map(item => (
+                        <div key={item.s} className="p-2 border rounded hover:bg-blue-50 cursor-pointer flex justify-center" onClick={() => addObject('shape', item.s, item.s.toUpperCase())}>{React.cloneElement(item.i as React.ReactElement, { className: "w-6 h-6" })}</div>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
+                  <ToolCard icon={<Type />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+                </div>
+
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild><div><ToolCard icon={<Box />} label="Shape" active={selectedTool === 'shape'} onClick={() => setSelectedTool('shape')} /></div></DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64 p-3 grid grid-cols-4 gap-4">
-                    {['rect', 'oval', 'tri', 'diamond', 'arrow', 'hex', 'oct'].map(s => (
-                      <div key={s} className="p-2 border rounded hover:bg-blue-50 cursor-pointer flex justify-center" onClick={() => addObject('shape', s, s.toUpperCase())}><Square className="w-6 h-6" /></div>
-                    ))}
+                  <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold border-slate-300 bg-blue-50/50"><Pencil className="w-4 h-4 text-blue-600" /><span className="text-xs uppercase">Add Wall</span><ChevronDown className="ml-auto w-3.5 h-3.5 text-slate-400" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56">
+                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(4/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Interior Wall 4"</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(6/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Exterior Wall 6"</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(8/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Brick Wall 8"</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(12/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Foundation Wall 12"</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
-                <ToolCard icon={<Type />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+
+                <Accordion type="multiple" defaultValue={["setup", "openings"]} className="w-full">
+                  <AccordionItem value="setup" className="border-slate-200">
+                    <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Document Setup</AccordionTrigger>
+                    <AccordionContent className="space-y-1">
+                       <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><Ruler className="w-3.5 h-3.5" /> Units & Scale</Button>
+                       <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><Maximize2 className="w-3.5 h-3.5" /> Scale Image</Button>
+                       <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><PenLine className="w-3.5 h-3.5" /> Add Annotation Layer</Button>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="openings" className="border-slate-200">
+                    <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Doors & Windows</AccordionTrigger>
+                    <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
+                      <SymbolButton icon={<DoorOpen />} label="Single Door" onClick={() => addObject('opening', 'door', 'Door')} />
+                      <SymbolButton icon={<Wind />} label="Sash Window" onClick={() => addObject('opening', 'window', 'Window')} />
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="furniture" className="border-slate-200">
+                    <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Furniture</AccordionTrigger>
+                    <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
+                      <SymbolButton icon={<Bed />} label="Bed" onClick={() => addObject('furniture', 'bed', 'Bed')} />
+                      <SymbolButton icon={<Sofa />} label="Sofa" onClick={() => addObject('furniture', 'sofa', 'Sofa')} />
+                      <SymbolButton icon={<Utensils />} label="Dining" onClick={() => addObject('furniture', 'table', 'Dining')} />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold border-slate-300"><Pencil className="w-4 h-4 text-blue-500" /><span className="text-xs uppercase">Insert Wall</span><ChevronDown className="ml-auto w-3.5 h-3.5 text-slate-400" /></Button></DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  {[4, 6, 8, 12].map(w => (<DropdownMenuItem key={w} onClick={() => { setCurrentWallThickness(w/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>{w}" Wall</DropdownMenuItem>))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Accordion type="multiple" defaultValue={["openings", "furniture"]} className="w-full">
-                <AccordionItem value="openings" className="border-slate-200">
-                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-600 uppercase tracking-widest">Doors & Windows</AccordionTrigger>
-                  <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
-                    <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door')} />
-                    <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="furniture" className="border-slate-200">
-                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-600 uppercase tracking-widest">Furniture</AccordionTrigger>
-                  <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
-                    <SymbolButton icon={<Bed />} label="Bed" onClick={() => addObject('furniture', 'bed', 'Bed')} />
-                    <SymbolButton icon={<Sofa />} label="Sofa" onClick={() => addObject('furniture', 'sofa', 'Sofa')} />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          </ScrollArea>
+            </ScrollArea>
+          </div>
         </div>
 
+        {/* Main Canvas Workspace */}
         <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
-          <div id="canvas-workspace" className="flex-1 relative bg-white overflow-auto cursor-crosshair m-4 shadow-2xl rounded-sm border no-scrollbar"
+          <div id="canvas-workspace" className="flex-1 relative bg-white overflow-auto cursor-crosshair m-4 shadow-2xl rounded-sm border"
             onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
             <div className="absolute inset-0" style={{ 
                 backgroundImage: `linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)`,
@@ -442,25 +500,48 @@ export default function EstimatorClient() {
               }}>
               {designObjects.map(obj => (
                 <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
-                  className={cn("absolute flex items-center justify-center cursor-move select-none", selectedObjectId === obj.id ? "z-30 ring-2 ring-blue-600 shadow-xl" : "z-10 shadow-sm")}
-                  style={{ left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 50%', transform: `rotate(${obj.rotation}deg)`,
-                    backgroundColor: obj.subType === 'wall' ? obj.color : obj.fillColor, borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
-                    color: obj.color, fontSize: obj.type === 'text' ? (obj.fontSize || 14) * (zoom/40) : 'inherit', fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' }}>
+                  className={cn("absolute flex items-center justify-center cursor-move select-none", 
+                    selectedObjectId === obj.id ? "z-30 ring-2 ring-blue-600 shadow-xl" : "z-10")}
+                  style={{ 
+                    left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
+                    transformOrigin: '0 50%', transform: `rotate(${obj.rotation}deg)`,
+                    backgroundColor: obj.subType === 'wall' ? obj.color : obj.fillColor, 
+                    borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
+                    color: obj.color, 
+                    fontSize: obj.type === 'text' ? (obj.fontSize || 14) * (zoom/40) : 'inherit', 
+                    fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' 
+                  }}>
                   {obj.subType === 'door' && (
                     <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
                       <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
                       <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="2" strokeDasharray="4 2" />
                     </svg>
                   )}
-                  {obj.subType === 'window' && <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white"><div className="w-full h-[1px] bg-slate-900" /><div className="w-full h-[1px] bg-slate-900" /></div>}
+                  {obj.subType === 'window' && (
+                    <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white">
+                      <div className="w-full h-[1px] bg-slate-900" />
+                      <div className="w-full h-[2px] bg-slate-400" />
+                      <div className="w-full h-[1px] bg-slate-900" />
+                    </div>
+                  )}
                   {obj.type === 'text' && <div className="px-2">{obj.textContent}</div>}
-                  {selectedObjectId === obj.id && <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />}
+                  {obj.type === 'table' && (
+                    <div className="grid w-full h-full border border-slate-300" style={{ gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
+                      {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
+                        <div key={i} className="border border-slate-200 bg-white/50" />
+                      ))}
+                    </div>
+                  )}
+                  {selectedObjectId === obj.id && (
+                    <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg" 
+                      onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                  )}
                 </div>
               ))}
               
-              {/* Drawing Preview */}
+              {/* Drawing Preview - Crucial for visual feedback */}
               {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                <div className="absolute bg-blue-400/50 pointer-events-none z-50 border border-blue-600 border-dashed"
+                <div className="absolute bg-blue-400/40 pointer-events-none z-50 border border-blue-600 border-dashed"
                   style={{
                     left: drawStart.x * zoom,
                     top: drawStart.y * zoom,
@@ -471,37 +552,60 @@ export default function EstimatorClient() {
                   }}
                 />
               )}
+              
+              {/* Snap Point Indicator */}
+              {snapPoint && (
+                <div className="absolute w-3 h-3 bg-blue-500 rounded-full border-2 border-white z-50 pointer-events-none shadow-lg"
+                  style={{ left: snapPoint.x * zoom - 6, top: snapPoint.y * zoom - 6 }} />
+              )}
             </div>
           </div>
+          
+          {/* Zoom Controls Bar */}
           <div className="h-10 bg-white border-t flex items-center px-4 justify-between shrink-0 shadow-inner">
-             <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4" /></div>
+             <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
+                <span className="text-[10px] font-bold text-slate-500">{zoom}% Zoom</span>
+             </div>
+             <div className="text-[10px] font-medium text-slate-400">Ready</div>
           </div>
         </div>
 
-        <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
-           <div className="p-2 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Properties</span><Settings2 className="w-3 h-3 text-slate-400" /></div>
+        {/* Right Properties Panel - Fixed Compact Version */}
+        <div className="w-[260px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
+           <div className="p-2 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Properties</span><Settings2 className="w-3.5 h-3.5 text-slate-400" /></div>
            <ScrollArea className="flex-1">
               <div className="p-2 space-y-3">
                  {selectedObject ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                        {selectedObject.type === 'text' && (
                           <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-500 uppercase">Text Content</Label>
                              <Input className="h-7 text-[10px] bg-slate-50" value={selectedObject.textContent || ''} onChange={(e) => updateObject(selectedObject.id, { textContent: e.target.value }, true)} />
                           </div>
                        )}
                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1"><Label className="text-[8px] text-slate-400">Left</Label><Input className="h-7 text-[10px]" value={localPropX} onChange={(e) => setLocalPropX(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} placeholder={"0' 0\""} /></div>
-                          <div className="space-y-1"><Label className="text-[8px] text-slate-400">Top</Label><Input className="h-7 text-[10px]" value={localPropY} onChange={(e) => setLocalPropY(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} placeholder={"0' 0\""} /></div>
-                          <div className="space-y-1"><Label className="text-[8px] text-slate-400">Width</Label><Input className="h-7 text-[10px]" value={localPropW} onChange={(e) => setLocalPropW(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} placeholder={"0' 0\""} /></div>
-                          <div className="space-y-1"><Label className="text-[8px] text-slate-400">Height</Label><Input className="h-7 text-[10px]" value={localPropH} onChange={(e) => setLocalPropH(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Left Position</Label><Input className="h-7 text-[10px]" value={localPropX} onChange={(e) => setLocalPropX(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Top Position</Label><Input className="h-7 text-[10px]" value={localPropY} onChange={(e) => setLocalPropY(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Width / Length</Label><Input className="h-7 text-[10px]" value={localPropW} onChange={(e) => setLocalPropW(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} placeholder={"0' 0\""} /></div>
+                          <div className="space-y-1"><Label className="text-[8px] font-bold text-slate-400 uppercase">Height / Thick</Label><Input className="h-7 text-[10px]" value={localPropH} onChange={(e) => setLocalPropH(e.target.value)} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} placeholder={"0' 0\""} /></div>
                        </div>
                        <div className="space-y-1 pt-2 border-t">
                           <Label className="text-[8px] font-bold text-slate-500 uppercase">Rotation: {selectedObject.rotation}°</Label>
                           <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
                        </div>
+                       <div className="space-y-1 pt-2 border-t">
+                          <Label className="text-[8px] font-bold text-slate-500 uppercase">Layer Priority</Label>
+                          <div className="flex gap-2">
+                             <Button variant="outline" size="sm" className="flex-1 h-7 text-[9px] font-bold" onClick={() => toast({ title: "Moved to Front" })}><BringToFront className="w-3 h-3 mr-1" /> FRONT</Button>
+                             <Button variant="outline" size="sm" className="flex-1 h-7 text-[9px] font-bold" onClick={() => toast({ title: "Moved to Back" })}><SendToBack className="w-3 h-3 mr-1" /> BACK</Button>
+                          </div>
+                       </div>
                     </div>
                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-2 py-20 opacity-30"><MousePointer2 className="w-6 h-6" /><p className="text-[9px] uppercase tracking-widest font-bold">Select an element</p></div>
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 opacity-30 px-6">
+                       <MousePointer2 className="w-8 h-8 text-slate-300" />
+                       <p className="text-[9px] uppercase tracking-widest font-bold leading-relaxed">Select an element to view properties</p>
+                    </div>
                  )}
               </div>
            </ScrollArea>
@@ -513,16 +617,17 @@ export default function EstimatorClient() {
 
 function ToolCard({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
-    <div onClick={onClick} className={cn("flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all border",
-      active ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50")}>
-       {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 mb-1" })}<span className="text-[9px] font-bold uppercase">{label}</span>
+    <div onClick={onClick} className={cn("flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all border shadow-sm",
+      active ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50")}>
+       {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 mb-1" })}
+       <span className="text-[9px] font-bold uppercase tracking-tighter">{label}</span>
     </div>
   );
 }
 
 function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick?: () => void }) {
   return (
-    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white hover:bg-slate-50 transition-all group">
+    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white hover:bg-slate-50 transition-all group shadow-sm">
        {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-500 group-hover:text-blue-600" })}
        <span className="text-[9px] font-bold text-slate-600 uppercase group-hover:text-slate-900">{label}</span>
     </Button>
@@ -532,8 +637,8 @@ function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: 
 function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
   return (
     <Button variant={variant} disabled={disabled} onClick={onClick} className="h-20 flex flex-col gap-1.5 px-4 hover:bg-slate-50 min-w-[80px] group transition-colors rounded-none">
-      {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-600 group-hover:text-blue-600" })}
-      <span className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-slate-800">{label}</span>
+      {React.cloneElement(icon as React.ReactElement, { className: cn("w-5 h-5", variant === "destructive" ? "text-red-500" : "text-slate-600 group-hover:text-blue-600") })}
+      <span className={cn("text-[9px] uppercase font-bold", variant === "destructive" ? "text-red-600" : "text-slate-500 group-hover:text-slate-800")}>{label}</span>
     </Button>
   );
 }
