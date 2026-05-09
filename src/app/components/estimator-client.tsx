@@ -184,8 +184,8 @@ export default function EstimatorClient() {
       x: 10, y: 10, 
       w: subType === 'door' ? 3 : subType === 'window' ? 4 : 8, 
       h: subType === 'door' ? 3 : subType === 'window' ? 0.6 : 6,
-      label, color: '#334155', 
-      fillColor: type === 'structure' ? '#334155' : '#ffffff',
+      label, color: '#000000', 
+      fillColor: type === 'structure' ? '#000000' : '#ffffff',
       strokeWidth: 2, 
       strokeStyle: 'solid',
       rotation: 0,
@@ -307,7 +307,7 @@ export default function EstimatorClient() {
           type: 'structure', subType: 'wall', 
           x: drawStart.x, y: drawStart.y, 
           w: length, h: currentWallThickness,
-          label: 'Wall', color: '#334155', fillColor: 'transparent',
+          label: 'Wall', color: '#000000', fillColor: 'transparent',
           strokeWidth: 2, strokeStyle: 'solid',
           rotation: angle
         };
@@ -572,6 +572,7 @@ export default function EstimatorClient() {
                         <ShapeIcon icon={<Diamond className="w-6 h-6" />} onClick={() => addObject('shape', 'diamond', 'Diamond')} />
                         <ShapeIcon icon={<ArrowRight className="w-6 h-6" />} onClick={() => addObject('shape', 'arrow', 'Arrow')} />
                         <ShapeIcon icon={<Hexagon className="w-6 h-6" />} onClick={() => addObject('shape', 'hex', 'Hexagon')} />
+                        <ShapeIcon icon={<Octagon className="w-6 h-6" />} onClick={() => addObject('shape', 'oct', 'Octagon')} />
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
@@ -621,17 +622,17 @@ export default function EstimatorClient() {
                   <AccordionItem value="furniture" className="border-slate-200">
                     <AccordionTrigger className="h-10 px-0 hover:no-underline text-[10px] font-bold text-slate-600 uppercase tracking-widest">Furniture & Fixtures</AccordionTrigger>
                     <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
-                       <SymbolButton icon={<Bed />} label="Bed" onClick={() => addObject('furniture', 'bed', 'Bed', { fillColor: '#fde68a' })} />
-                       <SymbolButton icon={<Sofa />} label="Sofa" onClick={() => addObject('furniture', 'sofa', 'Sofa', { fillColor: '#fecaca' })} />
-                       <SymbolButton icon={<Utensils />} label="Dining" onClick={() => addObject('furniture', 'table', 'Dining', { fillColor: '#e2e8f0' })} />
-                       <SymbolButton icon={<Bath />} label="Toilet" onClick={() => addObject('fixture', 'toilet', 'Toilet', { fillColor: '#f1f5f9' })} />
+                       <SymbolButton icon={<Bed />} label="Bed" onClick={() => addObject('furniture', 'bed', 'Bed', { fillColor: '#ffffff' })} />
+                       <SymbolButton icon={<Sofa />} label="Sofa" onClick={() => addObject('furniture', 'sofa', 'Sofa', { fillColor: '#ffffff' })} />
+                       <SymbolButton icon={<Utensils />} label="Dining" onClick={() => addObject('furniture', 'table', 'Dining', { fillColor: '#ffffff' })} />
+                       <SymbolButton icon={<Bath />} label="Toilet" onClick={() => addObject('fixture', 'toilet', 'Toilet', { fillColor: '#ffffff' })} />
                     </AccordionContent>
                   </AccordionItem>
 
                   <AccordionItem value="symbols" className="border-slate-200">
                     <AccordionTrigger className="h-10 px-0 hover:no-underline text-[10px] font-bold text-slate-600 uppercase tracking-widest">Stairs & Others</AccordionTrigger>
                     <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
-                       <SymbolButton icon={<Grid />} label="Stairs" onClick={() => addObject('stair', 'stair', 'Stairs', { w: 4, h: 10, fillColor: '#cbd5e1' })} />
+                       <SymbolButton icon={<Grid />} label="Stairs" onClick={() => addObject('stair', 'stair', 'Stairs', { w: 4, h: 10, fillColor: '#ffffff' })} />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -662,10 +663,12 @@ export default function EstimatorClient() {
                 const isWindow = obj.subType === 'window';
                 const isStair = obj.type === 'stair';
                 const isTable = obj.type === 'table';
+                const isBed = obj.subType === 'bed';
+                const isToilet = obj.subType === 'toilet';
                 
                 return (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()}
-                    className={cn("absolute flex items-center justify-center cursor-move select-none transition-shadow", isSelected ? "z-30 shadow-2xl" : "z-10 shadow-sm")}
+                    className={cn("absolute flex items-center justify-center cursor-move select-none", isSelected ? "z-30 ring-2 ring-blue-600 shadow-2xl" : "z-10 shadow-sm")}
                     style={{ 
                       left: obj.x * zoom, 
                       top: obj.y * zoom, 
@@ -674,9 +677,7 @@ export default function EstimatorClient() {
                       transformOrigin: '0 50%',
                       transform: `rotate(${obj.rotation}deg)`, 
                       backgroundColor: isWall ? obj.color : obj.fillColor,
-                      border: (isWall || isText || isDoor || isWindow || isTable) ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
-                      outline: isSelected ? '2px solid #2563eb' : undefined,
-                      outlineOffset: '2px',
+                      border: (isWall || isText || isDoor || isWindow || isTable || isBed || isToilet) ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
                       borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                       color: isText ? obj.color : 'inherit',
                       fontSize: isText ? (obj.fontSize || 14) * (zoom/40) : 'inherit',
@@ -686,43 +687,59 @@ export default function EstimatorClient() {
                     
                     {isDoor && (
                       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
-                         {/* Door Leaf */}
-                         <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
-                         {/* Door Swing Arc */}
-                         <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="6 4" />
-                         {/* Door Frame/Sill */}
-                         <line x1="0" y1="100" x2="100" y2="100" stroke={obj.color} strokeWidth="2" strokeDasharray="2 2" />
+                         <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
+                         <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="2" strokeDasharray="4 2" />
+                         <line x1="0" y1="100" x2="100" y2="100" stroke={obj.color} strokeWidth="1" strokeDasharray="2 2" />
                       </svg>
                     )}
 
                     {isWindow && (
-                      <div className="absolute inset-0 flex flex-col justify-between border-x border-slate-500 py-1 px-0.5">
-                         <div className="w-full h-[1px] bg-slate-400" />
-                         <div className="w-full h-[1px] bg-slate-500" />
-                         <div className="w-full h-[1px] bg-slate-400" />
+                      <div className="absolute inset-0 flex flex-col justify-between border-x-2 border-slate-900 py-1 bg-white">
+                         <div className="w-full h-[2px] bg-slate-900" />
+                         <div className="w-full h-[2px] bg-slate-600" />
+                         <div className="w-full h-[2px] bg-slate-900" />
+                      </div>
+                    )}
+
+                    {isBed && (
+                      <div className="absolute inset-0 border-2 border-slate-900 bg-white flex flex-col p-1">
+                         <div className="flex justify-between gap-1 mb-1">
+                            <div className="flex-1 h-3 border border-slate-400 rounded-sm" />
+                            <div className="flex-1 h-3 border border-slate-400 rounded-sm" />
+                         </div>
+                         <div className="flex-1 border-t border-slate-300" />
+                      </div>
+                    )}
+
+                    {isToilet && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                         <div className="w-3/4 h-3/4 border-2 border-slate-900 rounded-full bg-white flex items-center justify-center">
+                            <div className="w-1/2 h-2/3 border border-slate-400 rounded-full" />
+                         </div>
+                         <div className="absolute top-0 w-2/3 h-1/4 border-2 border-slate-900 bg-white -mt-1" />
                       </div>
                     )}
 
                     {isStair && (
-                      <div className="absolute inset-0 flex flex-col border border-slate-400">
+                      <div className="absolute inset-0 flex flex-col border border-slate-400 bg-white">
                         {Array.from({length: Math.floor(obj.h * 1.5)}).map((_, i) => (
-                          <div key={i} className="flex-1 border-b border-slate-300 bg-slate-50/30" />
+                          <div key={i} className="flex-1 border-b border-slate-300 flex items-center justify-center text-[8px] opacity-20">{i+1}</div>
                         ))}
                       </div>
                     )}
 
                     {isTable && (
-                       <div className="absolute inset-0 grid border border-slate-400" style={{ 
+                       <div className="absolute inset-0 grid border border-slate-400 bg-white" style={{ 
                          gridTemplateColumns: `repeat(${obj.cols || 3}, 1fr)`,
                          gridTemplateRows: `repeat(${obj.rows || 3}, 1fr)` 
                        }}>
                           {Array.from({ length: (obj.rows || 3) * (obj.cols || 3) }).map((_, i) => (
-                             <div key={i} className="border border-slate-200" />
+                             <div key={i} className="border border-slate-100" />
                           ))}
                        </div>
                     )}
 
-                    {isText && <div className="w-full break-words px-2 outline-none">{obj.textContent}</div>}
+                    {isText && <div className="w-full break-words px-2 outline-none whitespace-pre-wrap">{obj.textContent}</div>}
                     
                     {isSelected && (
                       <>
@@ -760,42 +777,42 @@ export default function EstimatorClient() {
 
         {/* Right Properties Panel */}
         <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
-           <div className="p-3 border-b bg-slate-50 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Properties</span>
-              <Settings2 className="w-4 h-4 text-slate-400" />
+           <div className="p-2 border-b bg-slate-50 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Properties</span>
+              <Settings2 className="w-3 h-3 text-slate-400" />
            </div>
            
            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-4">
+              <div className="p-2 space-y-3">
                  {selectedObject ? (
-                    <div className="space-y-5">
+                    <div className="space-y-3">
                        {selectedObject.type === 'text' && (
-                          <div className="space-y-1.5">
-                             <Label className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Text Content</Label>
+                          <div className="space-y-1">
+                             <Label className="text-[8px] font-bold text-slate-500 uppercase">Text Content</Label>
                              <Input 
-                               className="h-8 text-[11px] font-medium bg-slate-50 border-slate-200" 
+                               className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                value={selectedObject.textContent || ''} 
                                onChange={(e) => updateObject(selectedObject.id, { textContent: e.target.value }, true)}
                              />
                           </div>
                        )}
 
-                       <div className="space-y-1.5">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Location</span>
-                          <div className="grid grid-cols-2 gap-2">
+                       <div className="space-y-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Position</span>
+                          <div className="grid grid-cols-2 gap-1.5">
                              <div className="space-y-1">
-                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Left</Label>
+                                <Label className="text-[8px] text-slate-400">Left</Label>
                                 <Input 
-                                   className="h-8 text-[10px] bg-slate-50 border-slate-200" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.x)} 
                                    onChange={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                              <div className="space-y-1">
-                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Top</Label>
+                                <Label className="text-[8px] text-slate-400">Top</Label>
                                 <Input 
-                                   className="h-8 text-[10px] bg-slate-50 border-slate-200" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.y)} 
                                    onChange={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -804,22 +821,22 @@ export default function EstimatorClient() {
                           </div>
                        </div>
 
-                       <div className="space-y-1.5 pt-3 border-t">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Size</span>
-                          <div className="grid grid-cols-2 gap-2">
+                       <div className="space-y-1 pt-2 border-t">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">Size</span>
+                          <div className="grid grid-cols-2 gap-1.5">
                              <div className="space-y-1">
-                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Width</Label>
+                                <Label className="text-[8px] text-slate-400">Width</Label>
                                 <Input 
-                                   className="h-8 text-[10px] bg-slate-50 border-slate-200" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.w)} 
                                    onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                              <div className="space-y-1">
-                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Height</Label>
+                                <Label className="text-[8px] text-slate-400">Height</Label>
                                 <Input 
-                                   className="h-8 text-[10px] bg-slate-50 border-slate-200" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.h)} 
                                    onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -828,31 +845,31 @@ export default function EstimatorClient() {
                           </div>
                        </div>
 
-                       <div className="space-y-1.5 pt-3 border-t">
-                          <Label className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Angle</Label>
-                          <div className="flex items-center gap-3">
+                       <div className="space-y-1 pt-2 border-t">
+                          <Label className="text-[8px] font-bold text-slate-500 uppercase">Rotation</Label>
+                          <div className="flex items-center gap-2">
                              <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
-                             <span className="text-[10px] font-mono font-bold w-10 text-right text-slate-600">{selectedObject.rotation}°</span>
+                             <span className="text-[9px] font-mono font-bold w-8 text-right text-slate-600">{selectedObject.rotation}°</span>
                           </div>
                        </div>
 
                        {selectedObject.type === 'table' && (
-                         <div className="grid grid-cols-2 gap-2 pt-3 border-t">
+                         <div className="grid grid-cols-2 gap-1.5 pt-2 border-t">
                             <div className="space-y-1">
-                               <Label className="text-[8px] text-slate-400 font-bold uppercase">Rows</Label>
-                               <Input type="number" className="h-8 text-[10px]" value={selectedObject.rows || 3} onChange={(e) => updateObject(selectedObject.id, { rows: parseInt(e.target.value) }, true)} />
+                               <Label className="text-[8px] text-slate-400">Rows</Label>
+                               <Input type="number" className="h-7 text-[10px]" value={selectedObject.rows || 3} onChange={(e) => updateObject(selectedObject.id, { rows: parseInt(e.target.value) }, true)} />
                             </div>
                             <div className="space-y-1">
-                               <Label className="text-[8px] text-slate-400 font-bold uppercase">Cols</Label>
-                               <Input type="number" className="h-8 text-[10px]" value={selectedObject.cols || 3} onChange={(e) => updateObject(selectedObject.id, { cols: parseInt(e.target.value) }, true)} />
+                               <Label className="text-[8px] text-slate-400">Cols</Label>
+                               <Input type="number" className="h-7 text-[10px]" value={selectedObject.cols || 3} onChange={(e) => updateObject(selectedObject.id, { cols: parseInt(e.target.value) }, true)} />
                             </div>
                          </div>
                        )}
                     </div>
                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-32 opacity-30 px-6">
-                       <MousePointer2 className="w-10 h-10 text-slate-300" />
-                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Select an element to adjust properties.</p>
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-2 py-20 opacity-30 px-4">
+                       <MousePointer2 className="w-6 h-6 text-slate-300" />
+                       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Select an element to adjust properties.</p>
                     </div>
                  )}
               </div>
@@ -917,3 +934,4 @@ function ToolIconButton({ icon, onClick }: { icon: React.ReactNode, onClick?: ()
     </Button>
   );
 }
+
