@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { 
   Building, Plus, LayoutGrid, 
   RectangleHorizontal, RefreshCw, Trash2, 
@@ -12,7 +12,7 @@ import {
   Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
-  Bold, MousePointer2, Square, DoorOpen, Wind, Bed, Sofa, Bath, Utensils
+  Bold, MousePointer2, Square, DoorOpen, Wind
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -181,7 +181,7 @@ export default function EstimatorClient() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
-      const step = 0.08 / 12; // 0.08 inch movement per user request
+      const step = 0.08; // Moved to 0.08 inch per press as requested
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         e.preventDefault(); copySelected();
@@ -210,7 +210,7 @@ export default function EstimatorClient() {
   }, [selectedObjectId, selectedObject, copySelected, pasteObject, deleteObject, undo, redo, updateObject]);
 
   const getPoints = (obj: DesignObject) => {
-    const rad = obj.rotation * (Math.PI / 180);
+    const rad = (obj.rotation || 0) * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
     if (obj.subType === 'wall') {
@@ -227,29 +227,52 @@ export default function EstimatorClient() {
     ];
   };
 
+  const getClosestPointOnSegment = (p: {x: number, y: number}, a: {x: number, y: number}, b: {x: number, y: number}) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    if (dx === 0 && dy === 0) return a;
+    const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy);
+    if (t < 0) return a;
+    if (t > 1) return b;
+    return { x: a.x + t * dx, y: a.y + t * dy };
+  };
+
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
     const threshold = 0.4;
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
     
+    // Grid snap
     const gx = Math.round(x * 12) / 12;
     const gy = Math.round(y * 12) / 12;
     const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
-    if (gd < 0.1) {
+    if (gd < 0.15) {
       bestSnap = { x: gx, y: gy };
       minDist = gd;
     }
 
+    // Segment and End-point snap
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
-      const points = getPoints(obj);
-      points.forEach(p => {
-        const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
+      const pts = getPoints(obj);
+      if (obj.subType === 'wall' && pts.length === 2) {
+        // Snap to entire segment
+        const cp = getClosestPointOnSegment({x, y}, pts[0], pts[1]);
+        const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
         if (d < minDist) {
           minDist = d;
-          bestSnap = p;
+          bestSnap = cp;
         }
-      });
+      } else {
+        // Snap to points for other shapes
+        pts.forEach(p => {
+          const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
+          if (d < minDist) {
+            minDist = d;
+            bestSnap = p;
+          }
+        });
+      }
     });
     return bestSnap;
   };
@@ -285,7 +308,7 @@ export default function EstimatorClient() {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, 
       x: 5, y: 5, 
-      w: subType === 'door' ? 3 : subType === 'window' ? 4 : 8, 
+      w: subType === 'door' ? 3 : subType === 'window' ? 4 : 6, 
       h: subType === 'door' ? 3 : subType === 'window' ? 0.6 : 6,
       label, color: '#000000', 
       fillColor: type === 'structure' ? '#000000' : '#ffffff',
@@ -521,31 +544,15 @@ export default function EstimatorClient() {
                   <DropdownMenuContent className="w-56">
                     <DropdownMenuItem onClick={() => { setCurrentWallThickness(4/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Interior Wall 4"</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setCurrentWallThickness(6/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Exterior Wall 6"</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(8/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Brick Wall 8"</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(12/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Foundation Wall 12"</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Accordion type="multiple" defaultValue={["setup", "openings"]} className="w-full">
-                  <AccordionItem value="setup" className="border-slate-200">
-                    <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Document Setup</AccordionTrigger>
-                    <AccordionContent className="space-y-1">
-                       <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><Ruler className="w-3.5 h-3.5" /> Units & Scale</Button>
-                       <Button variant="ghost" className="w-full justify-start text-[11px] h-8 gap-2 font-medium"><Maximize2 className="w-3.5 h-3.5" /> Scale Image</Button>
-                    </AccordionContent>
-                  </AccordionItem>
+                <Accordion type="multiple" defaultValue={["openings"]} className="w-full">
                   <AccordionItem value="openings" className="border-slate-200">
                     <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Doors & Windows</AccordionTrigger>
                     <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
                       <SymbolButton icon={<DoorOpen />} label="Single Door" onClick={() => addObject('opening', 'door', 'Door')} />
                       <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="furniture" className="border-slate-200">
-                    <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Furniture</AccordionTrigger>
-                    <AccordionContent className="grid grid-cols-2 gap-2 pt-1">
-                      <BedIcon onClick={() => addObject('furniture', 'bed', 'Bed')} />
-                      <SofaIcon onClick={() => addObject('furniture', 'sofa', 'Sofa')} />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -575,7 +582,7 @@ export default function EstimatorClient() {
                     fontSize: obj.type === 'text' ? (obj.fontSize || 14) * (zoom/40) : 'inherit', 
                     fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' 
                   }}>
-                  {obj.subType === 'wall' && <div className="absolute inset-0 bg-slate-900 border-y border-slate-700" style={{ backgroundColor: obj.color }} />}
+                  {obj.subType === 'wall' && <div className="absolute inset-0 border-y" style={{ backgroundColor: obj.color, borderColor: obj.color, height: '100%' }} />}
                   {obj.subType === 'door' && (
                     <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
                       <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
@@ -583,15 +590,15 @@ export default function EstimatorClient() {
                     </svg>
                   )}
                   {obj.subType === 'window' && (
-                    <div className="absolute inset-0 border-x-2 border-slate-900 flex flex-col justify-between py-1 bg-white">
-                      <div className="w-full h-[1px] bg-slate-900" />
-                      <div className="w-full h-[2px] bg-slate-400" />
-                      <div className="w-full h-[1px] bg-slate-900" />
+                    <div className="absolute inset-0 border-x-2 flex flex-col justify-between py-1 bg-white" style={{ borderColor: obj.color }}>
+                      <div className="w-full h-[1px]" style={{ backgroundColor: obj.color }} />
+                      <div className="w-full h-[2px] opacity-40" style={{ backgroundColor: obj.color }} />
+                      <div className="w-full h-[1px]" style={{ backgroundColor: obj.color }} />
                     </div>
                   )}
                   {obj.type === 'text' && <div className="px-2">{obj.textContent}</div>}
                   {obj.type === 'table' && (
-                    <div className="grid w-full h-full border border-slate-300" style={{ gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
+                    <div className="grid w-full h-full border" style={{ borderColor: obj.color, gridTemplateColumns: `repeat(${obj.cols}, 1fr)`, gridTemplateRows: `repeat(${obj.rows}, 1fr)` }}>
                       {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
                         <div key={i} className="border border-slate-200 bg-white/50" />
                       ))}
@@ -690,24 +697,6 @@ function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: 
   );
 }
 
-function BedIcon({ onClick }: { onClick: () => void }) {
-  return (
-    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white hover:bg-slate-50 shadow-sm group">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-blue-600"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
-      <span className="text-[9px] font-bold uppercase">Bed</span>
-    </Button>
-  );
-}
-
-function SofaIcon({ onClick }: { onClick: () => void }) {
-  return (
-    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white hover:bg-slate-50 shadow-sm group">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-blue-600"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><rect x="2" y="9" width="20" height="8" rx="2"/><path d="M4 17v2"/><path d="M20 17v2"/></svg>
-      <span className="text-[9px] font-bold uppercase">Sofa</span>
-    </Button>
-  );
-}
-
 function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
   return (
     <Button variant={variant} disabled={disabled} onClick={onClick} className="h-20 flex flex-col gap-1.5 px-4 hover:bg-slate-50 min-w-[80px] group transition-colors rounded-none">
@@ -716,4 +705,3 @@ function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { i
     </Button>
   );
 }
-
