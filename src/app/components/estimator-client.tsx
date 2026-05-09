@@ -80,11 +80,9 @@ export default function EstimatorClient() {
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
 
-  // History for Undo/Redo
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Local state for properties inputs to prevent cursor jump
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -147,28 +145,33 @@ export default function EstimatorClient() {
     const rad = obj.rotation * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    // Wall points for snapping
+    if (obj.subType === 'wall') {
+      return [
+        { x: obj.x, y: obj.y },
+        { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
+      ];
+    }
     return [
       { x: obj.x, y: obj.y },
-      { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
+      { x: obj.x + obj.w, y: obj.y },
+      { x: obj.x, y: obj.y + obj.h },
+      { x: obj.x + obj.w, y: obj.y + obj.h }
     ];
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.3;
+    const threshold = 0.4;
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
     
-    // Snap to grid (1 inch precision)
     const gx = Math.round(x * 12) / 12;
     const gy = Math.round(y * 12) / 12;
     const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
-    if (gd < 0.2) {
+    if (gd < 0.15) {
       bestSnap = { x: gx, y: gy };
       minDist = gd;
     }
 
-    // Snap to other objects
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       const points = getPoints(obj);
@@ -350,7 +353,7 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
-      {/* Top Header Bar */}
+      {/* Header Bar */}
       <div className="h-10 bg-slate-200 border-b flex items-center px-4 justify-between shrink-0">
         <div className="flex items-center gap-6 h-full">
           <div className="flex items-center gap-2 pr-4 border-r border-slate-300">
@@ -428,20 +431,17 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Library Panel */}
+        {/* Left Library */}
         <div className="w-[320px] bg-slate-50 border-r z-20 shrink-0 flex shadow-lg">
-          {/* Side Rail */}
           <div className="w-12 bg-slate-800 flex flex-col items-center py-4 gap-6 shrink-0">
              <Briefcase className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
              <Database className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
              <Sparkles className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
           </div>
-          
           <div className="flex-1 flex flex-col bg-white overflow-hidden">
             <div className="p-3 border-b flex items-center justify-between bg-slate-50"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Library</span><Search className="w-3.5 h-3.5 text-slate-400" /></div>
             <ScrollArea className="flex-1">
               <div className="p-3 space-y-4">
-                {/* Tool Icons */}
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
                   <DropdownMenu>
@@ -500,7 +500,7 @@ export default function EstimatorClient() {
           </div>
         </div>
 
-        {/* Main Canvas Workspace */}
+        {/* Workspace */}
         <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
           <div id="canvas-workspace" className="flex-1 relative bg-white overflow-auto cursor-crosshair m-4 shadow-2xl rounded-sm border"
             onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
@@ -563,7 +563,7 @@ export default function EstimatorClient() {
                 />
               )}
               
-              {/* Snap Point Indicator */}
+              {/* Snap Indicator */}
               {snapPoint && (
                 <div className="absolute w-3 h-3 bg-blue-500 rounded-full border-2 border-white z-50 pointer-events-none shadow-lg"
                   style={{ left: snapPoint.x * zoom - 6, top: snapPoint.y * zoom - 6 }} />
@@ -571,17 +571,15 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          {/* Zoom Controls Bar */}
           <div className="h-10 bg-white border-t flex items-center px-4 justify-between shrink-0 shadow-inner">
              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
                 <span className="text-[10px] font-bold text-slate-500">{zoom}% Zoom</span>
              </div>
-             <div className="text-[10px] font-medium text-slate-400">Ready</div>
           </div>
         </div>
 
-        {/* Right Properties Panel */}
+        {/* Right Panel */}
         <div className="w-[260px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-2 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Properties</span><Settings2 className="w-3.5 h-3.5 text-slate-400" /></div>
            <ScrollArea className="flex-1">
@@ -614,7 +612,7 @@ export default function EstimatorClient() {
                  ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 opacity-30 px-6">
                        <MousePointer2 className="w-8 h-8 text-slate-300" />
-                       <p className="text-[9px] uppercase tracking-widest font-bold leading-relaxed">Select an element to view properties</p>
+                       <p className="text-[9px] uppercase tracking-widest font-bold leading-relaxed">Select element to edit</p>
                     </div>
                  )}
               </div>
@@ -652,3 +650,5 @@ function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { i
     </Button>
   );
 }
+
+    
