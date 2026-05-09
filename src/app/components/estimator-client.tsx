@@ -411,7 +411,13 @@ export default function EstimatorClient() {
                   <Button variant={selectedObject?.isBold ? "secondary" : "ghost"} size="icon" className="h-7 w-7 border" onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject?.isBold }, true)}><Bold className="w-3.5 h-3.5" /></Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" className="h-7 w-7 border p-0"><PaintBucket className="w-3.5 h-3.5" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent className="p-2 w-48"><div className="grid grid-cols-5 gap-1">{COLORS.map(c => (<div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}</div></DropdownMenuContent>
+                    <DropdownMenuContent className="p-2 w-48"><div className="grid grid-cols-5 gap-1">{COLORS.map(c => (<div key={c} onClick={() => {
+                        if(selectedObjectId) {
+                          const updates: any = { fillColor: c };
+                          if (selectedObject?.subType === 'wall' || selectedObject?.type === 'text') updates.color = c;
+                          updateObject(selectedObjectId, updates, true);
+                        }
+                    }} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />))}</div></DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
@@ -515,7 +521,7 @@ export default function EstimatorClient() {
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 50%', transform: `translateY(-50%) rotate(${obj.rotation}deg)`,
-                    backgroundColor: obj.subType === 'wall' ? obj.color : obj.fillColor, 
+                    backgroundColor: (obj.subType === 'wall' || obj.type === 'text') ? obj.color : obj.fillColor, 
                     borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                     color: obj.color, 
                     fontSize: obj.type === 'text' ? (obj.fontSize || 14) * (zoom/40) : 'inherit', 
@@ -650,5 +656,3 @@ function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { i
     </Button>
   );
 }
-
-    
