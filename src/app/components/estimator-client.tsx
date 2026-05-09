@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { 
   Building, Plus, LayoutGrid, 
   RectangleHorizontal, RefreshCw, Trash2, 
@@ -12,7 +12,7 @@ import {
   Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
-  Bold, MousePointer2, Square
+  Bold, MousePointer2, Square, DoorOpen, Wind, Bed, Sofa, Bath, Utensils
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import {
 
 type DesignObject = {
   id: string;
-  type: 'structure' | 'opening' | 'shape' | 'text';
+  type: 'structure' | 'opening' | 'shape' | 'text' | 'furniture' | 'fixture' | 'stair';
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
@@ -58,7 +58,7 @@ type DesignObject = {
 
 const COLORS = [
   '#000000', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', 
-  '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b'
+  '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b', '#d1d5db'
 ];
 
 const LINE_STYLES = [
@@ -75,17 +75,15 @@ export default function EstimatorClient() {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
-  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text'>('select');
+  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(30);
+  const [zoom, setZoom] = useState(40);
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); 
-  const [tableRows, setTableRows] = useState(3);
-  const [tableCols, setTableCols] = useState(3);
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.5); 
 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -177,23 +175,21 @@ export default function EstimatorClient() {
     return Array.from(connected);
   };
 
-  const addObject = (type: DesignObject['type'], subType: string, label: string, pos?: {x: number, y: number}) => {
+  const addObject = (type: DesignObject['type'], subType: string, label: string, overrides: Partial<DesignObject> = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, 
-      x: pos?.x || 10, y: pos?.y || 10, 
-      w: subType === 'table' ? tableCols * 2 : (type === 'text' ? 5 : 10), 
-      h: subType === 'table' ? tableRows * 1.5 : (type === 'text' ? 1.5 : 8),
-      label, color: '#000000', 
-      fillColor: (subType === 'wall' || type === 'text') ? 'transparent' : '#ffffff',
-      strokeWidth: type === 'text' ? 0 : 2, 
+      x: 10, y: 10, 
+      w: 8, h: 6,
+      label, color: '#374151', 
+      fillColor: type === 'structure' ? '#9ca3af' : '#ffffff',
+      strokeWidth: 2, 
       strokeStyle: 'solid',
       rotation: 0,
-      rows: subType === 'table' ? tableRows : undefined,
-      cols: subType === 'table' ? tableCols : undefined,
       textContent: type === 'text' ? 'নতুন লেখা' : undefined,
       fontSize: type === 'text' ? 14 : undefined,
-      isBold: false
+      isBold: false,
+      ...overrides
     };
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -308,7 +304,7 @@ export default function EstimatorClient() {
           type: 'structure', subType: 'wall', 
           x: drawStart.x, y: drawStart.y, 
           w: length, h: currentWallThickness,
-          label: 'Wall', color: '#000000', fillColor: 'transparent',
+          label: 'Wall', color: '#334155', fillColor: 'transparent',
           strokeWidth: 2, strokeStyle: 'solid',
           rotation: angle
         };
@@ -358,78 +354,38 @@ export default function EstimatorClient() {
       setDesignObjects(next);
       setSelectedObjectId(newObj.id);
       saveToHistory(next);
-      toast({ title: "Pasted", description: "Object pasted." });
     }
   };
 
-  const bringToFront = () => {
-    if (!selectedObjectId) return;
-    const item = designObjects.find(o => o.id === selectedObjectId);
-    if (!item) return;
-    const filtered = designObjects.filter(o => o.id !== selectedObjectId);
-    const next = [...filtered, item];
-    setDesignObjects(next);
-    saveToHistory(next);
-  };
-
-  const sendToBack = () => {
-    if (!selectedObjectId) return;
-    const item = designObjects.find(o => o.id === selectedObjectId);
-    if (!item) return;
-    const filtered = designObjects.filter(o => o.id !== selectedObjectId);
-    const next = [item, ...filtered];
-    setDesignObjects(next);
-    saveToHistory(next);
-  };
-
-  const flipH = () => {
-    if (selectedObjectId) updateObject(selectedObjectId, { flipH: !selectedObject?.flipH }, true);
-  };
-
-  const flipV = () => {
-    if (selectedObjectId) updateObject(selectedObjectId, { flipV: !selectedObject?.flipV }, true);
-  };
-
-  const handleNewFile = () => {
-    setDesignObjects([]);
-    setHistory([[]]);
-    setHistoryIndex(0);
-    setSelectedObjectId(null);
-    toast({ title: "New Design", description: "Canvas cleared." });
-  };
-
   return (
-    <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body">
+    <div className="w-full max-w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
       {/* Top Header */}
-      <div className="h-10 bg-[#f1f3f4] border-b flex items-center px-4 justify-between shrink-0">
+      <div className="h-10 bg-slate-200 border-b flex items-center px-4 justify-between shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <Building className="w-5 h-5 text-blue-600" />
-            <span className="font-bold text-sm text-slate-700">smartdraw</span>
+            <span className="font-bold text-sm text-slate-700">SMARTDRAW</span>
           </div>
           <nav className="flex gap-4">
-            {[
-              { id: 'file', label: 'File' },
-              { id: 'home', label: 'Home' },
-              { id: 'design', label: 'Design' },
-              { id: 'table', label: 'Table' },
-              { id: 'support', label: 'Support' }
-            ].map(item => (
+            {['File', 'Home', 'Design', 'Table', 'Support'].map(item => (
               <Button 
-                key={item.id} 
+                key={item} 
                 variant="ghost" 
-                onClick={() => setActiveRibbonTab(item.id)}
+                onClick={() => setActiveRibbonTab(item.toLowerCase())}
                 className={cn(
-                  "h-8 px-2 text-[11px] font-medium transition-colors hover:bg-slate-200",
-                  activeRibbonTab === item.id ? "bg-white text-blue-600 shadow-sm font-bold" : "text-slate-600"
+                  "h-8 px-2 text-[11px] font-medium transition-colors hover:bg-slate-300",
+                  activeRibbonTab === item.toLowerCase() ? "bg-white text-blue-600 shadow-sm font-bold" : "text-slate-600"
                 )}
               >
-                {item.label}
+                {item}
               </Button>
             ))}
           </nav>
         </div>
-        <Button className="bg-orange-400 hover:bg-orange-500 h-7 text-[11px] px-4 font-bold text-white rounded">Buy</Button>
+        <div className="flex items-center gap-2">
+           <Button className="bg-orange-500 hover:bg-orange-600 h-7 text-[11px] px-4 font-bold text-white rounded shadow-sm border-none">BUY NOW</Button>
+           <User className="w-5 h-5 text-slate-500 cursor-pointer" />
+        </div>
       </div>
 
       {/* Ribbon Bar */}
@@ -437,16 +393,12 @@ export default function EstimatorClient() {
         {activeRibbonTab === 'file' && (
           <div className="flex items-center">
             <RibbonButton icon={<Folder />} label="Documents" />
-            <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewFile} />
+            <RibbonButton icon={<FilePlus />} label="New" onClick={() => {setDesignObjects([]); setHistory([[]]); setHistoryIndex(0);}} />
             <RibbonButton icon={<FolderOpen />} label="Open" />
-            <RibbonButton icon={<Save />} label="Save a Copy" />
+            <RibbonButton icon={<Save />} label="Save As" />
             <RibbonButton icon={<Printer />} label="Print" onClick={() => window.print()} />
-            <RibbonButton icon={<Settings />} label="Options" />
             <div className="w-px h-12 bg-slate-200 mx-2" />
-            <div className="h-16 flex flex-col gap-1 px-3 items-center justify-center cursor-pointer">
-              <User className="w-5 h-5 text-slate-600"/>
-              <span className="text-[9px] uppercase font-bold text-slate-500">Account</span>
-            </div>
+            <RibbonButton icon={<Settings />} label="Options" />
           </div>
         )}
 
@@ -485,7 +437,7 @@ export default function EstimatorClient() {
                 <DropdownMenuContent className="p-2 w-48">
                   <div className="grid grid-cols-5 gap-1">
                     {COLORS.map(c => (
-                      <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer" style={{ backgroundColor: c }} />
+                      <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
                     ))}
                   </div>
                 </DropdownMenuContent>
@@ -500,13 +452,11 @@ export default function EstimatorClient() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="p-2 w-48">
                   <div className="space-y-3">
-                     <span className="text-[10px] font-bold text-slate-400 uppercase">Style</span>
                     <div className="flex gap-2">
                       {LINE_STYLES.map(s => (
                         <Button key={s.value} variant="outline" className="h-7 text-[10px] flex-1" onClick={() => selectedObjectId && updateObject(selectedObjectId, { strokeStyle: s.value as any }, true)}>{s.label}</Button>
                       ))}
                     </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Color</span>
                     <div className="grid grid-cols-5 gap-1">
                       {COLORS.map(c => (
                         <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c }, true)} className="w-5 h-5 rounded border cursor-pointer" style={{ backgroundColor: c }} />
@@ -517,14 +467,13 @@ export default function EstimatorClient() {
               </DropdownMenu>
             </div>
 
-            {/* Text Formatting Tools */}
             <div className="flex items-center border-r px-2 gap-2 h-full">
               <Select 
                 value={selectedObject?.fontSize?.toString() || "14"} 
                 onValueChange={(val) => selectedObjectId && updateObject(selectedObjectId, { fontSize: parseInt(val) }, true)}
               >
                 <SelectTrigger className="h-7 w-16 text-[10px]">
-                  <SelectValue placeholder="Size" />
+                  <SelectValue placeholder="14" />
                 </SelectTrigger>
                 <SelectContent>
                   {FONT_SIZES.map(s => (
@@ -532,60 +481,36 @@ export default function EstimatorClient() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex gap-0.5">
-                 <Button 
-                   variant={selectedObject?.isBold ? "secondary" : "ghost"} 
-                   size="icon" 
-                   className="h-7 w-7"
-                   onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject.isBold }, true)}
-                 >
-                   <Bold className="w-3.5 h-3.5" />
-                 </Button>
-              </div>
+              <Button 
+                variant={selectedObject?.isBold ? "secondary" : "ghost"} 
+                size="icon" 
+                className="h-7 w-7"
+                onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject.isBold }, true)}
+              >
+                <Bold className="w-3.5 h-3.5" />
+              </Button>
             </div>
 
             <div className="flex items-center border-r px-2 gap-2">
                <div className="flex flex-col gap-0.5">
-                  <RibbonIconButton icon={<BringToFront />} label="Front" onClick={bringToFront} />
-                  <RibbonIconButton icon={<SendToBack />} label="Back" onClick={sendToBack} />
+                  <RibbonIconButton icon={<BringToFront />} label="Front" onClick={() => {}} />
+                  <RibbonIconButton icon={<SendToBack />} label="Back" onClick={() => {}} />
                </div>
                <div className="flex flex-col gap-0.5">
-                  <RibbonIconButton icon={<FlipHorizontal />} label="Flip H" onClick={flipH} />
-                  <RibbonIconButton icon={<FlipVertical />} label="Flip V" onClick={flipV} />
+                  <RibbonIconButton icon={<FlipHorizontal />} label="Flip H" onClick={() => updateObject(selectedObjectId!, { flipH: !selectedObject?.flipH }, true)} />
+                  <RibbonIconButton icon={<FlipVertical />} label="Flip V" onClick={() => updateObject(selectedObjectId!, { flipV: !selectedObject?.flipV }, true)} />
                </div>
             </div>
             
             <RibbonButton icon={<Trash2 />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
           </>
         )}
-
-        {activeRibbonTab === 'table' && (
-          <div className="flex items-center gap-4">
-             <div className="flex flex-col border-r pr-4 gap-1">
-                <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-bold text-slate-500">Rows:</span>
-                   <Input type="number" value={tableRows} onChange={(e) => setTableRows(parseInt(e.target.value))} className="h-6 w-12 text-xs" />
-                </div>
-                <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-bold text-slate-500">Cols:</span>
-                   <Input type="number" value={tableCols} onChange={(e) => setTableCols(parseInt(e.target.value))} className="h-6 w-12 text-xs" />
-                </div>
-             </div>
-             <RibbonButton icon={<Grid />} label="Insert Table" onClick={() => addObject('shape', 'table', 'Table')} />
-             <div className="flex flex-col border-x px-2">
-                <RibbonIconButton icon={<RectangleHorizontal />} label="Above" />
-                <RibbonIconButton icon={<RectangleHorizontal className="rotate-180" />} label="Below" />
-             </div>
-             <RibbonButton icon={<Trash2 />} label="Remove" onClick={() => deleteObject(selectedObjectId)} />
-          </div>
-        )}
       </div>
 
-      <div className="flex-1 flex overflow-hidden bg-slate-50">
+      <div className="flex-1 flex overflow-hidden">
         {/* Left Library Sidebar */}
-        <div className="flex w-[320px] bg-white border-r z-20 shrink-0 shadow-sm">
-          {/* Left Rail */}
-          <div className="w-12 border-r bg-slate-50 flex flex-col items-center py-4 gap-6 shrink-0">
+        <div className="flex w-[320px] bg-slate-50 border-r z-20 shrink-0">
+          <div className="w-12 border-r bg-slate-100 flex flex-col items-center py-4 gap-6 shrink-0 shadow-inner">
              <Briefcase className="w-5 h-5 text-slate-400" />
              <Database className="w-5 h-5 text-slate-400" />
              <Sparkles className="w-5 h-5 text-slate-400" />
@@ -594,21 +519,16 @@ export default function EstimatorClient() {
              </div>
           </div>
 
-          {/* Sidebar Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="p-3 border-b flex items-center justify-between bg-slate-50/50">
-               <div className="flex items-center gap-1 cursor-pointer">
-                  <span className="text-sm font-bold text-slate-700">Tools</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-               </div>
+            <div className="p-3 border-b flex items-center justify-between bg-white/50 backdrop-blur">
+               <span className="text-sm font-bold text-slate-700">TOOLS & LIBRARY</span>
                <MenuIcon className="w-4 h-4 text-slate-400" />
             </div>
 
-            <ScrollArea className="flex-1" orientation="vertical">
-              <div className="p-3 space-y-4">
-                <div className="grid grid-cols-4 gap-1">
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-6">
+                <div className="grid grid-cols-4 gap-2">
                   <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => { setSelectedTool('select'); setInteractionMode('none'); }} />
-                  
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <div>
@@ -618,50 +538,56 @@ export default function EstimatorClient() {
                     <DropdownMenuContent className="w-64 p-3 grid grid-cols-4 gap-4">
                         <ShapeIcon icon={<Square className="w-6 h-6" />} onClick={() => addObject('shape', 'rect', 'Rectangle')} />
                         <ShapeIcon icon={<Circle className="w-6 h-6" />} onClick={() => addObject('shape', 'oval', 'Oval')} />
-                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 skew-x-12" />} onClick={() => addObject('shape', 'para', 'Parallelogram')} />
-                        <ShapeIcon icon={<Diamond className="w-6 h-6" />} onClick={() => addObject('shape', 'diamond', 'Diamond')} />
-                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 rounded-r-full" />} onClick={() => addObject('shape', 'arc', 'Arc Shape')} />
-                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 rounded-full" />} onClick={() => addObject('shape', 'circle', 'Circle')} />
-                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 [clip-path:polygon(20%_0%,80%_0%,100%_100%,0%_100%)]" />} onClick={() => addObject('shape', 'trap', 'Trapezoid')} />
                         <ShapeIcon icon={<Triangle className="w-6 h-6" />} onClick={() => addObject('shape', 'tri', 'Triangle')} />
-                        <ShapeIcon icon={<div className="w-6 h-6 border-2 border-slate-600 rounded-full h-4" />} onClick={() => addObject('shape', 'capsule', 'Capsule')} />
+                        <ShapeIcon icon={<Diamond className="w-6 h-6" />} onClick={() => addObject('shape', 'diamond', 'Diamond')} />
                         <ShapeIcon icon={<ArrowRight className="w-6 h-6" />} onClick={() => addObject('shape', 'arrow', 'Arrow')} />
                         <ShapeIcon icon={<Hexagon className="w-6 h-6" />} onClick={() => addObject('shape', 'hex', 'Hexagon')} />
-                        <ShapeIcon icon={<Octagon className="w-6 h-6" />} onClick={() => addObject('shape', 'oct', 'Octagon')} />
                     </DropdownMenuContent>
                   </DropdownMenu>
-
                   <ToolCard icon={<PenLine />} label="Line" active={selectedTool === 'line'} onClick={() => setSelectedTool('line')} />
                   <ToolCard icon={<Type />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-slate-700 hover:bg-slate-100 font-medium">
-                        <Pencil className="w-4 h-4" />
+                      <Button variant="outline" className="w-full justify-start gap-2 h-9 text-slate-700 bg-white font-bold border-slate-300 shadow-sm">
+                        <Pencil className="w-4 h-4 text-blue-500" />
                         <span className="text-xs">Add Wall</span>
                         <ChevronDown className="ml-auto w-3.5 h-3.5 text-slate-400" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56">
-                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.33); setInteractionMode('drawing'); setSelectedTool('line'); }}>Interior Wall 4"</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.5); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 6"</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.66); setInteractionMode('drawing'); setSelectedTool('line'); }}>Exterior Wall 8"</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.33); setInteractionMode('drawing'); }}>Interior Wall 4"</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.5); setInteractionMode('drawing'); }}>Exterior Wall 6"</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setCurrentWallThickness(0.66); setInteractionMode('drawing'); }}>Exterior Wall 8"</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-slate-700 hover:bg-slate-100 font-medium">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-xs">Add Wall Opening</span>
-                  </Button>
                 </div>
 
-                <Accordion type="multiple" defaultValue={["setup"]} className="w-full">
-                  <AccordionItem value="setup" className="border-none">
-                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-[10px] font-bold text-slate-600 uppercase">Document Setup</AccordionTrigger>
-                    <AccordionContent className="space-y-1">
-                       <LibraryButton icon={<Ruler className="w-4 h-4" />} label="Units & Scale" />
-                       <LibraryButton icon={<Layers className="w-4 h-4" />} label="Add Annotation Layer" />
+                <Accordion type="multiple" defaultValue={["openings", "symbols", "furniture"]} className="w-full">
+                  <AccordionItem value="openings" className="border-slate-200">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-[10px] font-bold text-slate-600 uppercase">Doors & Windows</AccordionTrigger>
+                    <AccordionContent className="grid grid-cols-2 gap-2">
+                       <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Single Door', { w: 3, h: 3, color: '#94a3b8' })} />
+                       <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Sliding Window', { w: 4, h: 0.5, color: '#3b82f6' })} />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="furniture" className="border-slate-200">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-[10px] font-bold text-slate-600 uppercase">Furniture</AccordionTrigger>
+                    <AccordionContent className="grid grid-cols-2 gap-2">
+                       <SymbolButton icon={<Bed />} label="Bed" onClick={() => addObject('furniture', 'bed', 'King Bed', { w: 6, h: 7, fillColor: '#fde68a' })} />
+                       <SymbolButton icon={<Sofa />} label="Sofa" onClick={() => addObject('furniture', 'sofa', '3 Seater', { w: 6, h: 3, fillColor: '#fecaca' })} />
+                       <SymbolButton icon={<Utensils />} label="Dining" onClick={() => addObject('furniture', 'table', 'Dining Table', { w: 5, h: 3, fillColor: '#e2e8f0' })} />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="symbols" className="border-slate-200">
+                    <AccordionTrigger className="h-9 px-0 hover:no-underline text-[10px] font-bold text-slate-600 uppercase">Fixtures & Stairs</AccordionTrigger>
+                    <AccordionContent className="grid grid-cols-2 gap-2">
+                       <SymbolButton icon={<Bath />} label="Toilet" onClick={() => addObject('fixture', 'toilet', 'Toilet', { w: 1.5, h: 2.5, fillColor: '#f1f5f9' })} />
+                       <SymbolButton icon={<Grid />} label="Stairs" onClick={() => addObject('stair', 'stair', 'Straight Stairs', { w: 4, h: 10, fillColor: '#cbd5e1' })} />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -671,47 +597,29 @@ export default function EstimatorClient() {
         </div>
 
         {/* Main Canvas Area */}
-        <div className="flex-1 relative flex flex-col overflow-hidden">
+        <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
           <div 
             id="canvas-workspace"
-            className="flex-1 relative bg-white overflow-auto cursor-crosshair no-scrollbar"
+            className="flex-1 relative bg-white overflow-auto cursor-crosshair m-4 shadow-2xl no-scrollbar rounded-sm border"
             onMouseDown={(e) => handleMouseDown(e, null)}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
           >
             <div className="absolute inset-0" style={{ 
-                backgroundImage: `linear-gradient(#f1f3f4 1px, transparent 1px), linear-gradient(90deg, #f1f3f4 1px, transparent 1px)`,
-                backgroundSize: `${zoom}px ${zoom}px`, width: 5000, height: 5000, backgroundColor: 'white'
+                backgroundImage: `linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)`,
+                backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000, backgroundColor: 'white'
               }}>
-              {snapPoint && (
-                <div className="absolute w-4 h-4 bg-blue-500 rounded-full z-50 border-2 border-white shadow-md pointer-events-none"
-                  style={{ left: snapPoint.x * zoom - 8, top: snapPoint.y * zoom - 8 }} />
-              )}
-
-              {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                <div className="absolute bg-blue-500/10 border-2 border-blue-500 z-40 pointer-events-none"
-                  style={{ 
-                    left: drawStart.x * zoom, 
-                    top: drawStart.y * zoom, 
-                    width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
-                    height: currentWallThickness * zoom,
-                    transformOrigin: '0 50%',
-                    transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`
-                  }}>
-                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold">
-                    {formatFeetInches(Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)))}
-                  </span>
-                </div>
-              )}
-
+              
               {designObjects.map(obj => {
-                const isWall = obj.subType === 'wall';
-                const isTable = obj.subType === 'table';
-                const isText = obj.type === 'text';
                 const isSelected = selectedObjectId === obj.id;
+                const isWall = obj.subType === 'wall';
+                const isText = obj.type === 'text';
+                const isDoor = obj.subType === 'door';
+                const isWindow = obj.subType === 'window';
+                const isStair = obj.type === 'stair';
                 
                 return (
-                  <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onClick={(e) => e.stopPropagation()} 
+                  <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} 
                     className={cn("absolute flex items-center justify-center cursor-move select-none", isSelected ? "z-30" : "z-10")}
                     style={{ 
                       left: obj.x * zoom, 
@@ -721,44 +629,46 @@ export default function EstimatorClient() {
                       transformOrigin: '0 50%',
                       transform: `rotate(${obj.rotation}deg)`, 
                       backgroundColor: isWall ? obj.color : obj.fillColor,
-                      border: (isWall || isText) ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
+                      border: (isWall || isText || isDoor) ? 'none' : `${obj.strokeWidth}px ${obj.strokeStyle} ${obj.color}`,
                       outline: isSelected ? '2px solid #2563eb' : undefined,
-                      borderRadius: (obj.subType === 'oval' || obj.subType === 'circle') ? '9999px' : '0px',
+                      outlineOffset: '2px',
+                      borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                       color: isText ? obj.color : 'inherit',
-                      fontSize: isText ? (obj.fontSize || 14) * (zoom/30) : 'inherit',
+                      fontSize: isText ? (obj.fontSize || 14) * (zoom/40) : 'inherit',
                       fontWeight: (isText && obj.isBold) ? 'bold' : 'normal',
                       textAlign: 'center',
                     }}>
                     
-                    {isText ? (
-                      <div className="w-full break-words px-2">{obj.textContent}</div>
-                    ) : (
-                      <>
-                        {isTable && (
-                          <div className="absolute inset-0 grid overflow-hidden" style={{ 
-                            gridTemplateRows: `repeat(${obj.rows}, 1fr)`,
-                            gridTemplateColumns: `repeat(${obj.cols}, 1fr)`
-                          }}>
-                            {Array.from({ length: (obj.rows || 1) * (obj.cols || 1) }).map((_, i) => (
-                              <div key={i} className="border-[0.5px] border-slate-300/30" />
-                            ))}
-                          </div>
-                        )}
-                        {!isWall && !isText && (
-                           <div className="absolute -top-7 left-0 right-0 flex justify-center pointer-events-none" style={{ transform: `rotate(${-obj.rotation}deg)` }}>
-                            <span className="bg-white/90 px-1 text-[10px] font-bold text-blue-600 rounded border border-blue-100">
-                              {formatFeetInches(obj.w)} x {formatFeetInches(obj.h)}
-                            </span>
-                          </div>
-                        )}
-                      </>
+                    {isDoor && (
+                      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
+                         <line x1="0" y1="100" x2="100" y2="0" stroke={obj.color} strokeWidth="4" />
+                         <path d="M 100 0 A 100 100 0 0 0 0 100" fill="none" stroke={obj.color} strokeWidth="2" strokeDasharray="4 2" />
+                         <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
+                      </svg>
                     )}
 
+                    {isWindow && (
+                      <div className="absolute inset-0 flex flex-col justify-center items-center gap-1">
+                         <div className="w-full h-px bg-slate-400" />
+                         <div className="w-full h-px bg-slate-400" />
+                      </div>
+                    )}
+
+                    {isStair && (
+                      <div className="absolute inset-0 flex flex-col">
+                        {Array.from({length: Math.floor(obj.h * 1.5)}).map((_, i) => (
+                          <div key={i} className="flex-1 border-b border-slate-400" />
+                        ))}
+                      </div>
+                    )}
+
+                    {isText && <div className="w-full break-words px-2">{obj.textContent}</div>}
+                    
                     {isSelected && (
                       <>
                         <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 rounded-full cursor-se-resize z-40 border-2 border-white shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-5 h-5 bg-white rounded-full cursor-pointer flex items-center justify-center border shadow-md" onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}>
-                           <RotateCw className="w-3 h-3 text-slate-600" />
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-6 h-6 bg-white rounded-full cursor-pointer flex items-center justify-center border shadow-md hover:bg-blue-50" onMouseDown={(e) => handleMouseDown(e, obj.id, 'rotating')}>
+                           <RotateCw className="w-4 h-4 text-blue-600" />
                         </div>
                       </>
                     )}
@@ -768,54 +678,55 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          <div className="h-8 bg-white border-t flex items-center px-4 justify-end gap-4 shrink-0 shadow-sm">
+          <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 shadow-inner">
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workspace: Floor Plan 1</span>
              <div className="flex items-center gap-2">
                 <ToolIconButton icon={<ZoomOut />} onClick={() => setZoom(z => Math.max(10, z - 5))} />
                 <Slider value={[zoom]} max={150} min={10} step={5} className="w-32" onValueChange={(val) => setZoom(val[0])} />
                 <ToolIconButton icon={<ZoomIn />} onClick={() => setZoom(z => Math.min(150, z + 5))} />
-                <span className="text-[10px] font-bold text-slate-400 ml-2">{zoom}%</span>
+                <span className="text-[10px] font-bold text-slate-500 ml-2 w-8 text-right">{zoom}%</span>
              </div>
           </div>
         </div>
 
         {/* Right Properties Panel */}
-        <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-sm">
-           <div className="p-2 border-b bg-slate-50/50 flex items-center justify-between">
-              <span className="text-[12px] font-bold text-slate-700">Properties</span>
-              <Settings2 className="w-3.5 h-3.5 text-slate-400" />
+        <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-lg">
+           <div className="p-3 border-b bg-slate-50 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">PROPERTIES</span>
+              <Settings2 className="w-4 h-4 text-slate-400" />
            </div>
            
-           <ScrollArea className="flex-1" orientation="vertical">
-              <div className="p-2 space-y-2">
+           <ScrollArea className="flex-1">
+              <div className="p-3 space-y-4">
                  {selectedObject ? (
                     <>
                        {selectedObject.type === 'text' && (
-                          <div className="space-y-1">
-                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Text Content</Label>
+                          <div className="space-y-1.5">
+                             <Label className="text-[9px] font-bold text-slate-500 uppercase">Text Content</Label>
                              <Input 
-                               className="h-7 text-[10px] font-medium bg-slate-50" 
+                               className="h-8 text-[11px] font-medium bg-slate-50 border-slate-200" 
                                value={selectedObject.textContent || ''} 
                                onChange={(e) => updateObject(selectedObject.id, { textContent: e.target.value }, true)}
                              />
                           </div>
                        )}
 
-                       <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Position</span>
+                       <div className="space-y-1.5">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">POSITION</span>
                           <div className="grid grid-cols-2 gap-2">
-                             <div className="space-y-0.5">
-                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Left</Label>
+                             <div className="space-y-1">
+                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Left</Label>
                                 <Input 
-                                   className="h-6 text-[10px] bg-slate-50" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.x)} 
                                    onChange={(e) => updateObject(selectedObject.id, { x: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
-                             <div className="space-y-0.5">
-                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Top</Label>
+                             <div className="space-y-1">
+                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Top</Label>
                                 <Input 
-                                   className="h-6 text-[10px] bg-slate-50" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.y)} 
                                    onChange={(e) => updateObject(selectedObject.id, { y: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
@@ -824,41 +735,42 @@ export default function EstimatorClient() {
                           </div>
                        </div>
 
-                       <div className="space-y-1 pt-1 border-t">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Dimensions</span>
+                       <div className="space-y-1.5 pt-2 border-t">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">DIMENSIONS</span>
                           <div className="grid grid-cols-2 gap-2">
-                             <div className="space-y-0.5">
-                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Width</Label>
+                             <div className="space-y-1">
+                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Width</Label>
                                 <Input 
-                                   className="h-6 text-[10px] bg-slate-50" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.w)} 
                                    onChange={(e) => updateObject(selectedObject.id, { w: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
-                             <div className="space-y-0.5">
-                                <Label className="text-[8px] text-slate-500 font-bold uppercase">Height</Label>
+                             <div className="space-y-1">
+                                <Label className="text-[8px] text-slate-400 font-bold uppercase">Height</Label>
                                 <Input 
-                                   className="h-6 text-[10px] bg-slate-50" 
+                                   className="h-7 text-[10px] bg-slate-50 border-slate-200" 
                                    value={formatFeetInches(selectedObject.h)} 
                                    onChange={(e) => updateObject(selectedObject.id, { h: parseFeetInches(e.target.value) }, true)}
                                    placeholder={"0' 0\""}
                                 />
                              </div>
                           </div>
-                          <div className="space-y-0.5">
-                             <Label className="text-[8px] text-slate-500 font-bold uppercase">Rotation</Label>
-                             <div className="flex items-center gap-2">
-                                <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
-                                <span className="text-[9px] font-mono w-6 text-right">{selectedObject.rotation}°</span>
-                             </div>
+                       </div>
+
+                       <div className="space-y-1.5 pt-2 border-t">
+                          <Label className="text-[9px] font-bold text-slate-500 uppercase">ROTATION</Label>
+                          <div className="flex items-center gap-2">
+                             <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(val) => updateObject(selectedObject.id, { rotation: val[0] }, true)} />
+                             <span className="text-[10px] font-mono font-bold w-8 text-right text-slate-600">{selectedObject.rotation}°</span>
                           </div>
                        </div>
                     </>
                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-2 py-20">
-                       <MousePointer2 className="w-5 h-5 text-slate-200" />
-                       <p className="text-[10px] text-slate-400 font-medium px-6">Select an object to edit.</p>
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 opacity-40">
+                       <MousePointer2 className="w-8 h-8 text-slate-300" />
+                       <p className="text-[11px] text-slate-400 font-bold uppercase px-6">Select an object to customize.</p>
                     </div>
                  )}
               </div>
@@ -872,37 +784,37 @@ export default function EstimatorClient() {
 function ToolCard({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
     <div onClick={onClick} className={cn(
-      "flex flex-col items-center justify-center p-2 rounded-md cursor-pointer transition-all",
-      active ? "bg-amber-100 text-amber-700 shadow-sm border border-amber-200" : "bg-transparent text-slate-500 hover:bg-slate-100"
+      "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all border",
+      active ? "bg-blue-50 text-blue-600 border-blue-200 shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
     )}>
        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 mb-1" })}
-       <span className="text-[9px] font-bold uppercase tracking-tighter">{label}</span>
+       <span className="text-[9px] font-bold uppercase tracking-tight">{label}</span>
     </div>
   );
 }
 
 function ShapeIcon({ icon, onClick }: { icon: React.ReactNode, onClick: () => void }) {
   return (
-    <div onClick={onClick} className="flex items-center justify-center p-2 border rounded hover:bg-amber-100 hover:border-amber-400 cursor-pointer transition-all text-slate-600">
+    <div onClick={onClick} className="flex items-center justify-center p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all text-slate-600">
       {icon}
     </div>
   )
 }
 
-function LibraryButton({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick?: () => void }) {
+function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick?: () => void }) {
   return (
-    <Button variant="ghost" onClick={onClick} className="w-full justify-start gap-2 h-7 px-2 text-slate-700 hover:bg-slate-100">
-       {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5 text-slate-400" })}
-       <span className="text-[11px] font-medium">{label}</span>
+    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-2 bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-300 transition-all">
+       {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-500" })}
+       <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tight">{label}</span>
     </Button>
   );
 }
 
 function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
   return (
-    <Button variant={variant} disabled={disabled} onClick={onClick} className="h-16 flex flex-col gap-1 px-3 hover:bg-slate-100 min-w-[60px] group transition-colors">
-      {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-600 group-hover:text-blue-600" })}
-      <span className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-slate-700">{label}</span>
+    <Button variant={variant} disabled={disabled} onClick={onClick} className="h-16 flex flex-col gap-1 px-3 hover:bg-slate-100 min-w-[70px] group transition-colors">
+      {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" })}
+      <span className="text-[9px] uppercase font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{label}</span>
     </Button>
   );
 }
@@ -911,14 +823,14 @@ function RibbonIconButton({ icon, label, onClick, disabled }: { icon: React.Reac
   return (
     <Button variant="ghost" disabled={disabled} onClick={onClick} className="h-7 w-full flex gap-2 px-2 items-center justify-start hover:bg-slate-100 group transition-colors">
       {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5 text-slate-600 group-hover:text-blue-600" })}
-      {label && <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">{label}</span>}
+      {label && <span className="text-[10px] font-bold text-slate-600 group-hover:text-slate-900">{label}</span>}
     </Button>
   );
 }
 
 function ToolIconButton({ icon, onClick }: { icon: React.ReactNode, onClick?: () => void }) {
   return (
-    <Button variant="ghost" onClick={onClick} className="h-6 w-6 p-0 flex items-center justify-center hover:bg-slate-100 transition-colors">
+    <Button variant="ghost" onClick={onClick} className="h-6 w-6 p-0 flex items-center justify-center hover:bg-slate-200 transition-colors rounded-full">
       {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 text-slate-500" })}
     </Button>
   );
