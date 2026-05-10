@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -11,7 +12,8 @@ import {
   Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
-  Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon
+  Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
+  Link, Link2, Unlink
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type DesignObject = {
   id: string;
@@ -51,6 +55,7 @@ type DesignObject = {
   isBold?: boolean;
   rows?: number;
   cols?: number;
+  isJoined?: boolean; // New property for manual connection
 };
 
 const COLORS = ['#000000', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
@@ -74,7 +79,7 @@ export default function EstimatorClient() {
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Local property display states for smooth typing
+  // Local property display states
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -136,7 +141,8 @@ export default function EstimatorClient() {
     if (obj.subType === 'wall') {
       return [
         { x: obj.x, y: obj.y },
-        { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
+        { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin },
+        { x: obj.x + (obj.w/2) * cos, y: obj.y + (obj.w/2) * sin } // Mid point
       ];
     }
     return [
@@ -150,7 +156,7 @@ export default function EstimatorClient() {
 
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
-    let minDist = 0.8; 
+    let minDist = 1.0; 
 
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
@@ -165,20 +171,19 @@ export default function EstimatorClient() {
       });
 
       if (obj.subType === 'wall') {
-        const p1 = pts[0];
-        const p2 = pts[1];
+        const rad = (obj.rotation || 0) * (Math.PI / 180);
+        const p1 = { x: obj.x, y: obj.y };
+        const p2 = { x: obj.x + obj.w * Math.cos(rad), y: obj.y + obj.w * Math.sin(rad) };
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const lenSq = dx * dx + dy * dy;
         if (lenSq === 0) return;
-        const t = ((x - p1.x) * dx + (y - p1.y) * dy) / lenSq;
-        if (t >= 0 && t <= 1) {
-          const cp = { x: p1.x + t * dx, y: p1.y + t * dy };
-          const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
-          if (d < minDist) {
-            minDist = d;
-            bestSnap = cp;
-          }
+        const t = Math.max(0, Math.min(1, ((x - p1.x) * dx + (y - p1.y) * dy) / lenSq));
+        const cp = { x: p1.x + t * dx, y: p1.y + t * dy };
+        const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
+        if (d < minDist) {
+          minDist = d;
+          bestSnap = cp;
         }
       }
     });
@@ -194,6 +199,9 @@ export default function EstimatorClient() {
   }, [designObjects, getPoints]);
 
   const getConnectedGroup = useCallback((startId: string, all: DesignObject[]) => {
+    const startObj = all.find(o => o.id === startId);
+    if (!startObj || !startObj.isJoined) return [startId];
+
     const connected = new Set<string>();
     const stack = [startId];
     while (stack.length > 0) {
@@ -201,14 +209,15 @@ export default function EstimatorClient() {
       if (connected.has(id)) continue;
       connected.add(id);
       const curr = all.find(o => o.id === id);
-      if (!curr) continue;
+      if (!curr || !curr.isJoined) continue;
+
       const pts1 = getPoints(curr);
       all.forEach(other => {
-        if (connected.has(other.id)) return;
+        if (!other.isJoined || connected.has(other.id)) return;
         const pts2 = getPoints(other);
         let near = false;
         pts1.forEach(p1 => pts2.forEach(p2 => {
-          if (Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 0.3) near = true;
+          if (Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 0.6) near = true;
         }));
         if (near) stack.push(other.id);
       });
@@ -222,6 +231,7 @@ export default function EstimatorClient() {
       type, subType, x: 5, y: 5, w: 2, h: 2, label, 
       color: '#000000', fillColor: subType === 'pillar' ? '#ef4444' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
+      isJoined: true, // Default to joined
       ...overrides
     };
     const next = [...designObjects, newObj];
@@ -254,7 +264,7 @@ export default function EstimatorClient() {
     }
 
     if (selectedTool === 'text') {
-       addObject('text', 'label', 'New Label', { x: curX, y: curY, textContent: 'Label Text', fontSize: 14 });
+       addObject('text', 'label', 'Label', { x: curX, y: curY, textContent: 'New Label', fontSize: 14 });
        setSelectedTool('select');
        return;
     }
@@ -289,11 +299,17 @@ export default function EstimatorClient() {
     if (interactionMode === 'dragging' && selectedObjectId) {
       const curr = designObjects.find(o => o.id === selectedObjectId);
       if (!curr) return;
-      const snap = findSnapPoint(curX - dragOffset.x, curY - dragOffset.y, connectedGroup);
-      const targetX = snap ? snap.x : Math.round((curX - dragOffset.x) * 12) / 12;
-      const targetY = snap ? snap.y : Math.round((curY - dragOffset.y) * 12) / 12;
+      
+      const potentialX = curX - dragOffset.x;
+      const potentialY = curY - dragOffset.y;
+      
+      const snap = findSnapPoint(potentialX, potentialY, connectedGroup);
+      const targetX = snap ? snap.x : Math.round(potentialX * 12) / 12;
+      const targetY = snap ? snap.y : Math.round(potentialY * 12) / 12;
+      
       const dx = targetX - curr.x;
       const dy = targetY - curr.y;
+      
       setDesignObjects(prev => prev.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
       setSnapPoint(snap);
     }
@@ -329,7 +345,7 @@ export default function EstimatorClient() {
   const copyObject = useCallback(() => {
     if (selectedObject) {
       setClipboard({...selectedObject, id: Math.random().toString(36).substr(2, 9)});
-      toast({ title: "Copied", description: "Object copied to clipboard." });
+      toast({ title: "Copy", description: "অবজেক্টটি কপি করা হয়েছে।" });
     }
   }, [selectedObject, toast]);
 
@@ -341,7 +357,7 @@ export default function EstimatorClient() {
       setSelectedObjectId(nextObj.id);
       saveToHistory(next);
       setClipboard(nextObj);
-      toast({ title: "Pasted", description: "Object pasted." });
+      toast({ title: "Paste", description: "অবজেক্টটি পেস্ট করা হয়েছে।" });
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
@@ -365,7 +381,7 @@ export default function EstimatorClient() {
     const handleKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
       
-      const step = 0.05; // 0.05 inch move per key press
+      const step = 0.05; // 0.05 inch movement per arrow key press
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         e.preventDefault(); copyObject();
@@ -384,15 +400,17 @@ export default function EstimatorClient() {
       }
 
       if (selectedObjectId && selectedObject) {
-        if (e.key === 'ArrowUp') updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
-        if (e.key === 'ArrowDown') updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
-        if (e.key === 'ArrowLeft') updateObject(selectedObjectId, { x: selectedObject.x - step }, true);
-        if (e.key === 'ArrowRight') updateObject(selectedObjectId, { x: selectedObject.x + step }, true);
+        const group = getConnectedGroup(selectedObjectId, designObjects);
+        if (e.key === 'ArrowUp') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y - step } : o));
+        if (e.key === 'ArrowDown') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y + step } : o));
+        if (e.key === 'ArrowLeft') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x - step } : o));
+        if (e.key === 'ArrowRight') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + step } : o));
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) saveToHistory(designObjects);
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedObjectId, selectedObject, copyObject, pasteObject, undo, redo, deleteObject]);
+  }, [selectedObjectId, selectedObject, copyObject, pasteObject, undo, redo, deleteObject, designObjects, getConnectedGroup, saveToHistory]);
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
@@ -401,7 +419,7 @@ export default function EstimatorClient() {
         <div className="flex items-center gap-6 h-full">
           <div className="flex items-center gap-2 pr-4 border-r border-slate-700">
             <Building className="w-5 h-5 text-blue-400" />
-            <span className="font-bold text-xs tracking-tighter uppercase">StudioArchitect Pro</span>
+            <span className="font-bold text-xs tracking-tighter uppercase">Architectural Pro Studio</span>
           </div>
           <nav className="flex gap-0 h-full">
             {['File', 'Home', 'Design', 'Table'].map(item => (
@@ -411,7 +429,10 @@ export default function EstimatorClient() {
             ))}
           </nav>
         </div>
-        <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
+        <div className="flex items-center gap-4">
+          <span className="text-[10px] text-slate-400">Move Step: 0.05"</span>
+          <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
+        </div>
       </div>
 
       {/* Ribbon */}
@@ -447,8 +468,8 @@ export default function EstimatorClient() {
         {activeRibbonTab === 'design' && (
           <div className="flex items-center h-full px-2 gap-4">
             <RibbonButton icon={<Pencil />} label="Add Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
-            <RibbonButton icon={<PillarIcon />} label="Add Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
-            <RibbonButton icon={<TypeIcon />} label="Add Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+            <RibbonButton icon={<PillarIcon />} label="Add Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
+            <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
             <div className="h-full flex flex-col justify-center px-4 border-l gap-1">
                <Label className="text-[9px] font-bold text-slate-400 uppercase">Default Wall Thickness</Label>
                <Select value={currentWallThickness.toString()} onValueChange={(v) => setCurrentWallThickness(parseFloat(v))}>
@@ -466,14 +487,14 @@ export default function EstimatorClient() {
         )}
         {activeRibbonTab === 'table' && (
            <div className="flex items-center h-full px-4 gap-4">
-              <RibbonButton icon={<LayoutGrid />} label="Insert Table" onClick={() => addObject('table', 'table', 'Schedule', { rows: 4, cols: 3, w: 6, h: 4 })} />
+              <RibbonButton icon={<LayoutGrid />} label="Insert Table" onClick={() => addObject('table', 'table', 'Table', { rows: 4, cols: 3, w: 6, h: 4 })} />
            </div>
         )}
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Library */}
-        <div className="w-[300px] bg-white border-r z-20 shrink-0 flex flex-col shadow-lg">
+        {/* Left Toolbox */}
+        <div className="w-[280px] bg-white border-r z-20 shrink-0 flex flex-col shadow-lg">
           <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Toolbox</span><Settings className="w-4 h-4 text-slate-400" /></div>
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-6">
@@ -483,9 +504,9 @@ export default function EstimatorClient() {
                 <ToolCard icon={<PillarIcon />} label="Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
                 <ToolCard icon={<TypeIcon />} label="Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
               </div>
-              <Accordion type="multiple" defaultValue={["objects"]} className="w-full">
-                <AccordionItem value="objects" className="border-none">
-                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Architecture</AccordionTrigger>
+              <Accordion type="multiple" defaultValue={["openings"]} className="w-full">
+                <AccordionItem value="openings" className="border-none">
+                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
                     <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door')} />
                     <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
@@ -496,7 +517,7 @@ export default function EstimatorClient() {
           </ScrollArea>
         </div>
 
-        {/* Workspace */}
+        {/* Canvas Area */}
         <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
           <div id="canvas-workspace" className="flex-1 relative bg-white overflow-auto cursor-crosshair m-6 shadow-2xl rounded border"
             onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
@@ -530,7 +551,7 @@ export default function EstimatorClient() {
                   )}
                   {obj.type === 'pillar' && <div className="w-full h-full opacity-30 bg-slate-900/10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' }} />}
                   {obj.type === 'text' && (
-                    <span className={cn("text-center px-1", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
+                    <span className={cn("text-center px-1 whitespace-nowrap", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
                   )}
                   {selectedObjectId === obj.id && (
                     <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg" 
@@ -549,36 +570,62 @@ export default function EstimatorClient() {
                 />
               )}
               {snapPoint && (
-                <div className="absolute w-12 h-12 bg-blue-500/40 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-[0_0_25px_rgba(37,99,235,0.7)] animate-pulse"
-                  style={{ left: snapPoint.x * zoom - 24, top: snapPoint.y * zoom - 24 }} />
+                <div className="absolute w-16 h-16 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_30px_rgba(37,99,235,0.8)] animate-pulse"
+                  style={{ left: snapPoint.x * zoom - 32, top: snapPoint.y * zoom - 32 }} />
               )}
             </div>
           </div>
           <div className="h-10 bg-white border-t flex items-center px-4 justify-between shrink-0 shadow-inner">
              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
-                <span className="text-[10px] font-bold text-slate-500">{zoom}% Precision Zoom</span>
+                <span className="text-[10px] font-bold text-slate-500">{zoom}% Precision</span>
              </div>
              <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <span>Ctrl+C/V Copy-Paste</span>
-                <span>Ctrl+Z/Y Undo-Redo</span>
-                <span>Arrow Keys Move (0.05")</span>
+                <span>Arrow Keys: 0.05" Step</span>
+                <span>Ctrl+C/V: Copy-Paste</span>
+                <span>Ctrl+Z/Y: Undo-Redo</span>
              </div>
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="w-[280px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
+        {/* Inspector Panel */}
+        <div className="w-[300px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Element Inspector</span><Settings2 className="w-4 h-4 text-slate-400" /></div>
            <ScrollArea className="flex-1 p-4">
               {selectedObject ? (
                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                       <PropInput label="X Position" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} />
-                       <PropInput label="Y Position" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} />
-                       <PropInput label="Dimension W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} />
-                       <PropInput label="Dimension H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} />
+                    {/* Connection Toggler */}
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                       <div className="flex items-center justify-between">
+                          <Label className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-2">
+                             {selectedObject.isJoined ? <Link2 className="w-3.5 h-3.5 text-blue-600" /> : <Unlink className="w-3.5 h-3.5 text-slate-400" />}
+                             সংযুক্ত করুন (Connect)
+                          </Label>
+                          <Switch 
+                            checked={selectedObject.isJoined} 
+                            onCheckedChange={(val) => updateObject(selectedObjectId!, { isJoined: val }, true)}
+                          />
+                       </div>
+                       <p className="text-[10px] text-slate-500 leading-tight">
+                         টিক দেওয়া থাকলে কাছাকাছি থাকা অন্য অবজেক্টের সাথে এটি গ্রুপ হিসেবে মুভ করবে।
+                       </p>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                       <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} />
+                       <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} />
+                       <PropInput label="Width (W)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} />
+                       <PropInput label="Height (H)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} />
+                    </div>
+
+                    <div className="space-y-2">
+                       <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation (°)</Label>
+                       <div className="flex items-center gap-3">
+                          <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectId!, { rotation: v[0] }, true)} />
+                          <Input type="number" className="h-8 w-16 text-xs" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObjectId!, { rotation: parseInt(e.target.value) || 0 }, true)} />
+                       </div>
+                    </div>
+
                     {(selectedObject.subType === 'wall' || selectedObject.subType === 'door') && (
                        <div className="space-y-2">
                           <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness / H</Label>
@@ -593,25 +640,18 @@ export default function EstimatorClient() {
                           </Select>
                        </div>
                     )}
+
                     {selectedObject.type === 'text' && (
                        <div className="space-y-2">
-                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Text Content</Label>
+                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Label Text</Label>
                           <Input value={selectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectId!, { textContent: e.target.value }, true)} />
                        </div>
                     )}
-                    <div className="space-y-4">
-                       <div className="flex items-center justify-between">
-                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation</Label>
-                          <span className="text-[10px] font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded">{selectedObject.rotation}°</span>
-                       </div>
-                       <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} onValueChange={(v) => updateObject(selectedObjectId!, { rotation: v[0] }, true)} />
-                       <Input type="number" className="h-8 text-xs" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObjectId!, { rotation: parseInt(e.target.value) || 0 }, true)} />
-                    </div>
                  </div>
               ) : (
                  <div className="h-64 flex flex-col items-center justify-center text-center opacity-20">
                     <MousePointer2 className="w-10 h-10 mb-4" />
-                    <p className="text-xs font-bold uppercase tracking-widest">Select an element</p>
+                    <p className="text-xs font-bold uppercase tracking-widest">Select element to inspect</p>
                  </div>
               )}
            </ScrollArea>
@@ -630,7 +670,7 @@ function PropInput({ label, value, onChange, onBlur }: { label: string, value: s
         value={value} 
         onChange={e => onChange(e.target.value)} 
         onBlur={onBlur} 
-        placeholder='0&apos; 0"' 
+        placeholder="0' 0&quot;" 
       />
     </div>
   );
