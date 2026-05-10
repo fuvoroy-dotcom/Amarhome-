@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 type DesignObject = {
   id: string;
@@ -432,19 +434,26 @@ export default function EstimatorClient() {
     }
   }, [history, historyIndex]);
 
-  const saveToFirestore = async () => {
-    try {
-      const { firestore } = initializeFirebase();
-      const docRef = doc(firestore, 'designs', 'current-layout');
-      await setDoc(docRef, {
-        objects: designObjects,
-        updatedAt: serverTimestamp()
+  const saveToFirestore = () => {
+    const { firestore } = initializeFirebase();
+    const docRef = doc(firestore, 'designs', 'current-layout');
+    const data = {
+      objects: designObjects,
+      updatedAt: serverTimestamp()
+    };
+
+    setDoc(docRef, data, { merge: true })
+      .then(() => {
+        toast({ title: "সফল", description: "ডিজাইনটি স্থায়ীভাবে সেভ করা হয়েছে।" });
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: data,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
       });
-      toast({ title: "সফল", description: "ডিজাইনটি স্থায়ীভাবে সেভ করা হয়েছে।" });
-    } catch (e) {
-      console.error(e);
-      toast({ variant: "destructive", title: "ত্রুটি", description: "সেভ করা সম্ভব হয়নি।" });
-    }
   };
 
   const loadFromFirestore = async () => {
@@ -460,9 +469,12 @@ export default function EstimatorClient() {
       } else {
         toast({ title: "তথ্য নেই", description: "সেভ করা কোনো ডিজাইন পাওয়া যায়নি।" });
       }
-    } catch (e) {
-      console.error(e);
-      toast({ variant: "destructive", title: "ত্রুটি", description: "লোড করা সম্ভব হয়নি।" });
+    } catch (e: any) {
+      const permissionError = new FirestorePermissionError({
+        path: 'designs/current-layout',
+        operation: 'get',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
     }
   };
 
