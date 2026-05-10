@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -12,7 +13,7 @@ import {
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
-  Link, Link2, Unlink, ArrowUpRight
+  Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -208,7 +209,7 @@ export default function EstimatorClient() {
           return;
         }
 
-        if (curr.subType === 'wall' || other.subType === 'wall' || curr.type === 'stair' || other.type === 'stair') {
+        if (curr.subType.includes('wall') || other.subType.includes('wall') || curr.type === 'stair' || other.type === 'stair') {
           const checkNear = (objA: DesignObject, objB: DesignObject) => {
             const rad = (objA.rotation || 0) * (Math.PI / 180);
             const p1 = { x: objA.x, y: objA.y };
@@ -245,7 +246,7 @@ export default function EstimatorClient() {
   const addObject = useCallback((type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x: 5, y: 5, w: 2, h: 2, label, 
+      type, subType, x: 10, y: 10, w: 2, h: 2, label, 
       color: '#000000', fillColor: subType === 'pillar' ? '#64748b' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       isJoined: true, 
@@ -261,13 +262,9 @@ export default function EstimatorClient() {
     const startX = 10, startY = 10, w = 12, h = 10;
     const thickness = currentWallThickness;
     const roomWalls: DesignObject[] = [
-      // Top
       { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
-      // Bottom
       { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
-      // Left
       { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
-      // Right
       { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
     ];
     const next = [...designObjects, ...roomWalls];
@@ -680,12 +677,23 @@ export default function EstimatorClient() {
                 <ToolCard icon={<PillarIcon />} label="Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
                 <ToolCard icon={<ArrowUpRight />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
               </div>
-              <Accordion type="multiple" defaultValue={["openings"]} className="w-full">
+              <Accordion type="multiple" defaultValue={["openings", "advanced"]} className="w-full">
                 <AccordionItem value="openings" className="border-none">
-                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings & Others</AccordionTrigger>
+                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
                     <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: 0.33 })} />
                     <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: 0.33 })} />
+                    <SymbolButton icon={<SplitSquareVertical />} label="Double Door" onClick={() => addObject('opening', 'door_double', 'Double Door', { w: 6, h: 0.33 })} />
+                    <SymbolButton icon={<Move />} label="Sliding Door" onClick={() => addObject('opening', 'door_sliding', 'Sliding Door', { w: 5, h: 0.33 })} />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="advanced" className="border-none">
+                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Advanced Symbols</AccordionTrigger>
+                  <AccordionContent className="grid grid-cols-2 gap-3">
+                    <SymbolButton icon={<Layers />} label="Bifold Door" onClick={() => addObject('opening', 'door_bifold', 'Bifold Door', { w: 4, h: 0.33 })} />
+                    <SymbolButton icon={<Grid />} label="Sliding Window" onClick={() => addObject('opening', 'window_sliding', 'Sliding Window', { w: 4, h: 0.33 })} />
+                    <SymbolButton icon={<RectangleHorizontal />} label="Fixed Window" onClick={() => addObject('opening', 'window_fixed', 'Fixed Window', { w: 3, h: 0.33 })} />
+                    <SymbolButton icon={<Circle />} label="Circular Pillar" onClick={() => addObject('pillar', 'pillar_round', 'Round Pillar', { w: 0.8, h: 0.8 })} />
                     <SymbolButton icon={<TypeIcon />} label="Text" onClick={() => setSelectedTool('text')} />
                   </AccordionContent>
                 </AccordionItem>
@@ -725,35 +733,77 @@ export default function EstimatorClient() {
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
-                    backgroundColor: (obj.subType === 'door' || obj.subType === 'window' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
-                    border: (obj.subType === 'wall' || obj.subType === 'door') ? 'none' : `2px solid ${obj.color}`,
-                    borderRadius: obj.subType === 'oval' ? '100%' : '0px'
+                    backgroundColor: (obj.type === 'opening' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
+                    border: (obj.subType === 'wall' || obj.type === 'opening') ? 'none' : `2px solid ${obj.color}`,
+                    borderRadius: (obj.subType === 'pillar_round' || obj.subType === 'oval') ? '100%' : '0px'
                   }}>
                   
-                  {/* Side-Aligned Dimension Labels for Walls and Stairs */}
-                  {(obj.subType === 'wall' || obj.type === 'stair') && (
+                  {/* Side-Aligned Dimension Labels */}
+                  {(obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
                     <div className="absolute left-1/2 -translate-x-1/2 -top-10 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                     </div>
                   )}
 
-                  {obj.subType === 'door' && (
+                  {obj.type === 'opening' && (
                     <div className="relative w-full h-full bg-white">
                       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0">
-                        <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
-                        <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                        {obj.subType === 'door' && (
+                          <>
+                            <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
+                            <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                          </>
+                        )}
+                        {obj.subType === 'door_double' && (
+                          <>
+                            <line x1="0" y1="100" x2="0" y2="50" stroke={obj.color} strokeWidth="6" />
+                            <line x1="100" y1="100" x2="100" y2="50" stroke={obj.color} strokeWidth="6" />
+                            <path d="M 0 50 A 50 50 0 0 1 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                            <path d="M 100 50 A 50 50 0 0 0 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                          </>
+                        )}
+                        {obj.subType === 'door_sliding' && (
+                          <>
+                             <rect x="0" y="20" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
+                             <rect x="40" y="60" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
+                             <line x1="10" y1="30" x2="30" y2="30" stroke={obj.color} strokeWidth="1" markerEnd="url(#arrow)" />
+                          </>
+                        )}
+                        {obj.subType === 'door_bifold' && (
+                          <>
+                             <line x1="0" y1="100" x2="25" y2="20" stroke={obj.color} strokeWidth="4" />
+                             <line x1="25" y1="20" x2="50" y2="100" stroke={obj.color} strokeWidth="4" />
+                             <line x1="50" y1="100" x2="75" y2="20" stroke={obj.color} strokeWidth="4" />
+                             <line x1="75" y1="20" x2="100" y2="100" stroke={obj.color} strokeWidth="4" />
+                          </>
+                        )}
+                        {obj.subType === 'window' && (
+                          <>
+                            <line x1="0" y1="0" x2="0" y2="100" stroke={obj.color} strokeWidth="8" />
+                            <line x1="100" y1="0" x2="100" y2="100" stroke={obj.color} strokeWidth="8" />
+                            <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
+                            <line x1="0" y1="30" x2="100" y2="30" stroke={obj.color} strokeWidth="1" opacity="0.5" />
+                            <line x1="0" y1="70" x2="100" y2="70" stroke={obj.color} strokeWidth="1" opacity="0.5" />
+                          </>
+                        )}
+                        {obj.subType === 'window_sliding' && (
+                          <>
+                            <rect x="0" y="10" width="100" height="80" fill="none" stroke={obj.color} strokeWidth="2" />
+                            <line x1="50" y1="10" x2="50" y2="90" stroke={obj.color} strokeWidth="4" />
+                            <line x1="10" y1="50" x2="40" y2="50" stroke={obj.color} strokeWidth="1" />
+                            <line x1="60" y1="50" x2="90" y2="50" stroke={obj.color} strokeWidth="1" />
+                          </>
+                        )}
+                        {obj.subType === 'window_fixed' && (
+                          <>
+                            <rect x="0" y="25" width="100" height="50" fill="none" stroke={obj.color} strokeWidth="4" />
+                            <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
+                          </>
+                        )}
                       </svg>
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-1 bg-white/80 px-1 rounded text-[9px] font-bold">{formatFeetInches(obj.w)}</div>
                     </div>
                   )}
-                  {obj.subType === 'window' && (
-                    <div className="absolute inset-0 border-x-4 flex flex-col justify-between py-1 bg-white" style={{ borderColor: obj.color }}>
-                      <div className="w-full h-[1px] bg-slate-300" />
-                      <div className="w-full h-[1px] bg-slate-400" />
-                      <div className="w-full h-[1px] bg-slate-300" />
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-0 bg-white/80 px-1 rounded text-[9px] font-bold">{formatFeetInches(obj.w)}</div>
-                    </div>
-                  )}
+
                   {obj.type === 'stair' && (
                     <div className="w-full h-full relative border flex flex-col justify-between overflow-hidden">
                        <div className="absolute inset-0 flex flex-col justify-between opacity-50">
@@ -850,7 +900,7 @@ export default function EstimatorClient() {
                        </div>
                     )}
 
-                    {(firstSelectedObject.subType === 'wall' || firstSelectedObject.type === 'opening') && (
+                    {(firstSelectedObject.subType.includes('wall') || firstSelectedObject.type === 'opening') && (
                        <div className="space-y-2">
                           <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness / H</Label>
                           <Select value={firstSelectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectIds[0], { h: parseFloat(v) }, true)}>
