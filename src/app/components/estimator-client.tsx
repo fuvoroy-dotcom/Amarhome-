@@ -69,12 +69,12 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.42); 
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); // Default 4 inches (4/12 = 0.33')
   const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Local property display states
+  // Local property display states for smooth typing
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -449,6 +449,18 @@ export default function EstimatorClient() {
             <RibbonButton icon={<Pencil />} label="Add Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
             <RibbonButton icon={<PillarIcon />} label="Add Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
             <RibbonButton icon={<TypeIcon />} label="Add Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+            <div className="h-full flex flex-col justify-center px-4 border-l gap-1">
+               <Label className="text-[9px] font-bold text-slate-400 uppercase">Default Wall Thickness</Label>
+               <Select value={currentWallThickness.toString()} onValueChange={(v) => setCurrentWallThickness(parseFloat(v))}>
+                  <SelectTrigger className="h-7 w-32 text-[10px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.25">3 inches</SelectItem>
+                    <SelectItem value="0.33">4 inches</SelectItem>
+                    <SelectItem value="0.42">5 inches</SelectItem>
+                    <SelectItem value="0.83">10 inches</SelectItem>
+                  </SelectContent>
+               </Select>
+            </div>
             <RibbonButton icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => setSelectedTool('select')} />
           </div>
         )}
@@ -567,6 +579,20 @@ export default function EstimatorClient() {
                        <PropInput label="Dimension W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} />
                        <PropInput label="Dimension H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} />
                     </div>
+                    {selectedObject.subType === 'wall' && (
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Wall Thickness</Label>
+                          <Select value={selectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectId!, { h: parseFloat(v) }, true)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0.25">3 inches</SelectItem>
+                              <SelectItem value="0.33">4 inches</SelectItem>
+                              <SelectItem value="0.42">5 inches</SelectItem>
+                              <SelectItem value="0.83">10 inches</SelectItem>
+                            </SelectContent>
+                          </Select>
+                       </div>
+                    )}
                     {selectedObject.type === 'text' && (
                        <div className="space-y-2">
                           <Label className="text-[9px] font-bold text-slate-400 uppercase">Text Content</Label>
@@ -599,7 +625,7 @@ function PropInput({ label, value, onChange, onBlur }: { label: string, value: s
   return (
     <div className="space-y-1.5">
       <Label className="text-[9px] font-bold text-slate-400 uppercase">{label}</Label>
-      <Input className="h-8 text-xs bg-slate-50 focus:bg-white" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} placeholder={"0' 0\""} />
+      <Input className="h-8 text-xs bg-slate-50 focus:bg-white" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} placeholder="0' 0&quot;" />
     </div>
   );
 }
