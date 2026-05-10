@@ -135,33 +135,28 @@ export default function EstimatorClient() {
     setSelectedObjectId(null);
   }, [saveToHistory]);
 
-  const getPoints = useCallback((obj: DesignObject) => {
-    const rad = (obj.rotation || 0) * (Math.PI / 180);
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    if (obj.subType === 'wall') {
-      return [
-        { x: obj.x, y: obj.y },
-        { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin },
-        { x: obj.x + (obj.w/2) * cos, y: obj.y + (obj.w/2) * sin } 
-      ];
-    }
-    return [
-      { x: obj.x, y: obj.y },
-      { x: obj.x + obj.w, y: obj.y },
-      { x: obj.x, y: obj.y + obj.h },
-      { x: obj.x + obj.w, y: obj.y + obj.h },
-      { x: obj.x + obj.w / 2, y: obj.y + obj.h / 2 }
-    ];
-  }, []);
-
+  // Enhanced Snap Logic to find closest point on ANY segment
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = 0.8; 
 
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
-      const pts = getPoints(obj);
+      
+      // Discrete points snap
+      const rad = (obj.rotation || 0) * (Math.PI / 180);
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const pts = obj.subType === 'wall' ? [
+        { x: obj.x, y: obj.y },
+        { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
+      ] : [
+        { x: obj.x, y: obj.y },
+        { x: obj.x + obj.w, y: obj.y },
+        { x: obj.x, y: obj.y + obj.h },
+        { x: obj.x + obj.w, y: obj.y + obj.h },
+        { x: obj.x + obj.w / 2, y: obj.y + obj.h / 2 }
+      ];
       
       pts.forEach(p => {
         const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
@@ -171,20 +166,21 @@ export default function EstimatorClient() {
         }
       });
 
+      // Line Segment Snap (Snap to anywhere on wall body)
       if (obj.subType === 'wall') {
-        const rad = (obj.rotation || 0) * (Math.PI / 180);
         const p1 = { x: obj.x, y: obj.y };
-        const p2 = { x: obj.x + obj.w * Math.cos(rad), y: obj.y + obj.w * Math.sin(rad) };
+        const p2 = { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin };
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const lenSq = dx * dx + dy * dy;
-        if (lenSq === 0) return;
-        const t = Math.max(0, Math.min(1, ((x - p1.x) * dx + (y - p1.y) * dy) / lenSq));
-        const cp = { x: p1.x + t * dx, y: p1.y + t * dy };
-        const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
-        if (d < minDist) {
-          minDist = d;
-          bestSnap = cp;
+        if (lenSq > 0) {
+          const t = Math.max(0, Math.min(1, ((x - p1.x) * dx + (y - p1.y) * dy) / lenSq));
+          const cp = { x: p1.x + t * dx, y: p1.y + t * dy };
+          const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
+          if (d < minDist) {
+            minDist = d;
+            bestSnap = cp;
+          }
         }
       }
     });
@@ -197,8 +193,9 @@ export default function EstimatorClient() {
       }
     }
     return bestSnap;
-  }, [designObjects, getPoints]);
+  }, [designObjects]);
 
+  // Build connected group based on closeness and isJoined property
   const getConnectedGroup = useCallback((startId: string, all: DesignObject[]) => {
     const startObj = all.find(o => o.id === startId);
     if (!startObj || !startObj.isJoined) return [startId];
@@ -209,22 +206,44 @@ export default function EstimatorClient() {
       const id = stack.pop()!;
       if (connected.has(id)) continue;
       connected.add(id);
+      
       const curr = all.find(o => o.id === id);
       if (!curr || !curr.isJoined) continue;
 
-      const pts1 = getPoints(curr);
+      const currRad = (curr.rotation || 0) * (Math.PI / 180);
+      const currPoints = [
+        { x: curr.x, y: curr.y },
+        { x: curr.x + curr.w * Math.cos(currRad), y: curr.y + curr.w * Math.sin(currRad) },
+        { x: curr.x + (curr.w / 2) * Math.cos(currRad), y: curr.y + (curr.w / 2) * Math.sin(currRad) }
+      ];
+
       all.forEach(other => {
         if (!other.isJoined || connected.has(other.id)) return;
-        const pts2 = getPoints(other);
+        
+        const otherRad = (other.rotation || 0) * (Math.PI / 180);
+        const p1 = { x: other.x, y: other.y };
+        const p2 = { x: other.x + other.w * Math.cos(otherRad), y: other.y + other.w * Math.sin(otherRad) };
+        
         let near = false;
-        pts1.forEach(p1 => pts2.forEach(p2 => {
-          if (Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 0.5) near = true;
-        }));
+        currPoints.forEach(cp => {
+          // Check distance to segment of other wall
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq > 0) {
+            const t = Math.max(0, Math.min(1, ((cp.x - p1.x) * dx + (cp.y - p1.y) * dy) / lenSq));
+            const proj = { x: p1.x + t * dx, y: p1.y + t * dy };
+            if (Math.sqrt(Math.pow(cp.x - proj.x, 2) + Math.pow(cp.y - proj.y, 2)) < 0.5) near = true;
+          } else {
+            if (Math.sqrt(Math.pow(cp.x - p1.x, 2) + Math.pow(cp.y - p1.y, 2)) < 0.5) near = true;
+          }
+        });
+        
         if (near) stack.push(other.id);
       });
     }
     return Array.from(connected);
-  }, [getPoints]);
+  }, []);
 
   const addObject = useCallback((type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
     const newObj: DesignObject = {
@@ -378,7 +397,6 @@ export default function EstimatorClient() {
     }
   }, [history, historyIndex]);
 
-  // Pillar to Pillar Distances Calculation
   const pillarDistances = useMemo(() => {
     const pillars = designObjects.filter(o => o.type === 'pillar');
     const distances: {x1: number, y1: number, x2: number, y2: number, dist: string, horizontal: boolean}[] = [];
@@ -389,7 +407,6 @@ export default function EstimatorClient() {
         const dx = Math.abs((p1.x + p1.w/2) - (p2.x + p2.w/2));
         const dy = Math.abs((p1.y + p1.h/2) - (p2.y + p2.h/2));
         
-        // Horizontal distance
         if (dy < 0.5 && dx > 1) {
           distances.push({
             x1: p1.x + p1.w/2, y1: p1.y + p1.h/2,
@@ -398,7 +415,6 @@ export default function EstimatorClient() {
             horizontal: true
           });
         }
-        // Vertical distance
         if (dx < 0.5 && dy > 1) {
           distances.push({
             x1: p1.x + p1.w/2, y1: p1.y + p1.h/2,
@@ -416,7 +432,7 @@ export default function EstimatorClient() {
     const handleKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
       
-      const step = 0.05; 
+      const moveStep = 0.05; 
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         e.preventDefault(); copyObject();
@@ -436,10 +452,10 @@ export default function EstimatorClient() {
 
       if (selectedObjectId && selectedObject) {
         const group = getConnectedGroup(selectedObjectId, designObjects);
-        if (e.key === 'ArrowUp') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y - step } : o));
-        if (e.key === 'ArrowDown') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y + step } : o));
-        if (e.key === 'ArrowLeft') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x - step } : o));
-        if (e.key === 'ArrowRight') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + step } : o));
+        if (e.key === 'ArrowUp') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y - moveStep } : o));
+        if (e.key === 'ArrowDown') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y + moveStep } : o));
+        if (e.key === 'ArrowLeft') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x - moveStep } : o));
+        if (e.key === 'ArrowRight') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + moveStep } : o));
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) saveToHistory(designObjects);
       }
     };
@@ -465,7 +481,7 @@ export default function EstimatorClient() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] text-slate-400">Move Step: 0.05"</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" Step</span>
           <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
         </div>
       </div>
@@ -543,8 +559,8 @@ export default function EstimatorClient() {
                 <AccordionItem value="openings" className="border-none">
                   <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
-                    <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door')} />
-                    <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
+                    <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: 0.33 })} />
+                    <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: 0.33 })} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -568,9 +584,9 @@ export default function EstimatorClient() {
                   top: Math.min(d.y1, d.y2) * zoom,
                   width: d.horizontal ? Math.abs(d.x2 - d.x1) * zoom : 2,
                   height: d.horizontal ? 2 : Math.abs(d.y2 - d.y1) * zoom,
-                  backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.4)',
                 }}>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 py-1 border border-blue-200 rounded text-[11px] font-bold text-blue-600 shadow-sm whitespace-nowrap">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 py-1 border border-blue-300 rounded text-[11px] font-bold text-blue-600 shadow-md whitespace-nowrap">
                     {d.dist}
                   </div>
                 </div>
@@ -583,35 +599,33 @@ export default function EstimatorClient() {
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
-                    backgroundColor: obj.subType === 'door' ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
+                    backgroundColor: obj.subType === 'door' || obj.subType === 'window' ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
                     border: (obj.subType === 'wall' || obj.subType === 'door') ? 'none' : `2px solid ${obj.color}`,
                     borderRadius: obj.subType === 'oval' ? '100%' : '0px'
                   }}>
                   
-                  {/* Dimension Labels - Offset for Walls to prevent overlapping */}
-                  {obj.type !== 'pillar' && (
-                    <div className={cn(
-                      "absolute left-1/2 -translate-x-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-200 shadow-sm pointer-events-none z-50",
-                      obj.subType === 'wall' ? "-top-8" : "top-1/2 -translate-y-1/2"
-                    )}>
-                      <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">
-                        {obj.subType === 'wall' ? formatFeetInches(obj.w) : 
-                         (obj.type === 'opening' ? formatFeetInches(obj.w) : '')}
-                      </span>
+                  {/* Side-Aligned Dimension Labels for Walls */}
+                  {obj.subType === 'wall' && (
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-10 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
+                      <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                     </div>
                   )}
 
                   {obj.subType === 'door' && (
-                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
-                      <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
-                    </svg>
+                    <div className="relative w-full h-full bg-white">
+                      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0">
+                        <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
+                        <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                      </svg>
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-1 bg-white/80 px-1 rounded text-[9px] font-bold">{formatFeetInches(obj.w)}</div>
+                    </div>
                   )}
                   {obj.subType === 'window' && (
                     <div className="absolute inset-0 border-x-4 flex flex-col justify-between py-1 bg-white" style={{ borderColor: obj.color }}>
                       <div className="w-full h-[1px] bg-slate-300" />
                       <div className="w-full h-[1px] bg-slate-400" />
                       <div className="w-full h-[1px] bg-slate-300" />
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-0 bg-white/80 px-1 rounded text-[9px] font-bold">{formatFeetInches(obj.w)}</div>
                     </div>
                   )}
                   {obj.type === 'pillar' && <div className="w-full h-full opacity-30 bg-slate-900/10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' }} />}
@@ -635,8 +649,8 @@ export default function EstimatorClient() {
                 />
               )}
               {snapPoint && (
-                <div className="absolute w-16 h-16 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_40px_rgba(37,99,235,0.9)] animate-pulse"
-                  style={{ left: snapPoint.x * zoom - 32, top: snapPoint.y * zoom - 32 }} />
+                <div className="absolute w-20 h-20 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_60px_rgba(37,99,235,1)] animate-pulse"
+                  style={{ left: snapPoint.x * zoom - 40, top: snapPoint.y * zoom - 40 }} />
               )}
             </div>
           </div>
@@ -645,10 +659,10 @@ export default function EstimatorClient() {
                 <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
                 <span className="text-[10px] font-bold text-slate-500">{zoom}% Precision</span>
              </div>
-             <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <span>Arrow Keys: 0.05" Step</span>
+             <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <span>Arrow Keys: 0.05"</span>
                 <span>Ctrl+C/V: Copy-Paste</span>
-                <span>Ctrl+Z/Y: Undo-Redo</span>
+                <span>Ctrl+Z: Undo</span>
              </div>
           </div>
         </div>
@@ -659,11 +673,11 @@ export default function EstimatorClient() {
            <ScrollArea className="flex-1 p-4">
               {selectedObject ? (
                  <div className="space-y-6">
-                    {/* Connection Toggler */}
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                    {/* Connection Toggler - Core Feature */}
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3 shadow-sm">
                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-2">
-                             {selectedObject.isJoined ? <Link2 className="w-3.5 h-3.5 text-blue-600" /> : <Unlink className="w-3.5 h-3.5 text-slate-400" />}
+                          <Label className="text-[11px] font-bold text-blue-800 uppercase flex items-center gap-2">
+                             {selectedObject.isJoined ? <Link2 className="w-4 h-4 text-blue-600" /> : <Unlink className="w-4 h-4 text-slate-400" />}
                              সংযুক্ত করুন (Connect)
                           </Label>
                           <Switch 
@@ -671,8 +685,8 @@ export default function EstimatorClient() {
                             onCheckedChange={(val) => updateObject(selectedObjectId!, { isJoined: val }, true)}
                           />
                        </div>
-                       <p className="text-[10px] text-slate-500 leading-tight">
-                         টিক দেওয়া থাকলে কাছাকাছি থাকা অন্য অবজেক্টের সাথে এটি গ্রুপ হিসেবে মুভ করবে।
+                       <p className="text-[10px] text-blue-600 leading-tight font-medium">
+                         টিক দিলে যেকোনো পজিশনে এটি লকের মতো লেগে থাকবে এবং একসাথে মুভ করবে।
                        </p>
                     </div>
 
@@ -691,7 +705,7 @@ export default function EstimatorClient() {
                        </div>
                     </div>
 
-                    {(selectedObject.subType === 'wall' || selectedObject.subType === 'door') && (
+                    {(selectedObject.subType === 'wall' || selectedObject.type === 'opening') && (
                        <div className="space-y-2">
                           <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness / H</Label>
                           <Select value={selectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectId!, { h: parseFloat(v) }, true)}>
