@@ -11,7 +11,7 @@ import {
   Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
-  Bold, MousePointer2, Square, DoorOpen, Wind
+  Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as Pillar
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ import {
 
 type DesignObject = {
   id: string;
-  type: 'structure' | 'opening' | 'shape' | 'text' | 'furniture' | 'fixture' | 'stair' | 'table';
+  type: 'structure' | 'opening' | 'shape' | 'text' | 'furniture' | 'fixture' | 'stair' | 'table' | 'pillar';
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
@@ -67,7 +67,7 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
-  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol'>('select');
+  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -83,7 +83,7 @@ export default function EstimatorClient() {
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Local state for precision inputs to prevent cursor jumps
+  // Local state for precision inputs
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -176,7 +176,7 @@ export default function EstimatorClient() {
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
-  // Handle Keyboard Interactions (0.08 inch step as requested)
+  // Key shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
@@ -219,11 +219,13 @@ export default function EstimatorClient() {
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
       ];
     }
+    // Rectangle based points
     return [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w, y: obj.y },
       { x: obj.x, y: obj.y + obj.h },
-      { x: obj.x + obj.w, y: obj.y + obj.h }
+      { x: obj.x + obj.w, y: obj.y + obj.h },
+      { x: obj.x + obj.w / 2, y: obj.y + obj.h / 2 } // Center
     ];
   };
 
@@ -238,16 +240,15 @@ export default function EstimatorClient() {
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.8; // Larger threshold for easier snapping
+    const threshold = 1.0; 
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
     
-    // Priority 1: Object snapping (Point to Point, then Point to Line)
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       const pts = getPoints(obj);
       
-      // Check segment snapping for walls (Anywhere on line)
+      // Segment snap (Anywhere on line)
       if (obj.subType === 'wall' && pts.length === 2) {
         const cp = getClosestPointOnSegment({x, y}, pts[0], pts[1]);
         const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
@@ -257,24 +258,21 @@ export default function EstimatorClient() {
         }
       }
       
-      // Check individual points (Corners/Ends)
+      // Point snap (Ends/Corners)
       pts.forEach(p => {
         const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
-        if (d < minDist * 0.8) { // Prefer endpoints slightly more
+        if (d < minDist * 0.9) { 
           minDist = d;
           bestSnap = p;
         }
       });
     });
 
-    // Priority 2: Grid snap (Only if no object snap is very close)
-    if (minDist > 0.2) {
+    if (minDist > 0.4) {
       const gx = Math.round(x * 12) / 12;
       const gy = Math.round(y * 12) / 12;
       const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
-      if (gd < 0.15) {
-        bestSnap = { x: gx, y: gy };
-      }
+      if (gd < 0.2) bestSnap = { x: gx, y: gy };
     }
     
     return bestSnap;
@@ -297,14 +295,13 @@ export default function EstimatorClient() {
         currPoints.forEach(p1 => {
           otherPoints.forEach(p2 => {
             const dist = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-            if (dist < 0.25) isNear = true;
+            if (dist < 0.3) isNear = true;
           });
-          // Also check if point p1 is on the segment of 'other' if other is a wall
           if (other.subType === 'wall') {
             const op = getPoints(other);
             const cp = getClosestPointOnSegment(p1, op[0], op[1]);
             const d = Math.sqrt(Math.pow(p1.x - cp.x, 2) + Math.pow(p1.y - cp.y, 2));
-            if (d < 0.1) isNear = true;
+            if (d < 0.15) isNear = true;
           }
         });
         if (isNear) stack.push(other.id);
@@ -318,10 +315,10 @@ export default function EstimatorClient() {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, 
       x: 5, y: 5, 
-      w: subType === 'door' ? 3 : subType === 'window' ? 4 : 6, 
-      h: subType === 'door' ? 3 : subType === 'window' ? 0.6 : 6,
+      w: subType === 'pillar' ? 1 : subType === 'door' ? 3 : subType === 'window' ? 4 : 6, 
+      h: subType === 'pillar' ? 1 : subType === 'door' ? 3 : subType === 'window' ? 0.6 : 6,
       label, color: '#000000', 
-      fillColor: type === 'structure' ? '#000000' : '#ffffff',
+      fillColor: (type === 'structure' || type === 'pillar') ? '#000000' : '#ffffff',
       strokeWidth: 2, 
       strokeStyle: 'solid',
       rotation: 0,
@@ -344,6 +341,14 @@ export default function EstimatorClient() {
 
     if (selectedTool === 'text' && !id) {
       addObject('text', 'text', 'Text', { x: curX, y: curY });
+      setSelectedTool('select');
+      return;
+    }
+
+    if (selectedTool === 'pillar' && !id) {
+      const snapped = findSnapPoint(curX, curY);
+      const pos = snapped || { x: Math.round(curX * 12) / 12, y: Math.round(curY * 12) / 12 };
+      addObject('pillar', 'pillar', 'Pillar', { x: pos.x - 0.5, y: pos.y - 0.5, w: 1, h: 1 });
       setSelectedTool('select');
       return;
     }
@@ -552,13 +557,10 @@ export default function EstimatorClient() {
                   <ToolCard icon={<TypeIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                 </div>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold border-slate-300 bg-blue-50/50"><Pencil className="w-4 h-4 text-blue-600" /><span className="text-xs uppercase">Add Wall</span><ChevronDown className="ml-auto w-3.5 h-3.5 text-slate-400" /></Button></DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56">
-                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(4/12); setSelectedTool('wall'); setInteractionMode('none'); }}>Interior Wall 4"</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(6/12); setSelectedTool('wall'); setInteractionMode('none'); }}>Exterior Wall 6"</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" className="justify-start gap-2 h-10 font-bold border-slate-300 bg-blue-50/50" onClick={() => { setCurrentWallThickness(6/12); setSelectedTool('wall'); setInteractionMode('none'); }}><Pencil className="w-4 h-4 text-blue-600" /><span className="text-xs uppercase">Add Wall</span></Button>
+                  <Button variant="outline" className="justify-start gap-2 h-10 font-bold border-slate-300 bg-amber-50/50" onClick={() => setSelectedTool('pillar')}><Pillar className="w-4 h-4 text-amber-600" /><span className="text-xs uppercase">Add Pillar</span></Button>
+                </div>
 
                 <Accordion type="multiple" defaultValue={["openings"]} className="w-full">
                   <AccordionItem value="openings" className="border-slate-200">
@@ -593,7 +595,8 @@ export default function EstimatorClient() {
                     borderRadius: obj.subType === 'oval' ? '9999px' : '0px',
                     color: obj.color, 
                     fontSize: obj.type === 'text' ? (obj.fontSize || 14) * (zoom/40) : 'inherit', 
-                    fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal' 
+                    fontWeight: (obj.type === 'text' && obj.isBold) ? 'bold' : 'normal',
+                    border: (obj.type === 'pillar') ? `2px solid ${obj.color}` : 'none'
                   }}>
                   {obj.subType === 'wall' && <div className="absolute inset-0 border-y" style={{ backgroundColor: obj.color, borderColor: obj.color, height: '100%' }} />}
                   {obj.subType === 'door' && (
@@ -607,6 +610,11 @@ export default function EstimatorClient() {
                       <div className="w-full h-[1px]" style={{ backgroundColor: obj.color }} />
                       <div className="w-full h-[2px] opacity-40" style={{ backgroundColor: obj.color }} />
                       <div className="w-full h-[1px]" style={{ backgroundColor: obj.color }} />
+                    </div>
+                  )}
+                  {obj.type === 'pillar' && (
+                    <div className="w-full h-full flex items-center justify-center opacity-40">
+                      <div className="w-full h-full bg-slate-900/10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' }} />
                     </div>
                   )}
                   {obj.type === 'text' && <div className="px-2">{obj.textContent}</div>}
@@ -640,8 +648,8 @@ export default function EstimatorClient() {
               
               {/* LARGE Snap Indicator */}
               {snapPoint && (
-                <div className="absolute w-10 h-10 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-[0_0_20px_rgba(37,99,235,0.6)] animate-pulse"
-                  style={{ left: snapPoint.x * zoom - 20, top: snapPoint.y * zoom - 20 }} />
+                <div className="absolute w-12 h-12 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-[0_0_20px_rgba(37,99,235,0.6)] animate-pulse"
+                  style={{ left: snapPoint.x * zoom - 24, top: snapPoint.y * zoom - 24 }} />
               )}
             </div>
           </div>
