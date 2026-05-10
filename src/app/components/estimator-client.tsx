@@ -197,11 +197,15 @@ export default function EstimatorClient() {
     while (stack.length > 0) {
       const id = stack.pop()!;
       const curr = all.find(o => o.id === id);
-      if (!curr || !curr.isJoined) continue;
+      if (!curr) continue;
 
       all.forEach(other => {
-        if (!other.isJoined || connected.has(other.id)) return;
+        if (connected.has(other.id)) return;
         
+        const isSelfJoined = curr.isJoined;
+        const isOtherJoined = other.isJoined;
+        if (!isSelfJoined && !isOtherJoined) return;
+
         const dist = Math.sqrt(Math.pow(curr.x - other.x, 2) + Math.pow(curr.y - other.y, 2));
         if (dist < 1.5) {
           connected.add(other.id);
@@ -573,7 +577,8 @@ export default function EstimatorClient() {
         e.preventDefault();
         const delta = e.deltaY;
         setZoom(prev => {
-          const nextZoom = delta > 0 ? prev - 5 : prev + 5;
+          // Adjust zoom by 2 units instead of 5
+          const nextZoom = delta > 0 ? prev - 2 : prev + 2;
           return Math.min(150, Math.max(10, nextZoom));
         });
       }
@@ -782,7 +787,7 @@ export default function EstimatorClient() {
                           <>
                              <rect x="0" y="20" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
                              <rect x="40" y="60" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
-                             <line x1="10" y1="30" x2="30" y2="30" stroke={obj.color} strokeWidth="1" markerEnd="url(#arrow)" />
+                             <line x1="10" y1="30" x2="30" y2="30" stroke={obj.color} strokeWidth="1" />
                           </>
                         )}
                         {obj.subType === 'door_bifold' && (
@@ -860,19 +865,19 @@ export default function EstimatorClient() {
           </div>
           <div className="h-10 bg-white border-t flex items-center px-4 justify-between shrink-0 shadow-inner">
              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
+                <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={2} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
                 <span className="text-[10px] font-bold text-slate-500">{zoom}% Precision</span>
              </div>
              <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Arrow Keys: 0.05"</span>
                 <span>Ctrl+S: Save Design</span>
-                <span>Ctrl+Wheel: Zoom Canvas</span>
+                <span>Ctrl+Wheel: Zoom Canvas (2%)</span>
                 <span>Ctrl Drawing: Straight Wall</span>
              </div>
           </div>
         </div>
 
-        {/* Inspector Panel - Narrower version */}
+        {/* Inspector Panel - Narrower version (240px) */}
         <div className="w-[240px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Inspector</span><Settings2 className="w-4 h-4 text-slate-400" /></div>
            <ScrollArea className="flex-1 p-3">
