@@ -85,10 +85,11 @@ export default function EstimatorClient() {
   const [localPropH, setLocalPropH] = useState("");
 
   const formatFeetInches = (val: number) => {
-    const feet = Math.floor(val);
-    const inches = Math.round((val - feet) * 12);
+    const feet = Math.floor(Math.abs(val));
+    const inches = Math.round((Math.abs(val) - feet) * 12);
     if (feet === 0) return `${inches}"`;
     if (inches === 0) return `${feet}'`;
+    if (inches === 12) return `${feet + 1}'`;
     return `${feet}' ${inches}"`;
   };
 
@@ -157,7 +158,7 @@ export default function EstimatorClient() {
 
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
-    let minDist = 1.0; 
+    let minDist = 0.8; 
 
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
@@ -190,9 +191,9 @@ export default function EstimatorClient() {
     });
 
     if (!bestSnap) {
-      const gx = Math.round(x * 12) / 12;
-      const gy = Math.round(y * 12) / 12;
-      if (Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2)) < 0.2) {
+      const gx = Math.round(x * 20) / 20; 
+      const gy = Math.round(y * 20) / 20;
+      if (Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2)) < 0.1) {
         bestSnap = { x: gx, y: gy };
       }
     }
@@ -218,7 +219,7 @@ export default function EstimatorClient() {
         const pts2 = getPoints(other);
         let near = false;
         pts1.forEach(p1 => pts2.forEach(p2 => {
-          if (Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 0.6) near = true;
+          if (Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) < 0.5) near = true;
         }));
         if (near) stack.push(other.id);
       });
@@ -230,7 +231,7 @@ export default function EstimatorClient() {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, x: 5, y: 5, w: 2, h: 2, label, 
-      color: '#000000', fillColor: subType === 'pillar' ? '#ef4444' : '#ffffff',
+      color: '#000000', fillColor: subType === 'pillar' ? '#64748b' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       isJoined: true, 
       ...overrides
@@ -249,7 +250,7 @@ export default function EstimatorClient() {
 
     if (selectedTool === 'wall') {
       const snap = findSnapPoint(curX, curY);
-      const start = snap || { x: Math.round(curX * 12) / 12, y: Math.round(curY * 12) / 12 };
+      const start = snap || { x: Math.round(curX * 20) / 20, y: Math.round(curY * 20) / 20 };
       setDrawStart(start);
       setTempDrawEnd(start);
       setInteractionMode('drawing');
@@ -292,7 +293,7 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'drawing' && drawStart) {
       const snap = findSnapPoint(curX, curY);
-      setTempDrawEnd(snap || { x: Math.round(curX * 12) / 12, y: Math.round(curY * 12) / 12 });
+      setTempDrawEnd(snap || { x: Math.round(curX * 20) / 20, y: Math.round(curY * 20) / 20 });
       setSnapPoint(snap);
       return;
     }
@@ -305,8 +306,8 @@ export default function EstimatorClient() {
       const potentialY = curY - dragOffset.y;
       
       const snap = findSnapPoint(potentialX, potentialY, connectedGroup);
-      const targetX = snap ? snap.x : Math.round(potentialX * 12) / 12;
-      const targetY = snap ? snap.y : Math.round(potentialY * 12) / 12;
+      const targetX = snap ? snap.x : Math.round(potentialX * 20) / 20;
+      const targetY = snap ? snap.y : Math.round(potentialY * 20) / 20;
       
       const dx = targetX - curr.x;
       const dy = targetY - curr.y;
@@ -377,6 +378,40 @@ export default function EstimatorClient() {
       setDesignObjects(history[nextIndex]);
     }
   }, [history, historyIndex]);
+
+  // Pillar to Pillar Distances Calculation
+  const pillarDistances = useMemo(() => {
+    const pillars = designObjects.filter(o => o.type === 'pillar');
+    const distances: {x1: number, y1: number, x2: number, y2: number, dist: string, horizontal: boolean}[] = [];
+    
+    pillars.forEach((p1, i) => {
+      pillars.forEach((p2, j) => {
+        if (i >= j) return;
+        const dx = Math.abs((p1.x + p1.w/2) - (p2.x + p2.w/2));
+        const dy = Math.abs((p1.y + p1.h/2) - (p2.y + p2.h/2));
+        
+        // Horizontal distance
+        if (dy < 0.5 && dx > 1) {
+          distances.push({
+            x1: p1.x + p1.w/2, y1: p1.y + p1.h/2,
+            x2: p2.x + p2.w/2, y2: p2.y + p2.h/2,
+            dist: formatFeetInches(dx),
+            horizontal: true
+          });
+        }
+        // Vertical distance
+        if (dx < 0.5 && dy > 1) {
+          distances.push({
+            x1: p1.x + p1.w/2, y1: p1.y + p1.h/2,
+            x2: p2.x + p2.w/2, y2: p2.y + p2.h/2,
+            dist: formatFeetInches(dy),
+            horizontal: false
+          });
+        }
+      });
+    });
+    return distances;
+  }, [designObjects]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -524,8 +559,24 @@ export default function EstimatorClient() {
             onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
             <div className="absolute inset-0" style={{ 
                 backgroundImage: `linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)`,
-                backgroundSize: `${zoom}px ${zoom}px`, width: 3000, height: 3000
+                backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000
               }}>
+              
+              {/* Distance Indicators between Pillars */}
+              {pillarDistances.map((d, i) => (
+                <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
+                  left: Math.min(d.x1, d.x2) * zoom,
+                  top: Math.min(d.y1, d.y2) * zoom,
+                  width: d.horizontal ? Math.abs(d.x2 - d.x1) * zoom : 2,
+                  height: d.horizontal ? 2 : Math.abs(d.y2 - d.y1) * zoom,
+                  backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                }}>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 py-1 border border-blue-200 rounded text-[11px] font-bold text-blue-600 shadow-sm whitespace-nowrap">
+                    {d.dist}
+                  </div>
+                </div>
+              ))}
+
               {designObjects.map(obj => (
                 <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
                   className={cn("absolute flex items-center justify-center transition-shadow", 
@@ -538,14 +589,15 @@ export default function EstimatorClient() {
                     borderRadius: obj.subType === 'oval' ? '100%' : '0px'
                   }}>
                   
-                  {/* Always-on Dimension Label */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/80 px-1 py-0.5 rounded border border-slate-200 shadow-sm pointer-events-none z-50">
-                    <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">
-                      {obj.subType === 'wall' ? formatFeetInches(obj.w) : 
-                       (obj.type === 'pillar' ? `${formatFeetInches(obj.w)} x ${formatFeetInches(obj.h)}` : 
-                       formatFeetInches(obj.w))}
-                    </span>
-                  </div>
+                  {/* Dimension Labels - Not for Pillars */}
+                  {obj.type !== 'pillar' && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-200 shadow-sm pointer-events-none z-50">
+                      <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">
+                        {obj.subType === 'wall' ? formatFeetInches(obj.w) : 
+                         (obj.type === 'opening' ? formatFeetInches(obj.w) : '')}
+                      </span>
+                    </div>
+                  )}
 
                   {obj.subType === 'door' && (
                     <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -581,7 +633,7 @@ export default function EstimatorClient() {
                 />
               )}
               {snapPoint && (
-                <div className="absolute w-16 h-16 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_30px_rgba(37,99,235,0.8)] animate-pulse"
+                <div className="absolute w-16 h-16 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_40px_rgba(37,99,235,0.9)] animate-pulse"
                   style={{ left: snapPoint.x * zoom - 32, top: snapPoint.y * zoom - 32 }} />
               )}
             </div>
