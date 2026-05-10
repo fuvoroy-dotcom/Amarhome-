@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -37,6 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
 type DesignObject = {
   id: string;
@@ -431,6 +432,40 @@ export default function EstimatorClient() {
     }
   }, [history, historyIndex]);
 
+  const saveToFirestore = async () => {
+    try {
+      const { firestore } = initializeFirebase();
+      const docRef = doc(firestore, 'designs', 'current-layout');
+      await setDoc(docRef, {
+        objects: designObjects,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "সফল", description: "ডিজাইনটি স্থায়ীভাবে সেভ করা হয়েছে।" });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "সেভ করা সম্ভব হয়নি।" });
+    }
+  };
+
+  const loadFromFirestore = async () => {
+    try {
+      const { firestore } = initializeFirebase();
+      const docRef = doc(firestore, 'designs', 'current-layout');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        setDesignObjects(data.objects);
+        saveToHistory(data.objects);
+        toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
+      } else {
+        toast({ title: "তথ্য নেই", description: "সেভ করা কোনো ডিজাইন পাওয়া যায়নি।" });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "লোড করা সম্ভব হয়নি।" });
+    }
+  };
+
   const pillarDistances = useMemo(() => {
     const pillars = designObjects.filter(o => o.type === 'pillar');
     const distances: {x1: number, y1: number, x2: number, y2: number, dist: string, horizontal: boolean}[] = [];
@@ -529,6 +564,14 @@ export default function EstimatorClient() {
 
       {/* Ribbon */}
       <div className="h-24 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30">
+        {activeRibbonTab === 'file' && (
+           <div className="flex items-center h-full px-2 gap-1">
+              <RibbonButton icon={<Save />} label="Save Design" onClick={saveToFirestore} />
+              <RibbonButton icon={<FolderOpen />} label="Open Saved" onClick={loadFromFirestore} />
+              <RibbonButton icon={<FilePlus />} label="New Project" onClick={() => { setDesignObjects([]); saveToHistory([]); }} />
+              <RibbonButton icon={<Printer />} label="Print Design" onClick={() => window.print()} />
+           </div>
+        )}
         {activeRibbonTab === 'home' && (
           <>
             <div className="flex items-center border-r px-3 h-full gap-1">
@@ -789,7 +832,7 @@ function PropInput({ label, value, onChange, onBlur }: { label: string, value: s
         value={value} 
         onChange={e => onChange(e.target.value)} 
         onBlur={onBlur} 
-        placeholder="0' 0&quot;" 
+        placeholder="0' 0\" 
       />
     </div>
   );

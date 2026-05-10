@@ -1,0 +1,29 @@
+
+{
+  "entities": {
+    "Design": {
+      "title": "Design",
+      "description": "Architectural design layout including walls, pillars, and openings.",
+      "type": "object",
+      "properties": {
+        "objects": {
+          "type": "array",
+          "description": "List of design objects on the canvas"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "designs/{designId}": {
+      "schema": { "$ref": "#/backend/entities/Design" },
+      "description": "Collection of saved architectural designs"
+    }
+  }
+}
