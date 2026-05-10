@@ -511,14 +511,14 @@ export default function EstimatorClient() {
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
-                    backgroundColor: obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent'),
-                    border: obj.subType === 'wall' ? 'none' : `2px solid ${obj.color}`,
+                    backgroundColor: obj.subType === 'door' ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
+                    border: (obj.subType === 'wall' || obj.subType === 'door') ? 'none' : `2px solid ${obj.color}`,
                     borderRadius: obj.subType === 'oval' ? '100%' : '0px'
                   }}>
                   {obj.subType === 'door' && (
                     <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="4" />
-                      <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="2" strokeDasharray="4 2" />
+                      <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
+                      <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
                     </svg>
                   )}
                   {obj.subType === 'window' && (
@@ -579,9 +579,9 @@ export default function EstimatorClient() {
                        <PropInput label="Dimension W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} />
                        <PropInput label="Dimension H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} />
                     </div>
-                    {selectedObject.subType === 'wall' && (
+                    {(selectedObject.subType === 'wall' || selectedObject.subType === 'door') && (
                        <div className="space-y-2">
-                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Wall Thickness</Label>
+                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness / H</Label>
                           <Select value={selectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectId!, { h: parseFloat(v) }, true)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -625,7 +625,13 @@ function PropInput({ label, value, onChange, onBlur }: { label: string, value: s
   return (
     <div className="space-y-1.5">
       <Label className="text-[9px] font-bold text-slate-400 uppercase">{label}</Label>
-      <Input className="h-8 text-xs bg-slate-50 focus:bg-white" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} placeholder="0' 0&quot;" />
+      <Input 
+        className="h-8 text-xs bg-slate-50 focus:bg-white" 
+        value={value} 
+        onChange={e => onChange(e.target.value)} 
+        onBlur={onBlur} 
+        placeholder='0&apos; 0"' 
+      />
     </div>
   );
 }
