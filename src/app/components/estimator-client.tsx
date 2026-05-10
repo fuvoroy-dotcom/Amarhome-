@@ -176,7 +176,7 @@ export default function EstimatorClient() {
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
-  // Handle Keyboard Interactions (0.08 inch step)
+  // Handle Keyboard Interactions (0.08 inch step as requested)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
@@ -238,23 +238,16 @@ export default function EstimatorClient() {
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.5; // Increased threshold for easier snapping
+    const threshold = 0.8; // Larger threshold for easier snapping
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
     
-    // Grid snap
-    const gx = Math.round(x * 12) / 12;
-    const gy = Math.round(y * 12) / 12;
-    const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
-    if (gd < 0.15) {
-      bestSnap = { x: gx, y: gy };
-      minDist = gd;
-    }
-
-    // Advanced Wall segment snap (Anywhere on line)
+    // Priority 1: Object snapping (Point to Point, then Point to Line)
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       const pts = getPoints(obj);
+      
+      // Check segment snapping for walls (Anywhere on line)
       if (obj.subType === 'wall' && pts.length === 2) {
         const cp = getClosestPointOnSegment({x, y}, pts[0], pts[1]);
         const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
@@ -262,16 +255,28 @@ export default function EstimatorClient() {
           minDist = d;
           bestSnap = cp;
         }
-      } else {
-        pts.forEach(p => {
-          const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
-          if (d < minDist) {
-            minDist = d;
-            bestSnap = p;
-          }
-        });
       }
+      
+      // Check individual points (Corners/Ends)
+      pts.forEach(p => {
+        const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
+        if (d < minDist * 0.8) { // Prefer endpoints slightly more
+          minDist = d;
+          bestSnap = p;
+        }
+      });
     });
+
+    // Priority 2: Grid snap (Only if no object snap is very close)
+    if (minDist > 0.2) {
+      const gx = Math.round(x * 12) / 12;
+      const gy = Math.round(y * 12) / 12;
+      const gd = Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2));
+      if (gd < 0.15) {
+        bestSnap = { x: gx, y: gy };
+      }
+    }
+    
     return bestSnap;
   };
 
@@ -292,8 +297,15 @@ export default function EstimatorClient() {
         currPoints.forEach(p1 => {
           otherPoints.forEach(p2 => {
             const dist = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-            if (dist < 0.2) isNear = true; // Slightly larger tolerance for grouping
+            if (dist < 0.25) isNear = true;
           });
+          // Also check if point p1 is on the segment of 'other' if other is a wall
+          if (other.subType === 'wall') {
+            const op = getPoints(other);
+            const cp = getClosestPointOnSegment(p1, op[0], op[1]);
+            const d = Math.sqrt(Math.pow(p1.x - cp.x, 2) + Math.pow(p1.y - cp.y, 2));
+            if (d < 0.1) isNear = true;
+          }
         });
         if (isNear) stack.push(other.id);
       });
@@ -343,6 +355,7 @@ export default function EstimatorClient() {
       setDrawStart(startPos);
       setTempDrawEnd(startPos);
       setInteractionMode('drawing');
+      setSelectedObjectId(null);
       return;
     }
 
@@ -542,8 +555,8 @@ export default function EstimatorClient() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold border-slate-300 bg-blue-50/50"><Pencil className="w-4 h-4 text-blue-600" /><span className="text-xs uppercase">Add Wall</span><ChevronDown className="ml-auto w-3.5 h-3.5 text-slate-400" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56">
-                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(4/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Interior Wall 4"</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(6/12); setSelectedTool('wall'); setInteractionMode('drawing'); }}>Exterior Wall 6"</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(4/12); setSelectedTool('wall'); setInteractionMode('none'); }}>Interior Wall 4"</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setCurrentWallThickness(6/12); setSelectedTool('wall'); setInteractionMode('none'); }}>Exterior Wall 6"</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -625,10 +638,10 @@ export default function EstimatorClient() {
                 />
               )}
               
-              {/* LARGE Snap Indicator (Blue Circle with Animation) */}
+              {/* LARGE Snap Indicator */}
               {snapPoint && (
-                <div className="absolute w-8 h-8 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-[0_0_15px_rgba(37,99,235,0.5)] animate-pulse"
-                  style={{ left: snapPoint.x * zoom - 16, top: snapPoint.y * zoom - 16 }} />
+                <div className="absolute w-10 h-10 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-[0_0_20px_rgba(37,99,235,0.6)] animate-pulse"
+                  style={{ left: snapPoint.x * zoom - 20, top: snapPoint.y * zoom - 20 }} />
               )}
             </div>
           </div>
