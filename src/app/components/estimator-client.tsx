@@ -55,7 +55,7 @@ type DesignObject = {
   isBold?: boolean;
   rows?: number;
   cols?: number;
-  isJoined?: boolean; // New property for manual connection
+  isJoined?: boolean; 
 };
 
 const COLORS = ['#000000', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
@@ -74,12 +74,11 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); // Default 4 inches (4/12 = 0.33')
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.33); 
   const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Local property display states
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -88,6 +87,8 @@ export default function EstimatorClient() {
   const formatFeetInches = (val: number) => {
     const feet = Math.floor(val);
     const inches = Math.round((val - feet) * 12);
+    if (feet === 0) return `${inches}"`;
+    if (inches === 0) return `${feet}'`;
     return `${feet}' ${inches}"`;
   };
 
@@ -142,7 +143,7 @@ export default function EstimatorClient() {
       return [
         { x: obj.x, y: obj.y },
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin },
-        { x: obj.x + (obj.w/2) * cos, y: obj.y + (obj.w/2) * sin } // Mid point
+        { x: obj.x + (obj.w/2) * cos, y: obj.y + (obj.w/2) * sin } 
       ];
     }
     return [
@@ -231,7 +232,7 @@ export default function EstimatorClient() {
       type, subType, x: 5, y: 5, w: 2, h: 2, label, 
       color: '#000000', fillColor: subType === 'pillar' ? '#ef4444' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
-      isJoined: true, // Default to joined
+      isJoined: true, 
       ...overrides
     };
     const next = [...designObjects, newObj];
@@ -381,7 +382,7 @@ export default function EstimatorClient() {
     const handleKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
       
-      const step = 0.05; // 0.05 inch movement per arrow key press
+      const step = 0.05; 
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         e.preventDefault(); copyObject();
@@ -536,6 +537,16 @@ export default function EstimatorClient() {
                     border: (obj.subType === 'wall' || obj.subType === 'door') ? 'none' : `2px solid ${obj.color}`,
                     borderRadius: obj.subType === 'oval' ? '100%' : '0px'
                   }}>
+                  
+                  {/* Always-on Dimension Label */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/80 px-1 py-0.5 rounded border border-slate-200 shadow-sm pointer-events-none z-50">
+                    <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">
+                      {obj.subType === 'wall' ? formatFeetInches(obj.w) : 
+                       (obj.type === 'pillar' ? `${formatFeetInches(obj.w)} x ${formatFeetInches(obj.h)}` : 
+                       formatFeetInches(obj.w))}
+                    </span>
+                  </div>
+
                   {obj.subType === 'door' && (
                     <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
                       <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
