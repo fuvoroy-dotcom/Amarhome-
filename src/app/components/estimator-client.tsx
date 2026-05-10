@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -135,7 +134,6 @@ export default function EstimatorClient() {
     setSelectedObjectId(null);
   }, [saveToHistory]);
 
-  // Enhanced Snap Logic to find closest point on ANY segment
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = 0.8; 
@@ -143,10 +141,10 @@ export default function EstimatorClient() {
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
       
-      // Discrete points snap
       const rad = (obj.rotation || 0) * (Math.PI / 180);
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
+      
       const pts = obj.subType === 'wall' ? [
         { x: obj.x, y: obj.y },
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
@@ -166,7 +164,6 @@ export default function EstimatorClient() {
         }
       });
 
-      // Line Segment Snap (Snap to anywhere on wall body)
       if (obj.subType === 'wall') {
         const p1 = { x: obj.x, y: obj.y };
         const p2 = { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin };
@@ -195,7 +192,7 @@ export default function EstimatorClient() {
     return bestSnap;
   }, [designObjects]);
 
-  // Build connected group based on closeness and isJoined property
+  // Robust connectivity logic for grouping
   const getConnectedGroup = useCallback((startId: string, all: DesignObject[]) => {
     const startObj = all.find(o => o.id === startId);
     if (!startObj || !startObj.isJoined) return [startId];
@@ -210,36 +207,43 @@ export default function EstimatorClient() {
       const curr = all.find(o => o.id === id);
       if (!curr || !curr.isJoined) continue;
 
-      const currRad = (curr.rotation || 0) * (Math.PI / 180);
-      const currPoints = [
-        { x: curr.x, y: curr.y },
-        { x: curr.x + curr.w * Math.cos(currRad), y: curr.y + curr.w * Math.sin(currRad) },
-        { x: curr.x + (curr.w / 2) * Math.cos(currRad), y: curr.y + (curr.w / 2) * Math.sin(currRad) }
-      ];
-
       all.forEach(other => {
         if (!other.isJoined || connected.has(other.id)) return;
         
-        const otherRad = (other.rotation || 0) * (Math.PI / 180);
-        const p1 = { x: other.x, y: other.y };
-        const p2 = { x: other.x + other.w * Math.cos(otherRad), y: other.y + other.w * Math.sin(otherRad) };
-        
-        let near = false;
-        currPoints.forEach(cp => {
-          // Check distance to segment of other wall
-          const dx = p2.x - p1.x;
-          const dy = p2.y - p1.y;
-          const lenSq = dx * dx + dy * dy;
-          if (lenSq > 0) {
-            const t = Math.max(0, Math.min(1, ((cp.x - p1.x) * dx + (cp.y - p1.y) * dy) / lenSq));
-            const proj = { x: p1.x + t * dx, y: p1.y + t * dy };
-            if (Math.sqrt(Math.pow(cp.x - proj.x, 2) + Math.pow(cp.y - proj.y, 2)) < 0.5) near = true;
-          } else {
-            if (Math.sqrt(Math.pow(cp.x - p1.x, 2) + Math.pow(cp.y - p1.y, 2)) < 0.5) near = true;
-          }
-        });
-        
-        if (near) stack.push(other.id);
+        // Simple bounding box or center-point proximity check
+        const dist = Math.sqrt(Math.pow(curr.x - other.x, 2) + Math.pow(curr.y - other.y, 2));
+        if (dist < 1.5) { // Threshold for proximity locking
+          stack.push(other.id);
+          return;
+        }
+
+        // Segment-to-segment check for walls
+        if (curr.subType === 'wall' || other.subType === 'wall') {
+          const checkNear = (objA: DesignObject, objB: DesignObject) => {
+            const rad = (objA.rotation || 0) * (Math.PI / 180);
+            const p1 = { x: objA.x, y: objA.y };
+            const p2 = { x: objA.x + objA.w * Math.cos(rad), y: objA.y + objA.w * Math.sin(rad) };
+            const pm = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+            
+            const pointsToCheck = [p1, p2, pm];
+            let found = false;
+            pointsToCheck.forEach(pt => {
+              const bRad = (objB.rotation || 0) * (Math.PI / 180);
+              const b1 = { x: objB.x, y: objB.y };
+              const b2 = { x: objB.x + objB.w * Math.cos(bRad), y: objB.y + objB.w * Math.sin(bRad) };
+              const bdx = b2.x - b1.x;
+              const bdy = b2.y - b1.y;
+              const blenSq = bdx * bdx + bdy * bdy;
+              if (blenSq > 0) {
+                const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / blenSq));
+                const proj = { x: b1.x + t * bdx, y: b1.y + t * bdy };
+                if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.6) found = true;
+              }
+            });
+            return found;
+          };
+          if (checkNear(curr, other) || checkNear(other, curr)) stack.push(other.id);
+        }
       });
     }
     return Array.from(connected);
