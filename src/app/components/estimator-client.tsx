@@ -12,7 +12,7 @@ import {
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
-  Link, Link2, Unlink
+  Link, Link2, Unlink, ArrowUpRight
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 
 type DesignObject = {
   id: string;
-  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table';
+  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair';
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
@@ -58,6 +58,7 @@ type DesignObject = {
   rows?: number;
   cols?: number;
   isJoined?: boolean; 
+  stepCount?: number;
 };
 
 const COLORS = ['#000000', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
@@ -68,7 +69,7 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
-  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar'>('select');
+  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar' | 'stair'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
@@ -148,7 +149,7 @@ export default function EstimatorClient() {
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
       
-      const pts = obj.subType === 'wall' ? [
+      const pts = (obj.subType === 'wall' || obj.type === 'stair') ? [
         { x: obj.x, y: obj.y },
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
       ] : [
@@ -167,7 +168,7 @@ export default function EstimatorClient() {
         }
       });
 
-      if (obj.subType === 'wall') {
+      if (obj.subType === 'wall' || obj.type === 'stair') {
         const p1 = { x: obj.x, y: obj.y };
         const p2 = { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin };
         const dx = p2.x - p1.x;
@@ -207,7 +208,7 @@ export default function EstimatorClient() {
           return;
         }
 
-        if (curr.subType === 'wall' || other.subType === 'wall') {
+        if (curr.subType === 'wall' || other.subType === 'wall' || curr.type === 'stair' || other.type === 'stair') {
           const checkNear = (objA: DesignObject, objB: DesignObject) => {
             const rad = (objA.rotation || 0) * (Math.PI / 180);
             const p1 = { x: objA.x, y: objA.y };
@@ -256,6 +257,28 @@ export default function EstimatorClient() {
     saveToHistory(next);
   }, [designObjects, saveToHistory]);
 
+  const saveToFirestore = useCallback(() => {
+    const { firestore } = initializeFirebase();
+    const docRef = doc(firestore, 'designs', 'current-layout');
+    const data = {
+      objects: designObjects,
+      updatedAt: serverTimestamp()
+    };
+
+    setDoc(docRef, data, { merge: true })
+      .then(() => {
+        toast({ title: "সফল", description: "ডিজাইনটি স্থায়ীভাবে সেভ করা হয়েছে।" });
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: data,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  }, [designObjects, toast]);
+
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
     if (!rect) return;
@@ -275,6 +298,14 @@ export default function EstimatorClient() {
       const snap = findSnapPoint(curX, curY);
       const pos = snap || { x: curX, y: curY };
       addObject('pillar', 'pillar', 'Column', { x: pos.x - 0.4, y: pos.y - 0.4, w: 0.8, h: 0.8 });
+      setSelectedTool('select');
+      return;
+    }
+
+    if (selectedTool === 'stair') {
+      const snap = findSnapPoint(curX, curY);
+      const pos = snap || { x: curX, y: curY };
+      addObject('stair', 'stair', 'Stair', { x: pos.x, y: pos.y, w: 6, h: 3, stepCount: 10 });
       setSelectedTool('select');
       return;
     }
@@ -433,28 +464,6 @@ export default function EstimatorClient() {
       setDesignObjects(history[nextIndex]);
     }
   }, [history, historyIndex]);
-
-  const saveToFirestore = useCallback(() => {
-    const { firestore } = initializeFirebase();
-    const docRef = doc(firestore, 'designs', 'current-layout');
-    const data = {
-      objects: designObjects,
-      updatedAt: serverTimestamp()
-    };
-
-    setDoc(docRef, data, { merge: true })
-      .then(() => {
-        toast({ title: "সফল", description: "ডিজাইনটি স্থায়ীভাবে সেভ করা হয়েছে।" });
-      })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'write',
-          requestResourceData: data,
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
-      });
-  }, [designObjects, toast]);
 
   const loadFromFirestore = async () => {
     try {
@@ -616,9 +625,10 @@ export default function EstimatorClient() {
           </>
         )}
         {activeRibbonTab === 'design' && (
-          <div className="flex items-center h-full px-2 gap-4">
+          <div className="flex items-center h-full px-2 gap-2">
             <RibbonButton icon={<Pencil />} label="Add Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
             <RibbonButton icon={<PillarIcon />} label="Add Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
+            <RibbonButton icon={<ArrowUpRight />} label="Add Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
             <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
             <div className="h-full flex flex-col justify-center px-4 border-l gap-1">
                <Label className="text-[9px] font-bold text-slate-400 uppercase">Default Wall Thickness</Label>
@@ -652,14 +662,15 @@ export default function EstimatorClient() {
                 <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => setSelectedTool('select')} />
                 <ToolCard icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
                 <ToolCard icon={<PillarIcon />} label="Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
-                <ToolCard icon={<TypeIcon />} label="Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
+                <ToolCard icon={<ArrowUpRight />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
               </div>
               <Accordion type="multiple" defaultValue={["openings"]} className="w-full">
                 <AccordionItem value="openings" className="border-none">
-                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings</AccordionTrigger>
+                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings & Others</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
                     <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: 0.33 })} />
                     <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: 0.33 })} />
+                    <SymbolButton icon={<TypeIcon />} label="Text" onClick={() => setSelectedTool('text')} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -698,13 +709,13 @@ export default function EstimatorClient() {
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
-                    backgroundColor: obj.subType === 'door' || obj.subType === 'window' ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
+                    backgroundColor: (obj.subType === 'door' || obj.subType === 'window' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
                     border: (obj.subType === 'wall' || obj.subType === 'door') ? 'none' : `2px solid ${obj.color}`,
                     borderRadius: obj.subType === 'oval' ? '100%' : '0px'
                   }}>
                   
-                  {/* Side-Aligned Dimension Labels for Walls */}
-                  {obj.subType === 'wall' && (
+                  {/* Side-Aligned Dimension Labels for Walls and Stairs */}
+                  {(obj.subType === 'wall' || obj.type === 'stair') && (
                     <div className="absolute left-1/2 -translate-x-1/2 -top-10 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                     </div>
@@ -725,6 +736,18 @@ export default function EstimatorClient() {
                       <div className="w-full h-[1px] bg-slate-400" />
                       <div className="w-full h-[1px] bg-slate-300" />
                       <div className="absolute left-1/2 -translate-x-1/2 bottom-0 bg-white/80 px-1 rounded text-[9px] font-bold">{formatFeetInches(obj.w)}</div>
+                    </div>
+                  )}
+                  {obj.type === 'stair' && (
+                    <div className="w-full h-full relative border flex flex-col justify-between overflow-hidden">
+                       <div className="absolute inset-0 flex flex-col justify-between opacity-50">
+                          {Array.from({ length: obj.stepCount || 10 }).map((_, i) => (
+                            <div key={i} className="w-full h-[1px] bg-slate-400" />
+                          ))}
+                       </div>
+                       <div className="absolute bottom-2 right-2 text-slate-400 opacity-60">
+                          <ArrowUpRight className="w-4 h-4" />
+                       </div>
                     </div>
                   )}
                   {obj.type === 'pillar' && <div className="w-full h-full opacity-30 bg-slate-900/10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' }} />}
@@ -803,6 +826,13 @@ export default function EstimatorClient() {
                           <Input type="number" className="h-8 w-16 text-xs" value={firstSelectedObject.rotation} onChange={(e) => updateObject(selectedObjectIds[0], { rotation: parseInt(e.target.value) || 0 }, true)} />
                        </div>
                     </div>
+
+                    {firstSelectedObject.type === 'stair' && (
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Step Count</Label>
+                          <Input type="number" className="h-8 text-xs" value={firstSelectedObject.stepCount} onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} />
+                       </div>
+                    )}
 
                     {(firstSelectedObject.subType === 'wall' || firstSelectedObject.type === 'opening') && (
                        <div className="space-y-2">
