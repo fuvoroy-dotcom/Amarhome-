@@ -81,6 +81,7 @@ export default function EstimatorClient() {
   const [clipboard, setClipboard] = useState<DesignObject[]>([]);
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [showDimensions, setShowDimensions] = useState(true);
 
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
@@ -577,7 +578,6 @@ export default function EstimatorClient() {
         e.preventDefault();
         const delta = e.deltaY;
         setZoom(prev => {
-          // Adjust zoom by 2 units instead of 5
           const nextZoom = delta > 0 ? prev - 2 : prev + 2;
           return Math.min(150, Math.max(10, nextZoom));
         });
@@ -733,7 +733,7 @@ export default function EstimatorClient() {
               }}>
               
               {/* Distance Indicators between Pillars */}
-              {pillarDistances.map((d, i) => (
+              {showDimensions && pillarDistances.map((d, i) => (
                 <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
                   left: Math.min(d.x1, d.x2) * zoom,
                   top: Math.min(d.y1, d.y2) * zoom,
@@ -760,7 +760,7 @@ export default function EstimatorClient() {
                   }}>
                   
                   {/* Side-Aligned Dimension Labels */}
-                  {(obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
+                  {showDimensions && (obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
                     <div className="absolute left-1/2 -translate-x-1/2 -top-10 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                     </div>
@@ -877,78 +877,100 @@ export default function EstimatorClient() {
           </div>
         </div>
 
-        {/* Inspector Panel - Narrower version (240px) */}
+        {/* Inspector Panel */}
         <div className="w-[240px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Inspector</span><Settings2 className="w-4 h-4 text-slate-400" /></div>
            <ScrollArea className="flex-1 p-3">
-              {firstSelectedObject ? (
-                 <div className="space-y-4">
-                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-2 shadow-sm">
-                       <div className="flex items-center justify-between">
-                          <Label className="text-[10px] font-bold text-blue-800 uppercase flex items-center gap-1.5">
-                             {firstSelectedObject.isJoined ? <Link2 className="w-3.5 h-3.5 text-blue-600" /> : <Unlink className="w-3.5 h-3.5 text-slate-400" />}
-                             সংযুক্ত করুন
-                          </Label>
-                          <Switch 
-                            checked={firstSelectedObject.isJoined} 
-                            onCheckedChange={(val) => updateObject(selectedObjectIds[0], { isJoined: val }, true)}
-                          />
-                       </div>
-                       <p className="text-[9px] text-blue-600 leading-tight font-medium">
-                         টিক দিলে এটি গ্রুপের সাথে মুভ করবে।
-                       </p>
+              <Accordion type="multiple" defaultValue={["dims", "props"]} className="w-full">
+                <AccordionItem value="dims" className="border-none mb-4">
+                  <AccordionTrigger className="h-8 px-0 text-[10px] font-bold text-slate-400 uppercase hover:no-underline">Dimensions & Area</AccordionTrigger>
+                  <AccordionContent className="pt-2">
+                    <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
+                      <Label className="text-[11px] font-medium text-slate-700 flex items-center gap-2">
+                        <Ruler className="w-3.5 h-3.5 text-slate-400" />
+                        Show Dimensions
+                      </Label>
+                      <Switch 
+                        checked={showDimensions} 
+                        onCheckedChange={setShowDimensions}
+                        className="scale-75"
+                      />
                     </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-                    <div className="grid grid-cols-2 gap-2.5">
-                       <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
-                       <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
-                       <PropInput label="Width" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
-                       <PropInput label="Height" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
-                    </div>
+                {firstSelectedObject ? (
+                  <AccordionItem value="props" className="border-none">
+                    <AccordionTrigger className="h-8 px-0 text-[10px] font-bold text-slate-400 uppercase hover:no-underline">Object Properties</AccordionTrigger>
+                    <AccordionContent className="pt-2 space-y-4">
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-2 shadow-sm">
+                         <div className="flex items-center justify-between">
+                            <Label className="text-[10px] font-bold text-blue-800 uppercase flex items-center gap-1.5">
+                               {firstSelectedObject.isJoined ? <Link2 className="w-3.5 h-3.5 text-blue-600" /> : <Unlink className="w-3.5 h-3.5 text-slate-400" />}
+                               সংযুক্ত করুন
+                            </Label>
+                            <Switch 
+                              checked={firstSelectedObject.isJoined} 
+                              onCheckedChange={(val) => updateObject(selectedObjectIds[0], { isJoined: val }, true)}
+                            />
+                         </div>
+                         <p className="text-[9px] text-blue-600 leading-tight font-medium">
+                           টিক দিলে এটি গ্রুপের সাথে মুভ করবে।
+                         </p>
+                      </div>
 
-                    <div className="space-y-1.5">
-                       <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation (°)</Label>
-                       <div className="flex items-center gap-2">
-                          <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectIds[0], { rotation: v[0] }, true)} />
-                          <Input type="number" className="h-7 w-12 text-[10px] px-1" value={firstSelectedObject.rotation} onChange={(e) => updateObject(selectedObjectIds[0], { rotation: parseInt(e.target.value) || 0 }, true)} />
-                       </div>
-                    </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                         <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
+                         <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
+                         <PropInput label="Width" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
+                         <PropInput label="Height" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
+                      </div>
 
-                    {firstSelectedObject.type === 'stair' && (
-                       <div className="space-y-1.5">
-                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Steps</Label>
-                          <Input type="number" className="h-7 text-[10px]" value={firstSelectedObject.stepCount} onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} />
-                       </div>
-                    )}
+                      <div className="space-y-1.5">
+                         <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation (°)</Label>
+                         <div className="flex items-center gap-2">
+                            <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectIds[0], { rotation: v[0] }, true)} />
+                            <Input type="number" className="h-7 w-12 text-[10px] px-1" value={firstSelectedObject.rotation} onChange={(e) => updateObject(selectedObjectIds[0], { rotation: parseInt(e.target.value) || 0 }, true)} />
+                         </div>
+                      </div>
 
-                    {(firstSelectedObject.subType.includes('wall') || firstSelectedObject.type === 'opening') && (
-                       <div className="space-y-1.5">
-                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness</Label>
-                          <Select value={firstSelectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectIds[0], { h: parseFloat(v) }, true)}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0.25">3 inches</SelectItem>
-                              <SelectItem value="0.33">4 inches</SelectItem>
-                              <SelectItem value="0.42">5 inches</SelectItem>
-                              <SelectItem value="0.83">10 inches</SelectItem>
-                            </SelectContent>
-                          </Select>
-                       </div>
-                    )}
+                      {firstSelectedObject.type === 'stair' && (
+                         <div className="space-y-1.5">
+                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Steps</Label>
+                            <Input type="number" className="h-7 text-[10px]" value={firstSelectedObject.stepCount} onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} />
+                         </div>
+                      )}
 
-                    {firstSelectedObject.type === 'text' && (
-                       <div className="space-y-1.5">
-                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Label Text</Label>
-                          <Input className="h-7 text-[10px]" value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectIds[0], { textContent: e.target.value }, true)} />
-                       </div>
-                    )}
-                 </div>
-              ) : (
-                 <div className="h-64 flex flex-col items-center justify-center text-center opacity-20">
+                      {(firstSelectedObject.subType.includes('wall') || firstSelectedObject.type === 'opening') && (
+                         <div className="space-y-1.5">
+                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness</Label>
+                            <Select value={firstSelectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectIds[0], { h: parseFloat(v) }, true)}>
+                              <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0.25">3 inches</SelectItem>
+                                <SelectItem value="0.33">4 inches</SelectItem>
+                                <SelectItem value="0.42">5 inches</SelectItem>
+                                <SelectItem value="0.83">10 inches</SelectItem>
+                              </SelectContent>
+                            </Select>
+                         </div>
+                      )}
+
+                      {firstSelectedObject.type === 'text' && (
+                         <div className="space-y-1.5">
+                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Label Text</Label>
+                            <Input className="h-7 text-[10px]" value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectIds[0], { textContent: e.target.value }, true)} />
+                         </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                ) : (
+                  <div className="h-64 flex flex-col items-center justify-center text-center opacity-20">
                     <MousePointer2 className="w-8 h-8 mb-4" />
                     <p className="text-[9px] font-bold uppercase tracking-widest">Select element</p>
-                 </div>
-              )}
+                  </div>
+                )}
+              </Accordion>
            </ScrollArea>
         </div>
       </div>
