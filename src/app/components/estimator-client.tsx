@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -62,18 +63,17 @@ const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 48];
 export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
-  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
   const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [zoom, setZoom] = useState(40);
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
-  const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
   const [currentWallThickness, setCurrentWallThickness] = useState(0.33); 
-  const [clipboard, setClipboard] = useState<DesignObject | null>(null);
+  const [clipboard, setClipboard] = useState<DesignObject[]>([]);
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
@@ -98,16 +98,16 @@ export default function EstimatorClient() {
     return isNaN(decimal) ? 0 : decimal;
   };
 
-  const selectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectId), [designObjects, selectedObjectId]);
+  const firstSelectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectIds[0]), [designObjects, selectedObjectIds]);
 
   useEffect(() => {
-    if (selectedObject) {
-      setLocalPropX(formatFeetInches(selectedObject.x));
-      setLocalPropY(formatFeetInches(selectedObject.y));
-      setLocalPropW(formatFeetInches(selectedObject.w));
-      setLocalPropH(formatFeetInches(selectedObject.h));
+    if (firstSelectedObject) {
+      setLocalPropX(formatFeetInches(firstSelectedObject.x));
+      setLocalPropY(formatFeetInches(firstSelectedObject.y));
+      setLocalPropW(formatFeetInches(firstSelectedObject.w));
+      setLocalPropH(formatFeetInches(firstSelectedObject.h));
     }
-  }, [selectedObject]);
+  }, [firstSelectedObject]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -124,15 +124,15 @@ export default function EstimatorClient() {
     });
   };
 
-  const deleteObject = useCallback((id: string | null) => {
-    if (!id) return;
+  const deleteObjects = useCallback(() => {
+    if (selectedObjectIds.length === 0) return;
     setDesignObjects(prev => {
-      const next = prev.filter(o => o.id !== id);
+      const next = prev.filter(o => !selectedObjectIds.includes(o.id));
       saveToHistory(next);
       return next;
     });
-    setSelectedObjectId(null);
-  }, [saveToHistory]);
+    setSelectedObjectIds([]);
+  }, [selectedObjectIds, saveToHistory]);
 
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
@@ -182,42 +182,28 @@ export default function EstimatorClient() {
       }
     });
 
-    if (!bestSnap) {
-      const gx = Math.round(x * 20) / 20; 
-      const gy = Math.round(y * 20) / 20;
-      if (Math.sqrt(Math.pow(x - gx, 2) + Math.pow(y - gy, 2)) < 0.1) {
-        bestSnap = { x: gx, y: gy };
-      }
-    }
     return bestSnap;
   }, [designObjects]);
 
-  // Robust connectivity logic for grouping
-  const getConnectedGroup = useCallback((startId: string, all: DesignObject[]) => {
-    const startObj = all.find(o => o.id === startId);
-    if (!startObj || !startObj.isJoined) return [startId];
-
-    const connected = new Set<string>();
-    const stack = [startId];
+  const getConnectedGroup = useCallback((ids: string[], all: DesignObject[]) => {
+    const connected = new Set<string>(ids);
+    const stack = [...ids];
+    
     while (stack.length > 0) {
       const id = stack.pop()!;
-      if (connected.has(id)) continue;
-      connected.add(id);
-      
       const curr = all.find(o => o.id === id);
       if (!curr || !curr.isJoined) continue;
 
       all.forEach(other => {
         if (!other.isJoined || connected.has(other.id)) return;
         
-        // Simple bounding box or center-point proximity check
         const dist = Math.sqrt(Math.pow(curr.x - other.x, 2) + Math.pow(curr.y - other.y, 2));
-        if (dist < 1.5) { // Threshold for proximity locking
+        if (dist < 1.5) {
+          connected.add(other.id);
           stack.push(other.id);
           return;
         }
 
-        // Segment-to-segment check for walls
         if (curr.subType === 'wall' || other.subType === 'wall') {
           const checkNear = (objA: DesignObject, objB: DesignObject) => {
             const rad = (objA.rotation || 0) * (Math.PI / 180);
@@ -237,12 +223,15 @@ export default function EstimatorClient() {
               if (blenSq > 0) {
                 const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / blenSq));
                 const proj = { x: b1.x + t * bdx, y: b1.y + t * bdy };
-                if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.6) found = true;
+                if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.8) found = true;
               }
             });
             return found;
           };
-          if (checkNear(curr, other) || checkNear(other, curr)) stack.push(other.id);
+          if (checkNear(curr, other) || checkNear(other, curr)) {
+            connected.add(other.id);
+            stack.push(other.id);
+          }
         }
       });
     }
@@ -260,11 +249,11 @@ export default function EstimatorClient() {
     };
     const next = [...designObjects, newObj];
     setDesignObjects(next);
-    setSelectedObjectId(newObj.id);
+    setSelectedObjectIds([newObj.id]);
     saveToHistory(next);
   }, [designObjects, saveToHistory]);
 
-  const handleMouseDown = (e: React.MouseEvent, id: string | null, mode: any = 'dragging') => {
+  const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
     if (!rect) return;
     const curX = (e.clientX - rect.left) / zoom;
@@ -295,15 +284,34 @@ export default function EstimatorClient() {
 
     if (id) {
       e.stopPropagation();
-      setSelectedObjectId(id);
-      setInteractionMode(mode);
-      const obj = designObjects.find(o => o.id === id);
-      if (obj) {
-        setDragOffset({ x: curX - obj.x, y: curY - obj.y });
-        setConnectedGroup(getConnectedGroup(id, designObjects));
+      let newSelection = [...selectedObjectIds];
+      
+      if (e.ctrlKey || e.metaKey) {
+        if (newSelection.includes(id)) {
+          newSelection = newSelection.filter(sid => sid !== id);
+        } else {
+          newSelection.push(id);
+        }
+      } else {
+        if (!newSelection.includes(id)) {
+          newSelection = [id];
+        }
       }
+      
+      setSelectedObjectIds(newSelection);
+      setInteractionMode('dragging');
+      
+      const group = getConnectedGroup(newSelection, designObjects);
+      const newOffsets: { [id: string]: { x: number, y: number } } = {};
+      group.forEach(gid => {
+        const obj = designObjects.find(o => o.id === gid);
+        if (obj) newOffsets[gid] = { x: curX - obj.x, y: curY - obj.y };
+      });
+      setDragOffsets(newOffsets);
     } else {
-      setSelectedObjectId(null);
+      if (!e.ctrlKey && !e.metaKey) {
+        setSelectedObjectIds([]);
+      }
     }
   };
 
@@ -314,36 +322,53 @@ export default function EstimatorClient() {
     const curY = (e.clientY - rect.top) / zoom;
 
     if (interactionMode === 'drawing' && drawStart) {
-      const snap = findSnapPoint(curX, curY);
-      setTempDrawEnd(snap || { x: Math.round(curX * 20) / 20, y: Math.round(curY * 20) / 20 });
+      let endX = curX;
+      let endY = curY;
+      
+      if (e.ctrlKey || e.metaKey) {
+        const dx = Math.abs(curX - drawStart.x);
+        const dy = Math.abs(curY - drawStart.y);
+        if (dx > dy) endY = drawStart.y;
+        else endX = drawStart.x;
+      }
+      
+      const snap = findSnapPoint(endX, endY);
+      setTempDrawEnd(snap || { x: Math.round(endX * 20) / 20, y: Math.round(endY * 20) / 20 });
       setSnapPoint(snap);
       return;
     }
 
-    if (interactionMode === 'dragging' && selectedObjectId) {
-      const curr = designObjects.find(o => o.id === selectedObjectId);
-      if (!curr) return;
+    if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
+      const group = Object.keys(dragOffsets);
+      const mainId = selectedObjectIds[0];
+      const mainOffset = dragOffsets[mainId];
       
-      const potentialX = curX - dragOffset.x;
-      const potentialY = curY - dragOffset.y;
+      if (!mainOffset) return;
       
-      const snap = findSnapPoint(potentialX, potentialY, connectedGroup);
+      const potentialX = curX - mainOffset.x;
+      const potentialY = curY - mainOffset.y;
+      
+      const snap = findSnapPoint(potentialX, potentialY, group);
       const targetX = snap ? snap.x : Math.round(potentialX * 20) / 20;
       const targetY = snap ? snap.y : Math.round(potentialY * 20) / 20;
       
-      const dx = targetX - curr.x;
-      const dy = targetY - curr.y;
+      const mainObj = designObjects.find(o => o.id === mainId);
+      if (!mainObj) return;
       
-      setDesignObjects(prev => prev.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+      const dx = targetX - mainObj.x;
+      const dy = targetY - mainObj.y;
+      
+      setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
       setSnapPoint(snap);
     }
 
-    if (interactionMode === 'resizing' && selectedObjectId) {
-      const curr = designObjects.find(o => o.id === selectedObjectId);
+    if (interactionMode === 'resizing' && selectedObjectIds.length === 1) {
+      const id = selectedObjectIds[0];
+      const curr = designObjects.find(o => o.id === id);
       if (!curr) return;
       const nextW = Math.max(0.1, curX - curr.x);
       const nextH = Math.max(0.1, curY - curr.y);
-      setDesignObjects(prev => prev.map(o => o.id === selectedObjectId ? { ...o, w: nextW, h: nextH } : o));
+      setDesignObjects(prev => prev.map(o => o.id === id ? { ...o, w: nextW, h: nextH } : o));
     }
   };
 
@@ -366,22 +391,27 @@ export default function EstimatorClient() {
     setSnapPoint(null);
   };
 
-  const copyObject = useCallback(() => {
-    if (selectedObject) {
-      setClipboard({...selectedObject, id: Math.random().toString(36).substr(2, 9)});
-      toast({ title: "Copy", description: "অবজেক্টটি কপি করা হয়েছে।" });
+  const copyObjects = useCallback(() => {
+    if (selectedObjectIds.length > 0) {
+      const toCopy = designObjects.filter(o => selectedObjectIds.includes(o.id));
+      setClipboard(toCopy.map(o => ({...o})));
+      toast({ title: "Copy", description: `${selectedObjectIds.length}টি অবজেক্ট কপি করা হয়েছে।` });
     }
-  }, [selectedObject, toast]);
+  }, [selectedObjectIds, designObjects, toast]);
 
-  const pasteObject = useCallback(() => {
-    if (clipboard) {
-      const nextObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 0.5, y: clipboard.y + 0.5 };
-      const next = [...designObjects, nextObj];
+  const pasteObjects = useCallback(() => {
+    if (clipboard.length > 0) {
+      const newIds: string[] = [];
+      const pasted = clipboard.map(obj => {
+        const id = Math.random().toString(36).substr(2, 9);
+        newIds.push(id);
+        return { ...obj, id, x: obj.x + 1, y: obj.y + 1 };
+      });
+      const next = [...designObjects, ...pasted];
       setDesignObjects(next);
-      setSelectedObjectId(nextObj.id);
+      setSelectedObjectIds(newIds);
       saveToHistory(next);
-      setClipboard(nextObj);
-      toast({ title: "Paste", description: "অবজেক্টটি পেস্ট করা হয়েছে।" });
+      toast({ title: "Paste", description: `${clipboard.length}টি অবজেক্ট পেস্ট করা হয়েছে।` });
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
@@ -411,20 +441,18 @@ export default function EstimatorClient() {
         const dx = Math.abs((p1.x + p1.w/2) - (p2.x + p2.w/2));
         const dy = Math.abs((p1.y + p1.h/2) - (p2.y + p2.h/2));
         
-        if (dy < 0.5 && dx > 1) {
+        if (dy < 0.8 && dx > 1) {
           distances.push({
             x1: p1.x + p1.w/2, y1: p1.y + p1.h/2,
             x2: p2.x + p2.w/2, y2: p2.y + p2.h/2,
-            dist: formatFeetInches(dx),
-            horizontal: true
+            dist: formatFeetInches(dx), horizontal: true
           });
         }
-        if (dx < 0.5 && dy > 1) {
+        if (dx < 0.8 && dy > 1) {
           distances.push({
             x1: p1.x + p1.w/2, y1: p1.y + p1.h/2,
             x2: p2.x + p2.w/2, y2: p2.y + p2.h/2,
-            dist: formatFeetInches(dy),
-            horizontal: false
+            dist: formatFeetInches(dy), horizontal: false
           });
         }
       });
@@ -439,10 +467,10 @@ export default function EstimatorClient() {
       const moveStep = 0.05; 
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-        e.preventDefault(); copyObject();
+        e.preventDefault(); copyObjects();
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-        e.preventDefault(); pasteObject();
+        e.preventDefault(); pasteObjects();
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault(); undo();
@@ -451,21 +479,27 @@ export default function EstimatorClient() {
         e.preventDefault(); redo();
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        deleteObject(selectedObjectId);
+        deleteObjects();
       }
 
-      if (selectedObjectId && selectedObject) {
-        const group = getConnectedGroup(selectedObjectId, designObjects);
-        if (e.key === 'ArrowUp') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y - moveStep } : o));
-        if (e.key === 'ArrowDown') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, y: o.y + moveStep } : o));
-        if (e.key === 'ArrowLeft') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x - moveStep } : o));
-        if (e.key === 'ArrowRight') setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + moveStep } : o));
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) saveToHistory(designObjects);
+      if (selectedObjectIds.length > 0) {
+        const group = getConnectedGroup(selectedObjectIds, designObjects);
+        let dx = 0, dy = 0;
+        if (e.key === 'ArrowUp') dy = -moveStep;
+        if (e.key === 'ArrowDown') dy = moveStep;
+        if (e.key === 'ArrowLeft') dx = -moveStep;
+        if (e.key === 'ArrowRight') dx = moveStep;
+
+        if (dx !== 0 || dy !== 0) {
+          e.preventDefault();
+          setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+          saveToHistory(designObjects);
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedObjectId, selectedObject, copyObject, pasteObject, undo, redo, deleteObject, designObjects, getConnectedGroup, saveToHistory]);
+  }, [selectedObjectIds, copyObjects, pasteObjects, undo, redo, deleteObjects, designObjects, getConnectedGroup, saveToHistory]);
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
@@ -485,7 +519,7 @@ export default function EstimatorClient() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" Step</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" | Ctrl: Multiselect & Straight</span>
           <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
         </div>
       </div>
@@ -499,25 +533,25 @@ export default function EstimatorClient() {
               <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
             </div>
             <div className="flex items-center border-r px-3 h-full gap-1">
-              <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copyObject} />
-              <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteObject} />
+              <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copyObjects} />
+              <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteObjects} />
             </div>
             <div className="flex items-center border-r px-3 h-full gap-2">
-              <Select value={selectedObject?.fontSize?.toString() || "14"} onValueChange={(v) => selectedObjectId && updateObject(selectedObjectId, { fontSize: parseInt(v) }, true)}>
+              <Select value={firstSelectedObject?.fontSize?.toString() || "14"} onValueChange={(v) => selectedObjectIds.length > 0 && updateObject(selectedObjectIds[0], { fontSize: parseInt(v) }, true)}>
                 <SelectTrigger className="h-8 w-24 text-[11px]"><SelectValue placeholder="Size" /></SelectTrigger>
                 <SelectContent>{FONT_SIZES.map(s => <SelectItem key={s} value={s.toString()}>{s}pt</SelectItem>)}</SelectContent>
               </Select>
               <div className="flex gap-1">
-                 <Button variant={selectedObject?.isBold ? "secondary" : "ghost"} size="icon" className="h-8 w-8 border" onClick={() => selectedObjectId && updateObject(selectedObjectId, { isBold: !selectedObject?.isBold }, true)}><Bold className="w-4 h-4" /></Button>
+                 <Button variant={firstSelectedObject?.isBold ? "secondary" : "ghost"} size="icon" className="h-8 w-8 border" onClick={() => selectedObjectIds.length > 0 && updateObject(selectedObjectIds[0], { isBold: !firstSelectedObject?.isBold }, true)}><Bold className="w-4 h-4" /></Button>
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 border p-0"><PaintBucket className="w-4 h-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent className="p-2 grid grid-cols-5 gap-1">
-                      {COLORS.map(c => <div key={c} onClick={() => selectedObjectId && updateObject(selectedObjectId, { color: c, fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />)}
+                      {COLORS.map(c => <div key={c} onClick={() => selectedObjectIds.length > 0 && updateObject(selectedObjectIds[0], { color: c, fillColor: c }, true)} className="w-6 h-6 rounded border cursor-pointer hover:scale-110" style={{ backgroundColor: c }} />)}
                     </DropdownMenuContent>
                  </DropdownMenu>
               </div>
             </div>
-            <RibbonButton icon={<Trash2 />} label="Delete" variant="destructive" onClick={() => deleteObject(selectedObjectId)} />
+            <RibbonButton icon={<Trash2 />} label="Delete" variant="destructive" onClick={deleteObjects} />
           </>
         )}
         {activeRibbonTab === 'design' && (
@@ -599,7 +633,7 @@ export default function EstimatorClient() {
               {designObjects.map(obj => (
                 <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
                   className={cn("absolute flex items-center justify-center transition-shadow", 
-                    selectedObjectId === obj.id ? "z-30 ring-2 ring-blue-500 shadow-2xl" : "z-10")}
+                    selectedObjectIds.includes(obj.id) ? "z-30 ring-2 ring-blue-500 shadow-2xl" : "z-10")}
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
                     transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
@@ -636,9 +670,9 @@ export default function EstimatorClient() {
                   {obj.type === 'text' && (
                     <span className={cn("text-center px-1 whitespace-nowrap", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
                   )}
-                  {selectedObjectId === obj.id && (
+                  {selectedObjectIds.length === 1 && selectedObjectIds[0] === obj.id && (
                     <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg" 
-                      onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
+                      onMouseDown={(e) => handleMouseDown(e, obj.id)} />
                   )}
                 </div>
               ))}
@@ -665,8 +699,8 @@ export default function EstimatorClient() {
              </div>
              <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Arrow Keys: 0.05"</span>
-                <span>Ctrl+C/V: Copy-Paste</span>
-                <span>Ctrl+Z: Undo</span>
+                <span>Ctrl+C/V: Group Copy</span>
+                <span>Ctrl Drawing: Straight Wall</span>
              </div>
           </div>
         </div>
@@ -675,44 +709,43 @@ export default function EstimatorClient() {
         <div className="w-[300px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Element Inspector</span><Settings2 className="w-4 h-4 text-slate-400" /></div>
            <ScrollArea className="flex-1 p-4">
-              {selectedObject ? (
+              {firstSelectedObject ? (
                  <div className="space-y-6">
-                    {/* Connection Toggler - Core Feature */}
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3 shadow-sm">
                        <div className="flex items-center justify-between">
                           <Label className="text-[11px] font-bold text-blue-800 uppercase flex items-center gap-2">
-                             {selectedObject.isJoined ? <Link2 className="w-4 h-4 text-blue-600" /> : <Unlink className="w-4 h-4 text-slate-400" />}
+                             {firstSelectedObject.isJoined ? <Link2 className="w-4 h-4 text-blue-600" /> : <Unlink className="w-4 h-4 text-slate-400" />}
                              সংযুক্ত করুন (Connect)
                           </Label>
                           <Switch 
-                            checked={selectedObject.isJoined} 
-                            onCheckedChange={(val) => updateObject(selectedObjectId!, { isJoined: val }, true)}
+                            checked={firstSelectedObject.isJoined} 
+                            onCheckedChange={(val) => updateObject(selectedObjectIds[0], { isJoined: val }, true)}
                           />
                        </div>
                        <p className="text-[10px] text-blue-600 leading-tight font-medium">
-                         টিক দিলে যেকোনো পজিশনে এটি লকের মতো লেগে থাকবে এবং একসাথে মুভ করবে।
+                         টিক দিলে এটি লকের মতো আটকে যাবে এবং গ্রুপের সাথে মুভ করবে।
                        </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                       <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectId!, { x: parseFeetInches(localPropX) }, true)} />
-                       <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectId!, { y: parseFeetInches(localPropY) }, true)} />
-                       <PropInput label="Width (W)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} />
-                       <PropInput label="Height (H)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} />
+                       <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
+                       <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
+                       <PropInput label="Width (W)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
+                       <PropInput label="Height (H)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
                     </div>
 
                     <div className="space-y-2">
                        <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation (°)</Label>
                        <div className="flex items-center gap-3">
-                          <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectId!, { rotation: v[0] }, true)} />
-                          <Input type="number" className="h-8 w-16 text-xs" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObjectId!, { rotation: parseInt(e.target.value) || 0 }, true)} />
+                          <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectIds[0], { rotation: v[0] }, true)} />
+                          <Input type="number" className="h-8 w-16 text-xs" value={firstSelectedObject.rotation} onChange={(e) => updateObject(selectedObjectIds[0], { rotation: parseInt(e.target.value) || 0 }, true)} />
                        </div>
                     </div>
 
-                    {(selectedObject.subType === 'wall' || selectedObject.type === 'opening') && (
+                    {(firstSelectedObject.subType === 'wall' || firstSelectedObject.type === 'opening') && (
                        <div className="space-y-2">
                           <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness / H</Label>
-                          <Select value={selectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectId!, { h: parseFloat(v) }, true)}>
+                          <Select value={firstSelectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectIds[0], { h: parseFloat(v) }, true)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="0.25">3 inches</SelectItem>
@@ -724,10 +757,10 @@ export default function EstimatorClient() {
                        </div>
                     )}
 
-                    {selectedObject.type === 'text' && (
+                    {firstSelectedObject.type === 'text' && (
                        <div className="space-y-2">
                           <Label className="text-[9px] font-bold text-slate-400 uppercase">Label Text</Label>
-                          <Input value={selectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectId!, { textContent: e.target.value }, true)} />
+                          <Input value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectIds[0], { textContent: e.target.value }, true)} />
                        </div>
                     )}
                  </div>
