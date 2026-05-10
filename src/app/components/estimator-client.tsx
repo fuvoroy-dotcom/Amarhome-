@@ -253,6 +253,12 @@ export default function EstimatorClient() {
       return;
     }
 
+    if (selectedTool === 'text') {
+       addObject('text', 'label', 'New Label', { x: curX, y: curY, textContent: 'Label Text', fontSize: 14 });
+       setSelectedTool('select');
+       return;
+    }
+
     if (id) {
       e.stopPropagation();
       setSelectedObjectId(id);
@@ -290,6 +296,14 @@ export default function EstimatorClient() {
       const dy = targetY - curr.y;
       setDesignObjects(prev => prev.map(o => connectedGroup.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
       setSnapPoint(snap);
+    }
+
+    if (interactionMode === 'resizing' && selectedObjectId) {
+      const curr = designObjects.find(o => o.id === selectedObjectId);
+      if (!curr) return;
+      const nextW = Math.max(0.1, curX - curr.x);
+      const nextH = Math.max(0.1, curY - curr.y);
+      setDesignObjects(prev => prev.map(o => o.id === selectedObjectId ? { ...o, w: nextW, h: nextH } : o));
     }
   };
 
@@ -434,6 +448,7 @@ export default function EstimatorClient() {
           <div className="flex items-center h-full px-2 gap-4">
             <RibbonButton icon={<Pencil />} label="Add Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
             <RibbonButton icon={<PillarIcon />} label="Add Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
+            <RibbonButton icon={<TypeIcon />} label="Add Label" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
             <RibbonButton icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => setSelectedTool('select')} />
           </div>
         )}
@@ -535,7 +550,7 @@ export default function EstimatorClient() {
              <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Ctrl+C/V Copy-Paste</span>
                 <span>Ctrl+Z/Y Undo-Redo</span>
-                <span>Arrow Keys Move</span>
+                <span>Arrow Keys Move (0.08")</span>
              </div>
           </div>
         </div>
@@ -558,9 +573,13 @@ export default function EstimatorClient() {
                           <Input value={selectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectId!, { textContent: e.target.value }, true)} />
                        </div>
                     )}
-                    <div className="space-y-2">
-                       <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation ({selectedObject.rotation}°)</Label>
+                    <div className="space-y-4">
+                       <div className="flex items-center justify-between">
+                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation</Label>
+                          <span className="text-[10px] font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded">{selectedObject.rotation}°</span>
+                       </div>
                        <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} onValueChange={(v) => updateObject(selectedObjectId!, { rotation: v[0] }, true)} />
+                       <Input type="number" className="h-8 text-xs" value={selectedObject.rotation} onChange={(e) => updateObject(selectedObjectId!, { rotation: parseInt(e.target.value) || 0 }, true)} />
                     </div>
                  </div>
               ) : (
