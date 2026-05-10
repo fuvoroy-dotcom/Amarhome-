@@ -69,7 +69,7 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
-  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar' | 'stair'>('select');
+  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar' | 'stair' | 'room'>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
@@ -257,6 +257,26 @@ export default function EstimatorClient() {
     saveToHistory(next);
   }, [designObjects, saveToHistory]);
 
+  const addRoom = useCallback(() => {
+    const startX = 10, startY = 10, w = 12, h = 10;
+    const thickness = currentWallThickness;
+    const roomWalls: DesignObject[] = [
+      // Top
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
+      // Bottom
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
+      // Left
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
+      // Right
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
+    ];
+    const next = [...designObjects, ...roomWalls];
+    setDesignObjects(next);
+    setSelectedObjectIds(roomWalls.map(w => w.id));
+    saveToHistory(next);
+    toast({ title: "Room Added", description: "A standard 12'x10' room has been inserted." });
+  }, [designObjects, currentWallThickness, saveToHistory, toast]);
+
   const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
     const docRef = doc(firestore, 'designs', 'current-layout');
@@ -308,12 +328,6 @@ export default function EstimatorClient() {
       addObject('stair', 'stair', 'Stair', { x: pos.x, y: pos.y, w: 6, h: 3, stepCount: 10 });
       setSelectedTool('select');
       return;
-    }
-
-    if (selectedTool === 'text') {
-       addObject('text', 'label', 'Label', { x: curX, y: curY, textContent: 'New Label', fontSize: 14 });
-       setSelectedTool('select');
-       return;
     }
 
     if (id) {
@@ -626,6 +640,7 @@ export default function EstimatorClient() {
         )}
         {activeRibbonTab === 'design' && (
           <div className="flex items-center h-full px-2 gap-2">
+            <RibbonButton icon={<Square />} label="Add Room" onClick={addRoom} />
             <RibbonButton icon={<Pencil />} label="Add Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
             <RibbonButton icon={<PillarIcon />} label="Add Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
             <RibbonButton icon={<ArrowUpRight />} label="Add Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
@@ -660,6 +675,7 @@ export default function EstimatorClient() {
             <div className="p-4 space-y-6">
               <div className="grid grid-cols-2 gap-3">
                 <ToolCard icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => setSelectedTool('select')} />
+                <ToolCard icon={<Square />} label="Room" onClick={addRoom} />
                 <ToolCard icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
                 <ToolCard icon={<PillarIcon />} label="Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
                 <ToolCard icon={<ArrowUpRight />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
