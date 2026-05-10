@@ -37,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 
 type DesignObject = {
   id: string;
@@ -589,9 +588,12 @@ export default function EstimatorClient() {
                     borderRadius: obj.subType === 'oval' ? '100%' : '0px'
                   }}>
                   
-                  {/* Dimension Labels - Not for Pillars */}
+                  {/* Dimension Labels - Offset for Walls to prevent overlapping */}
                   {obj.type !== 'pillar' && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-200 shadow-sm pointer-events-none z-50">
+                    <div className={cn(
+                      "absolute left-1/2 -translate-x-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-200 shadow-sm pointer-events-none z-50",
+                      obj.subType === 'wall' ? "-top-8" : "top-1/2 -translate-y-1/2"
+                    )}>
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">
                         {obj.subType === 'wall' ? formatFeetInches(obj.w) : 
                          (obj.type === 'opening' ? formatFeetInches(obj.w) : '')}
