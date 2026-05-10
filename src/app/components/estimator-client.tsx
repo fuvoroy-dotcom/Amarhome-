@@ -510,6 +510,9 @@ export default function EstimatorClient() {
             <Building className="w-5 h-5 text-blue-400" />
             <span className="font-bold text-xs tracking-tighter uppercase">Architectural Pro Studio</span>
           </div>
+          <div className="flex items-center gap-2 px-4 border-r border-slate-700">
+            <span className="text-[10px] text-slate-400 font-mono tracking-wider">birganj-pouro-high-74409-9ca38</span>
+          </div>
           <nav className="flex gap-0 h-full">
             {['File', 'Home', 'Design', 'Table'].map(item => (
               <Button key={item} variant="ghost" onClick={() => setActiveRibbonTab(item.toLowerCase())}
