@@ -567,8 +567,24 @@ export default function EstimatorClient() {
         }
       }
     };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY;
+        setZoom(prev => {
+          const nextZoom = delta > 0 ? prev - 5 : prev + 5;
+          return Math.min(150, Math.max(10, nextZoom));
+        });
+      }
+    };
+
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('wheel', handleWheel);
+    };
   }, [selectedObjectIds, copyObjects, pasteObjects, undo, redo, deleteObjects, designObjects, getConnectedGroup, saveToHistory, saveToFirestore]);
 
   return (
@@ -592,7 +608,7 @@ export default function EstimatorClient() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" | Ctrl+S: Save | Ctrl: Multi & Straight</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" | Ctrl+S: Save | Ctrl+Wheel: Zoom</span>
           <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
         </div>
       </div>
@@ -850,7 +866,7 @@ export default function EstimatorClient() {
              <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Arrow Keys: 0.05"</span>
                 <span>Ctrl+S: Save Design</span>
-                <span>Ctrl+C/V: Group Copy</span>
+                <span>Ctrl+Wheel: Zoom Canvas</span>
                 <span>Ctrl Drawing: Straight Wall</span>
              </div>
           </div>
