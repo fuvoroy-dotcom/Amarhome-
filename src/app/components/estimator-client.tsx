@@ -434,7 +434,7 @@ export default function EstimatorClient() {
     }
   }, [history, historyIndex]);
 
-  const saveToFirestore = () => {
+  const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
     const docRef = doc(firestore, 'designs', 'current-layout');
     const data = {
@@ -454,7 +454,7 @@ export default function EstimatorClient() {
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
       });
-  };
+  }, [designObjects, toast]);
 
   const loadFromFirestore = async () => {
     try {
@@ -525,6 +525,9 @@ export default function EstimatorClient() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault(); redo();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault(); saveToFirestore();
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteObjects();
       }
@@ -546,7 +549,7 @@ export default function EstimatorClient() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedObjectIds, copyObjects, pasteObjects, undo, redo, deleteObjects, designObjects, getConnectedGroup, saveToHistory]);
+  }, [selectedObjectIds, copyObjects, pasteObjects, undo, redo, deleteObjects, designObjects, getConnectedGroup, saveToHistory, saveToFirestore]);
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
@@ -569,7 +572,7 @@ export default function EstimatorClient() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" | Ctrl: Multiselect & Straight</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" | Ctrl+S: Save | Ctrl: Multi & Straight</span>
           <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
         </div>
       </div>
@@ -578,7 +581,7 @@ export default function EstimatorClient() {
       <div className="h-24 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30">
         {activeRibbonTab === 'file' && (
            <div className="flex items-center h-full px-2 gap-1">
-              <RibbonButton icon={<Save />} label="Save Design" onClick={saveToFirestore} />
+              <RibbonButton icon={<Save />} label="Save (Ctrl+S)" onClick={saveToFirestore} />
               <RibbonButton icon={<FolderOpen />} label="Open Saved" onClick={loadFromFirestore} />
               <RibbonButton icon={<FilePlus />} label="New Project" onClick={() => { setDesignObjects([]); saveToHistory([]); }} />
               <RibbonButton icon={<Printer />} label="Print Design" onClick={() => window.print()} />
@@ -757,6 +760,7 @@ export default function EstimatorClient() {
              </div>
              <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Arrow Keys: 0.05"</span>
+                <span>Ctrl+S: Save Design</span>
                 <span>Ctrl+C/V: Group Copy</span>
                 <span>Ctrl Drawing: Straight Wall</span>
              </div>
