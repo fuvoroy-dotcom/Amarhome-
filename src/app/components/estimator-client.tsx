@@ -365,7 +365,7 @@ export default function EstimatorClient() {
     const handleKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
       
-      const step = 0.08;
+      const step = 0.05; // 0.05 inch move per key press
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         e.preventDefault(); copyObject();
@@ -562,7 +562,7 @@ export default function EstimatorClient() {
              <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Ctrl+C/V Copy-Paste</span>
                 <span>Ctrl+Z/Y Undo-Redo</span>
-                <span>Arrow Keys Move (0.08")</span>
+                <span>Arrow Keys Move (0.05")</span>
              </div>
           </div>
         </div>
