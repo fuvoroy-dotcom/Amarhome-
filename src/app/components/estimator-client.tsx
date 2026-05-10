@@ -69,7 +69,7 @@ export default function EstimatorClient() {
   const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [connectedGroup, setConnectedGroup] = useState<string[]>([]);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.5); 
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.42); 
   const [clipboard, setClipboard] = useState<DesignObject | null>(null);
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -93,7 +93,7 @@ export default function EstimatorClient() {
     return isNaN(decimal) ? 0 : decimal;
   };
 
-  const selectedObject = designObjects.find(obj => obj.id === selectedObjectId);
+  const selectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectId), [designObjects, selectedObjectId]);
 
   useEffect(() => {
     if (selectedObject) {
@@ -119,15 +119,17 @@ export default function EstimatorClient() {
     });
   };
 
-  const deleteObject = (id: string | null) => {
+  const deleteObject = useCallback((id: string | null) => {
     if (!id) return;
-    const next = designObjects.filter(o => o.id !== id);
-    setDesignObjects(next);
+    setDesignObjects(prev => {
+      const next = prev.filter(o => o.id !== id);
+      saveToHistory(next);
+      return next;
+    });
     setSelectedObjectId(null);
-    saveToHistory(next);
-  };
+  }, [saveToHistory]);
 
-  const getPoints = (obj: DesignObject) => {
+  const getPoints = useCallback((obj: DesignObject) => {
     const rad = (obj.rotation || 0) * (Math.PI / 180);
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
@@ -137,7 +139,6 @@ export default function EstimatorClient() {
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
       ];
     }
-    // For rectangles/pillars, return corners
     return [
       { x: obj.x, y: obj.y },
       { x: obj.x + obj.w, y: obj.y },
@@ -145,9 +146,9 @@ export default function EstimatorClient() {
       { x: obj.x + obj.w, y: obj.y + obj.h },
       { x: obj.x + obj.w / 2, y: obj.y + obj.h / 2 }
     ];
-  };
+  }, []);
 
-  const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
+  const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = 0.8; 
 
@@ -155,7 +156,6 @@ export default function EstimatorClient() {
       if (excludeIds.includes(obj.id)) return;
       const pts = getPoints(obj);
       
-      // Point snapping
       pts.forEach(p => {
         const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
         if (d < minDist) {
@@ -164,13 +164,14 @@ export default function EstimatorClient() {
         }
       });
 
-      // Segment snapping (Snap to anywhere on wall line)
       if (obj.subType === 'wall') {
         const p1 = pts[0];
         const p2 = pts[1];
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
-        const t = ((x - p1.x) * dx + (y - p1.y) * dy) / (dx * dx + dy * dy);
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return;
+        const t = ((x - p1.x) * dx + (y - p1.y) * dy) / lenSq;
         if (t >= 0 && t <= 1) {
           const cp = { x: p1.x + t * dx, y: p1.y + t * dy };
           const d = Math.sqrt(Math.pow(x - cp.x, 2) + Math.pow(y - cp.y, 2));
@@ -182,7 +183,6 @@ export default function EstimatorClient() {
       }
     });
 
-    // Grid snap if no object snap
     if (!bestSnap) {
       const gx = Math.round(x * 12) / 12;
       const gy = Math.round(y * 12) / 12;
@@ -191,9 +191,9 @@ export default function EstimatorClient() {
       }
     }
     return bestSnap;
-  };
+  }, [designObjects, getPoints]);
 
-  const getConnectedGroup = (startId: string, all: DesignObject[]) => {
+  const getConnectedGroup = useCallback((startId: string, all: DesignObject[]) => {
     const connected = new Set<string>();
     const stack = [startId];
     while (stack.length > 0) {
@@ -214,13 +214,13 @@ export default function EstimatorClient() {
       });
     }
     return Array.from(connected);
-  };
+  }, [getPoints]);
 
-  const addObject = (type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
+  const addObject = useCallback((type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, x: 5, y: 5, w: 2, h: 2, label, 
-      color: '#000000', fillColor: type === 'pillar' ? '#ef4444' : '#ffffff',
+      color: '#000000', fillColor: subType === 'pillar' ? '#ef4444' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       ...overrides
     };
@@ -228,7 +228,7 @@ export default function EstimatorClient() {
     setDesignObjects(next);
     setSelectedObjectId(newObj.id);
     saveToHistory(next);
-  };
+  }, [designObjects, saveToHistory]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null, mode: any = 'dragging') => {
     const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
@@ -248,7 +248,7 @@ export default function EstimatorClient() {
     if (selectedTool === 'pillar') {
       const snap = findSnapPoint(curX, curY);
       const pos = snap || { x: curX, y: curY };
-      addObject('pillar', 'pillar', 'Pillar', { x: pos.x - 0.5, y: pos.y - 0.5, w: 1, h: 1 });
+      addObject('pillar', 'pillar', 'Column', { x: pos.x - 0.4, y: pos.y - 0.4, w: 0.8, h: 0.8 });
       setSelectedTool('select');
       return;
     }
@@ -312,11 +312,63 @@ export default function EstimatorClient() {
     setSnapPoint(null);
   };
 
+  const copyObject = useCallback(() => {
+    if (selectedObject) {
+      setClipboard({...selectedObject, id: Math.random().toString(36).substr(2, 9)});
+      toast({ title: "Copied", description: "Object copied to clipboard." });
+    }
+  }, [selectedObject, toast]);
+
+  const pasteObject = useCallback(() => {
+    if (clipboard) {
+      const nextObj = { ...clipboard, id: Math.random().toString(36).substr(2, 9), x: clipboard.x + 0.5, y: clipboard.y + 0.5 };
+      const next = [...designObjects, nextObj];
+      setDesignObjects(next);
+      setSelectedObjectId(nextObj.id);
+      saveToHistory(next);
+      setClipboard(nextObj);
+      toast({ title: "Pasted", description: "Object pasted." });
+    }
+  }, [clipboard, designObjects, saveToHistory, toast]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const nextIndex = historyIndex - 1;
+      setHistoryIndex(nextIndex);
+      setDesignObjects(history[nextIndex]);
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      setHistoryIndex(nextIndex);
+      setDesignObjects(history[nextIndex]);
+    }
+  }, [history, historyIndex]);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
+      
       const step = 0.08;
-      if (e.key === 'Delete') deleteObject(selectedObjectId);
+      
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault(); copyObject();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault(); pasteObject();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault(); undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault(); redo();
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        deleteObject(selectedObjectId);
+      }
+
       if (selectedObjectId && selectedObject) {
         if (e.key === 'ArrowUp') updateObject(selectedObjectId, { y: selectedObject.y - step }, true);
         if (e.key === 'ArrowDown') updateObject(selectedObjectId, { y: selectedObject.y + step }, true);
@@ -326,7 +378,7 @@ export default function EstimatorClient() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedObjectId, selectedObject]);
+  }, [selectedObjectId, selectedObject, copyObject, pasteObject, undo, redo, deleteObject]);
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
@@ -353,8 +405,12 @@ export default function EstimatorClient() {
         {activeRibbonTab === 'home' && (
           <>
             <div className="flex items-center border-r px-3 h-full gap-1">
-              <RibbonButton icon={<Undo2 />} label="Undo" onClick={() => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setDesignObjects(history[historyIndex - 1]); } }} />
-              <RibbonButton icon={<Redo2 />} label="Redo" onClick={() => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setDesignObjects(history[historyIndex + 1]); } }} />
+              <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} />
+              <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
+            </div>
+            <div className="flex items-center border-r px-3 h-full gap-1">
+              <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copyObject} />
+              <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteObject} />
             </div>
             <div className="flex items-center border-r px-3 h-full gap-2">
               <Select value={selectedObject?.fontSize?.toString() || "14"} onValueChange={(v) => selectedObjectId && updateObject(selectedObjectId, { fontSize: parseInt(v) }, true)}>
@@ -376,9 +432,15 @@ export default function EstimatorClient() {
         )}
         {activeRibbonTab === 'design' && (
           <div className="flex items-center h-full px-2 gap-4">
-            <RibbonButton icon={<Pencil />} label="Add Wall" onClick={() => setSelectedTool('wall')} />
-            <RibbonButton icon={<PillarIcon />} label="Add Column" onClick={() => setSelectedTool('pillar')} />
+            <RibbonButton icon={<Pencil />} label="Add Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
+            <RibbonButton icon={<PillarIcon />} label="Add Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
+            <RibbonButton icon={<MousePointer2 />} label="Select" active={selectedTool === 'select'} onClick={() => setSelectedTool('select')} />
           </div>
+        )}
+        {activeRibbonTab === 'table' && (
+           <div className="flex items-center h-full px-4 gap-4">
+              <RibbonButton icon={<LayoutGrid />} label="Insert Table" onClick={() => addObject('table', 'table', 'Schedule', { rows: 4, cols: 3, w: 6, h: 4 })} />
+           </div>
         )}
       </div>
 
@@ -440,6 +502,9 @@ export default function EstimatorClient() {
                     </div>
                   )}
                   {obj.type === 'pillar' && <div className="w-full h-full opacity-30 bg-slate-900/10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' }} />}
+                  {obj.type === 'text' && (
+                    <span className={cn("text-center px-1", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
+                  )}
                   {selectedObjectId === obj.id && (
                     <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg" 
                       onMouseDown={(e) => handleMouseDown(e, obj.id, 'resizing')} />
@@ -467,6 +532,11 @@ export default function EstimatorClient() {
                 <div className="flex items-center gap-2"><ZoomOut className="w-4 h-4 text-slate-400" /><Slider value={[zoom]} max={150} min={10} step={5} className="w-40" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-4 h-4 text-slate-400" /></div>
                 <span className="text-[10px] font-bold text-slate-500">{zoom}% Precision Zoom</span>
              </div>
+             <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <span>Ctrl+C/V Copy-Paste</span>
+                <span>Ctrl+Z/Y Undo-Redo</span>
+                <span>Arrow Keys Move</span>
+             </div>
           </div>
         </div>
 
@@ -482,6 +552,12 @@ export default function EstimatorClient() {
                        <PropInput label="Dimension W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectId!, { w: parseFeetInches(localPropW) }, true)} />
                        <PropInput label="Dimension H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectId!, { h: parseFeetInches(localPropH) }, true)} />
                     </div>
+                    {selectedObject.type === 'text' && (
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Text Content</Label>
+                          <Input value={selectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectId!, { textContent: e.target.value }, true)} />
+                       </div>
+                    )}
                     <div className="space-y-2">
                        <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation ({selectedObject.rotation}°)</Label>
                        <Slider value={[selectedObject.rotation]} max={360} min={0} step={1} onValueChange={(v) => updateObject(selectedObjectId!, { rotation: v[0] }, true)} />
@@ -528,11 +604,11 @@ function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: 
   );
 }
 
-function RibbonButton({ icon, label, onClick, disabled, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, variant?: any }) {
+function RibbonButton({ icon, label, onClick, disabled, active, variant = "ghost" }: { icon: React.ReactNode, label: string, onClick?: () => void, disabled?: boolean, active?: boolean, variant?: any }) {
   return (
-    <Button variant={variant} disabled={disabled} onClick={onClick} className="h-20 flex flex-col gap-2 px-6 hover:bg-slate-50 min-w-[90px] rounded-none group">
-      {React.cloneElement(icon as React.ReactElement, { className: cn("w-5 h-5", variant === 'destructive' ? 'text-red-500' : 'text-slate-600 group-hover:text-blue-500') })}
-      <span className={cn("text-[10px] uppercase font-bold", variant === 'destructive' ? 'text-red-600' : 'text-slate-500')}>{label}</span>
+    <Button variant={variant} disabled={disabled} onClick={onClick} className={cn("h-20 flex flex-col gap-2 px-6 min-w-[90px] rounded-none group", active ? "bg-slate-100" : "hover:bg-slate-50")}>
+      {React.cloneElement(icon as React.ReactElement, { className: cn("w-5 h-5", variant === 'destructive' ? 'text-red-500' : (active ? 'text-blue-600' : 'text-slate-600 group-hover:text-blue-500')) })}
+      <span className={cn("text-[10px] uppercase font-bold", variant === 'destructive' ? 'text-red-600' : (active ? 'text-blue-600' : 'text-slate-500'))}>{label}</span>
     </Button>
   );
 }
