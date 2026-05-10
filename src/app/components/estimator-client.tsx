@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -177,7 +176,7 @@ export default function EstimatorClient() {
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
-  // Handle Keyboard Interactions
+  // Handle Keyboard Interactions (0.08 inch step)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
@@ -239,7 +238,7 @@ export default function EstimatorClient() {
   };
 
   const findSnapPoint = (x: number, y: number, excludeIds: string[] = []) => {
-    const threshold = 0.4;
+    const threshold = 0.5; // Increased threshold for easier snapping
     let bestSnap: {x: number, y: number} | null = null;
     let minDist = threshold;
     
@@ -293,7 +292,7 @@ export default function EstimatorClient() {
         currPoints.forEach(p1 => {
           otherPoints.forEach(p2 => {
             const dist = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-            if (dist < 0.15) isNear = true;
+            if (dist < 0.2) isNear = true; // Slightly larger tolerance for grouping
           });
         });
         if (isNear) stack.push(other.id);
@@ -626,10 +625,10 @@ export default function EstimatorClient() {
                 />
               )}
               
-              {/* Large Snap Indicator (Blue Circle) */}
+              {/* LARGE Snap Indicator (Blue Circle with Animation) */}
               {snapPoint && (
-                <div className="absolute w-6 h-6 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-lg animate-pulse"
-                  style={{ left: snapPoint.x * zoom - 12, top: snapPoint.y * zoom - 12 }} />
+                <div className="absolute w-8 h-8 bg-blue-500/30 rounded-full border-2 border-blue-600 z-50 pointer-events-none shadow-[0_0_15px_rgba(37,99,235,0.5)] animate-pulse"
+                  style={{ left: snapPoint.x * zoom - 16, top: snapPoint.y * zoom - 16 }} />
               )}
             </div>
           </div>
