@@ -234,7 +234,7 @@ export default function EstimatorClient() {
               const bdy = b2.y - b1.y;
               const blenSq = bdx * bdx + bdy * bdy;
               if (blenSq > 0) {
-                const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / lenSq));
+                const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / blenSq));
                 const proj = { x: b1.x + t * bdx, y: b1.y + t * bdy };
                 if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.8) found = true;
               }
@@ -881,7 +881,18 @@ export default function EstimatorClient() {
                        </div>
                     </div>
                   )}
-                  {obj.type === 'pillar' && <div className="w-full h-full opacity-30 bg-slate-900/10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' }} />}
+                  {obj.type === 'pillar' && (
+                    <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: obj.subType === 'pillar_round' ? 'transparent' : obj.fillColor }}>
+                      {obj.subType === 'pillar_round' && (
+                        <svg width="100%" height="100%" viewBox="0 0 100 100">
+                           <circle cx="50" cy="50" r="48" fill="none" stroke={obj.color} strokeWidth="4" />
+                           <line x1="15" y1="15" x2="85" y2="85" stroke={obj.color} strokeWidth="2" />
+                           <line x1="85" y1="15" x2="15" y2="85" stroke={obj.color} strokeWidth="2" />
+                        </svg>
+                      )}
+                      {obj.subType === 'pillar' && <div className="w-full h-full bg-black" />}
+                    </div>
+                  )}
                   {obj.type === 'text' && (
                     <span className={cn("text-center px-1 whitespace-nowrap", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
                   )}
@@ -986,7 +997,7 @@ export default function EstimatorClient() {
                          </div>
                       </div>
 
-                      {(firstSelectedObject.type === 'opening' || firstSelectedObject.type === 'structure') && (
+                      {(firstSelectedObject.type === 'opening' || firstSelectedObject.type === 'structure' || firstSelectedObject.type === 'pillar') && (
                          <div className="space-y-1.5 border-t pt-2">
                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Flip / Mirror</Label>
                             <div className="flex gap-2">
