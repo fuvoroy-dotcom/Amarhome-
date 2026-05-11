@@ -72,7 +72,7 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
-  const [selectedTool, setSelectedTool] = useState<'select' | 'shape' | 'line' | 'text' | 'wall' | 'opening' | 'symbol' | 'pillar' | 'stair' | 'room'>('select');
+  const [selectedTool, setSelectedTool] = useState<string>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
@@ -323,18 +323,50 @@ export default function EstimatorClient() {
       return;
     }
 
-    if (selectedTool === 'pillar') {
+    // Symbol placement logic (Doors, Windows, Pillars, Stairs)
+    const symbolTools = ['door', 'window', 'door_double', 'door_sliding', 'door_bifold', 'window_sliding', 'window_fixed', 'pillar_round', 'pillar', 'stair'];
+    if (symbolTools.includes(selectedTool)) {
       const snap = findSnapPoint(curX, curY);
       const pos = snap || { x: curX, y: curY };
-      addObject('pillar', 'pillar', 'Column', { x: pos.x - 0.4, y: pos.y - 0.4, w: 0.8, h: 0.8 });
-      setSelectedTool('select');
-      return;
-    }
-
-    if (selectedTool === 'stair') {
-      const snap = findSnapPoint(curX, curY);
-      const pos = snap || { x: curX, y: curY };
-      addObject('stair', 'stair', 'Stair', { x: pos.x, y: pos.y, w: 6, h: 3, stepCount: 10 });
+      
+      let type: DesignObject['type'] = 'opening';
+      let subType = selectedTool;
+      let label = 'Opening';
+      let w = 3, h = currentWallThickness;
+      
+      if (selectedTool === 'pillar' || selectedTool === 'pillar_round') {
+        type = 'pillar';
+        subType = selectedTool === 'pillar' ? 'pillar' : 'pillar_round';
+        label = selectedTool === 'pillar' ? 'Column' : 'Round Pillar';
+        w = 0.8; h = 0.8;
+      } else if (selectedTool === 'stair') {
+        type = 'stair';
+        subType = 'stair';
+        label = 'Stair';
+        w = 6; h = 3;
+      } else if (selectedTool.includes('window')) {
+        label = 'Window';
+        w = 4;
+      } else if (selectedTool === 'door_double') {
+        label = 'Double Door';
+        w = 6;
+      } else if (selectedTool === 'door_sliding') {
+        label = 'Sliding Door';
+        w = 5;
+      } else if (selectedTool === 'door_bifold') {
+        label = 'Bifold Door';
+        w = 4;
+      }
+      
+      // Center pillars, place others normally
+      const finalX = (type === 'pillar') ? pos.x - w/2 : pos.x;
+      const finalY = (type === 'pillar') ? pos.y - h/2 : pos.y;
+      
+      addObject(type, subType, label, { 
+        x: Math.round(finalX * 20) / 20, 
+        y: Math.round(finalY * 20) / 20, 
+        w, h 
+      });
       setSelectedTool('select');
       return;
     }
@@ -745,20 +777,20 @@ export default function EstimatorClient() {
                 <AccordionItem value="openings" className="border-none">
                   <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
-                    <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: 0.33 })} />
-                    <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: 0.33 })} />
-                    <SymbolButton icon={<SplitSquareVertical />} label="Double Door" onClick={() => addObject('opening', 'door_double', 'Double Door', { w: 6, h: 0.33 })} />
-                    <SymbolButton icon={<Move />} label="Sliding Door" onClick={() => addObject('opening', 'door_sliding', 'Sliding Door', { w: 5, h: 0.33 })} />
+                    <SymbolButton icon={<DoorOpen />} label="Door" active={selectedTool === 'door'} onClick={() => setSelectedTool('door')} />
+                    <SymbolButton icon={<Wind />} label="Window" active={selectedTool === 'window'} onClick={() => setSelectedTool('window')} />
+                    <SymbolButton icon={<SplitSquareVertical />} label="Double Door" active={selectedTool === 'door_double'} onClick={() => setSelectedTool('door_double')} />
+                    <SymbolButton icon={<Move />} label="Sliding Door" active={selectedTool === 'door_sliding'} onClick={() => setSelectedTool('door_sliding')} />
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="advanced" className="border-none">
                   <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Advanced Symbols</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
-                    <SymbolButton icon={<Layers />} label="Bifold Door" onClick={() => addObject('opening', 'door_bifold', 'Bifold Door', { w: 4, h: 0.33 })} />
-                    <SymbolButton icon={<Grid />} label="Sliding Window" onClick={() => addObject('opening', 'window_sliding', 'Sliding Window', { w: 4, h: 0.33 })} />
-                    <SymbolButton icon={<RectangleHorizontal />} label="Fixed Window" onClick={() => addObject('opening', 'window_fixed', 'Fixed Window', { w: 3, h: 0.33 })} />
-                    <SymbolButton icon={<Circle />} label="Circular Pillar" onClick={() => addObject('pillar', 'pillar_round', 'Round Pillar', { w: 0.8, h: 0.8 })} />
-                    <SymbolButton icon={<TypeIcon />} label="Text" onClick={() => setSelectedTool('text')} />
+                    <SymbolButton icon={<Layers />} label="Bifold Door" active={selectedTool === 'door_bifold'} onClick={() => setSelectedTool('door_bifold')} />
+                    <SymbolButton icon={<Grid />} label="Sliding Window" active={selectedTool === 'window_sliding'} onClick={() => setSelectedTool('window_sliding')} />
+                    <SymbolButton icon={<RectangleHorizontal />} label="Fixed Window" active={selectedTool === 'window_fixed'} onClick={() => setSelectedTool('window_fixed')} />
+                    <SymbolButton icon={<Circle />} label="Circular Pillar" active={selectedTool === 'pillar_round'} onClick={() => setSelectedTool('pillar_round')} />
+                    <SymbolButton icon={<TypeIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -1085,11 +1117,11 @@ function ToolCard({ icon, label, active, onClick }: { icon: React.ReactNode, lab
   );
 }
 
-function SymbolButton({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick?: () => void }) {
+function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick?: () => void, active?: boolean }) {
   return (
-    <Button variant="outline" onClick={onClick} className="w-full flex flex-col items-center justify-center gap-1.5 h-16 p-3 bg-white hover:bg-slate-50 group shadow-sm">
-       {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5 text-slate-400 group-hover:text-blue-500" })}
-       <span className="text-[9px] font-bold text-slate-500 uppercase">{label}</span>
+    <Button variant={active ? "secondary" : "outline"} onClick={onClick} className={cn("w-full flex flex-col items-center justify-center gap-1.5 h-16 p-3 bg-white hover:bg-slate-50 group shadow-sm", active && "border-blue-500 ring-1 ring-blue-500")}>
+       {React.cloneElement(icon as React.ReactElement, { className: cn("w-5 h-5 text-slate-400 group-hover:text-blue-500", active && "text-blue-500") })}
+       <span className={cn("text-[9px] font-bold text-slate-500 uppercase", active && "text-blue-600")}>{label}</span>
     </Button>
   );
 }
