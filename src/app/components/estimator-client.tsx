@@ -82,6 +82,7 @@ export default function EstimatorClient() {
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(true);
+  const [shouldCloneOnMove, setShouldCloneOnMove] = useState(false);
 
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
@@ -338,14 +339,17 @@ export default function EstimatorClient() {
       
       if (e.ctrlKey || e.metaKey) {
         if (newSelection.includes(id)) {
-          newSelection = newSelection.filter(sid => sid !== id);
+          // It's already selected. Prepare for clone-on-drag
+          setShouldCloneOnMove(true);
         } else {
           newSelection.push(id);
+          setShouldCloneOnMove(true);
         }
       } else {
         if (!newSelection.includes(id)) {
           newSelection = [id];
         }
+        setShouldCloneOnMove(false);
       }
       
       setSelectedObjectIds(newSelection);
@@ -362,6 +366,7 @@ export default function EstimatorClient() {
       if (!e.ctrlKey && !e.metaKey) {
         setSelectedObjectIds([]);
       }
+      setShouldCloneOnMove(false);
     }
   };
 
@@ -389,6 +394,36 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
+      // Clone if Ctrl held and not yet cloned this drag
+      if ((e.ctrlKey || e.metaKey) && shouldCloneOnMove) {
+        const group = getConnectedGroup(selectedObjectIds, designObjects);
+        const clones = group.map(sid => {
+          const original = designObjects.find(o => o.id === sid);
+          if (!original) return null;
+          return {
+            ...original,
+            id: Math.random().toString(36).substr(2, 9),
+            x: original.x,
+            y: original.y
+          };
+        }).filter(Boolean) as DesignObject[];
+
+        if (clones.length > 0) {
+          const nextObjects = [...designObjects, ...clones];
+          setDesignObjects(nextObjects);
+          const cloneIds = clones.map(c => c.id);
+          setSelectedObjectIds(cloneIds);
+          
+          const newOffsets: { [id: string]: { x: number, y: number } } = {};
+          clones.forEach(c => {
+             newOffsets[c.id] = { x: curX - c.x, y: curY - c.y };
+          });
+          setDragOffsets(newOffsets);
+          setShouldCloneOnMove(false);
+          return;
+        }
+      }
+
       const group = Object.keys(dragOffsets);
       const mainId = selectedObjectIds[0];
       const mainOffset = dragOffsets[mainId];
@@ -439,6 +474,7 @@ export default function EstimatorClient() {
     }
     setInteractionMode('none');
     setSnapPoint(null);
+    setShouldCloneOnMove(false);
   };
 
   const copyObjects = useCallback(() => {
@@ -987,6 +1023,11 @@ function PropInput({ label, value, onChange, onBlur }: { label: string, value: s
         value={value} 
         onChange={e => onChange(e.target.value)} 
         onBlur={onBlur} 
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+        }}
         placeholder="0' 0\" 
       />
     </div>
