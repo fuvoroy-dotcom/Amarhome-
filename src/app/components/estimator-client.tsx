@@ -53,6 +53,8 @@ type DesignObject = {
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   rotation: number;
+  scaleX?: number;
+  scaleY?: number;
   textContent?: string;
   fontSize?: number;
   isBold?: boolean;
@@ -232,7 +234,7 @@ export default function EstimatorClient() {
               const bdy = b2.y - b1.y;
               const blenSq = bdx * bdx + bdy * bdy;
               if (blenSq > 0) {
-                const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / blenSq));
+                const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / lenSq));
                 const proj = { x: b1.x + t * bdx, y: b1.y + t * bdy };
                 if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.8) found = true;
               }
@@ -255,6 +257,7 @@ export default function EstimatorClient() {
       type, subType, x: 10, y: 10, w: 2, h: 2, label, 
       color: '#000000', fillColor: subType === 'pillar' ? '#64748b' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
+      scaleX: 1, scaleY: 1,
       isJoined: true, 
       ...overrides
     };
@@ -268,10 +271,10 @@ export default function EstimatorClient() {
     const startX = 10, startY = 10, w = 12, h = 10;
     const thickness = currentWallThickness;
     const roomWalls: DesignObject[] = [
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, scaleX: 1, scaleY: 1, isJoined: true },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, scaleX: 1, scaleY: 1, isJoined: true },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, scaleX: 1, scaleY: 1, isJoined: true },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, scaleX: 1, scaleY: 1, isJoined: true },
     ];
     const next = [...designObjects, ...roomWalls];
     setDesignObjects(next);
@@ -793,7 +796,8 @@ export default function EstimatorClient() {
                     selectedObjectIds.includes(obj.id) ? "z-30 ring-2 ring-blue-500 shadow-2xl" : "z-10")}
                   style={{ 
                     left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
-                    transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`,
+                    transformOrigin: '0 0', 
+                    transform: `rotate(${obj.rotation}deg) scale(${obj.scaleX || 1}, ${obj.scaleY || 1})`,
                     backgroundColor: (obj.type === 'opening' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
                     border: (obj.subType === 'wall' || obj.type === 'opening') ? 'none' : `2px solid ${obj.color}`,
                     borderRadius: (obj.subType === 'pillar_round' || obj.subType === 'oval') ? '100%' : '0px'
@@ -966,23 +970,45 @@ export default function EstimatorClient() {
                          <PropInput label="Height" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-2 border-t pt-2">
                          <Label className="text-[9px] font-bold text-slate-400 uppercase">Rotation (°)</Label>
                          <div className="flex items-center gap-2">
                             <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectIds[0], { rotation: v[0] }, true)} />
                             <Input type="number" className="h-7 w-12 text-[10px] px-1" value={firstSelectedObject.rotation} onChange={(e) => updateObject(selectedObjectIds[0], { rotation: parseInt(e.target.value) || 0 }, true)} />
                          </div>
+                         <div className="flex gap-1">
+                            <Button variant="outline" className="h-7 flex-1 text-[9px] font-bold" onClick={() => updateObject(selectedObjectIds[0], { rotation: (firstSelectedObject.rotation + 90) % 360 }, true)}>
+                               <RotateCw className="w-3 h-3 mr-1" /> +90°
+                            </Button>
+                            <Button variant="outline" className="h-7 flex-1 text-[9px] font-bold" onClick={() => updateObject(selectedObjectIds[0], { rotation: (firstSelectedObject.rotation - 90 + 360) % 360 }, true)}>
+                               <RotateCw className="w-3 h-3 mr-1" /> -90°
+                            </Button>
+                         </div>
                       </div>
 
+                      {(firstSelectedObject.type === 'opening' || firstSelectedObject.type === 'structure') && (
+                         <div className="space-y-1.5 border-t pt-2">
+                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Flip / Mirror</Label>
+                            <div className="flex gap-2">
+                               <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateObject(selectedObjectIds[0], { scaleX: (firstSelectedObject.scaleX || 1) * -1 }, true)}>
+                                  <FlipHorizontal className="w-4 h-4" />
+                               </Button>
+                               <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateObject(selectedObjectIds[0], { scaleY: (firstSelectedObject.scaleY || 1) * -1 }, true)}>
+                                  <FlipVertical className="w-4 h-4" />
+                               </Button>
+                            </div>
+                         </div>
+                      )}
+
                       {firstSelectedObject.type === 'stair' && (
-                         <div className="space-y-1.5">
+                         <div className="space-y-1.5 border-t pt-2">
                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Steps</Label>
                             <Input type="number" className="h-7 text-[10px]" value={firstSelectedObject.stepCount} onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} />
                          </div>
                       )}
 
                       {(firstSelectedObject.subType.includes('wall') || firstSelectedObject.type === 'opening') && (
-                         <div className="space-y-1.5">
+                         <div className="space-y-1.5 border-t pt-2">
                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness</Label>
                             <Select value={firstSelectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectIds[0], { h: parseFloat(v) }, true)}>
                               <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
@@ -997,7 +1023,7 @@ export default function EstimatorClient() {
                       )}
 
                       {firstSelectedObject.type === 'text' && (
-                         <div className="space-y-1.5">
+                         <div className="space-y-1.5 border-t pt-2">
                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Label Text</Label>
                             <Input className="h-7 text-[10px]" value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectIds[0], { textContent: e.target.value }, true)} />
                          </div>
