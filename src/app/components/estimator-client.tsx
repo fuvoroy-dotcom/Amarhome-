@@ -303,10 +303,13 @@ export default function EstimatorClient() {
   }, [designObjects, toast]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
-    const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
-    if (!rect) return;
-    const curX = (e.clientX - rect.left) / zoom;
-    const curY = (e.clientY - rect.top) / zoom;
+    const container = document.getElementById('canvas-workspace');
+    const rect = container?.getBoundingClientRect();
+    if (!rect || !container) return;
+    
+    // Account for container scroll
+    const curX = (e.clientX - rect.left + container.scrollLeft) / zoom;
+    const curY = (e.clientY - rect.top + container.scrollTop) / zoom;
 
     if (selectedTool === 'wall') {
       const snap = findSnapPoint(curX, curY);
@@ -339,7 +342,6 @@ export default function EstimatorClient() {
       
       if (e.ctrlKey || e.metaKey) {
         if (newSelection.includes(id)) {
-          // It's already selected. Prepare for clone-on-drag
           setShouldCloneOnMove(true);
         } else {
           newSelection.push(id);
@@ -371,10 +373,13 @@ export default function EstimatorClient() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    const rect = document.getElementById('canvas-workspace')?.getBoundingClientRect();
-    if (!rect) return;
-    const curX = (e.clientX - rect.left) / zoom;
-    const curY = (e.clientY - rect.top) / zoom;
+    const container = document.getElementById('canvas-workspace');
+    const rect = container?.getBoundingClientRect();
+    if (!rect || !container) return;
+    
+    // Account for container scroll
+    const curX = (e.clientX - rect.left + container.scrollLeft) / zoom;
+    const curY = (e.clientY - rect.top + container.scrollTop) / zoom;
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX;
@@ -394,7 +399,6 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
-      // Clone if Ctrl held and not yet cloned this drag
       if ((e.ctrlKey || e.metaKey) && shouldCloneOnMove) {
         const group = getConnectedGroup(selectedObjectIds, designObjects);
         const clones = group.map(sid => {
