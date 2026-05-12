@@ -255,7 +255,7 @@ export default function EstimatorClient() {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, x: 10, y: 10, w: 2, h: 2, label, 
-      color: '#000000', fillColor: subType === 'pillar' ? '#64748b' : '#ffffff',
+      color: '#000000', fillColor: subType === 'pillar' ? '#000000' : '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       scaleX: 1, scaleY: 1,
       isJoined: true, 
@@ -917,12 +917,12 @@ export default function EstimatorClient() {
                     <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: obj.subType === 'pillar_round' ? 'transparent' : obj.fillColor }}>
                       {obj.subType === 'pillar_round' && (
                         <svg width="100%" height="100%" viewBox="0 0 100 100">
-                           <circle cx="50" cy="50" r="48" fill="none" stroke={obj.color} strokeWidth="4" />
+                           <circle cx="50" cy="50" r="48" fill={obj.fillColor === '#ffffff' ? 'none' : obj.fillColor} stroke={obj.color} strokeWidth="4" />
                            <line x1="15" y1="15" x2="85" y2="85" stroke={obj.color} strokeWidth="2" />
                            <line x1="85" y1="15" x2="15" y2="85" stroke={obj.color} strokeWidth="2" />
                         </svg>
                       )}
-                      {obj.subType === 'pillar' && <div className="w-full h-full bg-black" />}
+                      {obj.subType === 'pillar' && <div className="w-full h-full" style={{ backgroundColor: obj.fillColor }} />}
                     </div>
                   )}
                   {obj.type === 'text' && (
