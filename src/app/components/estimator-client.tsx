@@ -317,19 +317,50 @@ export default function EstimatorClient() {
     toast({ title: "প্রক্রিয়াধীন", description: "ইমেজ জেনারেট করা হচ্ছে..." });
     
     try {
-      const canvas = await html2canvas(workspace, {
+      // Logic for selective image export
+      let options: any = {
         scale: 2,
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false,
-      });
+      };
+
+      if (selectedObjectIds.length > 0) {
+        const selectedObjects = designObjects.filter(o => selectedObjectIds.includes(o.id));
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        
+        selectedObjects.forEach(obj => {
+          const rad = (obj.rotation || 0) * (Math.PI / 180);
+          const points = [
+            { x: obj.x, y: obj.y },
+            { x: obj.x + obj.w * Math.cos(rad), y: obj.y + obj.w * Math.sin(rad) },
+            { x: obj.x + obj.h * Math.sin(rad), y: obj.y - obj.h * Math.cos(rad) },
+            { x: obj.x + obj.w * Math.cos(rad) + obj.h * Math.sin(rad), y: obj.y + obj.w * Math.sin(rad) - obj.h * Math.cos(rad) }
+          ];
+          points.forEach(p => {
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x);
+            maxY = Math.max(maxY, p.y);
+          });
+        });
+
+        // Add padding around selected objects
+        const padding = 1; 
+        options.x = (minX - padding) * zoom;
+        options.y = (minY - padding) * zoom;
+        options.width = (maxX - minX + padding * 2) * zoom;
+        options.height = (maxY - minY + padding * 2) * zoom;
+      }
+
+      const canvas = await html2canvas(workspace, options);
       
       canvas.toBlob(async (blob) => {
         if (!blob) return;
         try {
           const item = new ClipboardItem({ "image/png": blob });
           await navigator.clipboard.write([item]);
-          toast({ title: "সফল", description: "ইমেজটি ক্লিপবোর্ডে কপি করা হয়েছে। এখন ওয়ার্ড ফাইলে পেস্ট (Ctrl+V) করতে পারবেন।" });
+          toast({ title: "সফল", description: selectedObjectIds.length > 0 ? "নির্বাচিত অংশটি ক্লিপবোর্ডে কপি করা হয়েছে।" : "সম্পূর্ণ ড্রয়িংটি ক্লিপবোর্ডে কপি করা হয়েছে।" });
         } catch (err) {
           console.error(err);
           toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ ক্লিপবোর্ডে কপি করা যায়নি।" });
@@ -346,7 +377,6 @@ export default function EstimatorClient() {
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
     
-    // Account for container scroll
     const curX = (e.clientX - rect.left + container.scrollLeft) / zoom;
     const curY = (e.clientY - rect.top + container.scrollTop) / zoom;
 
@@ -359,7 +389,6 @@ export default function EstimatorClient() {
       return;
     }
 
-    // Symbol placement logic (Doors, Windows, Pillars, Stairs, Text)
     const symbolTools = ['door', 'window', 'door_double', 'door_sliding', 'door_bifold', 'window_sliding', 'window_fixed', 'pillar_round', 'pillar', 'stair', 'text'];
     if (symbolTools.includes(selectedTool)) {
       const snap = findSnapPoint(curX, curY);
@@ -399,7 +428,6 @@ export default function EstimatorClient() {
         w = 4;
       }
       
-      // Center pillars, place others normally
       const finalX = (type === 'pillar') ? pos.x - w/2 : pos.x;
       const finalY = (type === 'pillar') ? pos.y - h/2 : pos.y;
       
@@ -445,7 +473,6 @@ export default function EstimatorClient() {
         setSelectedObjectIds([]);
       }
       setShouldCloneOnMove(false);
-      // Start marquee selection
       if (selectedTool === 'select') {
         setInteractionMode('selecting');
         setSelectionBox({ x1: curX, y1: curY, x2: curX, y2: curY });
@@ -458,7 +485,6 @@ export default function EstimatorClient() {
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
     
-    // Account for container scroll
     const curX = (e.clientX - rect.left + container.scrollLeft) / zoom;
     const curY = (e.clientY - rect.top + container.scrollTop) / zoom;
 
@@ -643,6 +669,7 @@ export default function EstimatorClient() {
   };
 
   const pillarDistances = useMemo(() => {
+    if (!showDimensions) return [];
     const pillars = designObjects.filter(o => o.type === 'pillar');
     const distances: {x1: number, y1: number, x2: number, y2: number, dist: string, horizontal: boolean}[] = [];
     
@@ -669,7 +696,7 @@ export default function EstimatorClient() {
       });
     });
     return distances;
-  }, [designObjects]);
+  }, [designObjects, showDimensions]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -1094,7 +1121,7 @@ export default function EstimatorClient() {
 
                       <div className="grid grid-cols-2 gap-2.5">
                          <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
-                         <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
+                         <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropY) }, true)} />
                          <PropInput label="Width" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
                          <PropInput label="Height" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
                       </div>
