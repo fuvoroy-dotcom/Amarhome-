@@ -13,7 +13,7 @@ import {
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
   Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
-  Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical
+  Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical, Image as ImageIcon
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import html2canvas from 'html2canvas';
 
 type DesignObject = {
   id: string;
@@ -71,7 +72,7 @@ export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
-  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing'>('none');
+  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting'>('none');
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
@@ -85,6 +86,7 @@ export default function EstimatorClient() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(true);
   const [shouldCloneOnMove, setShouldCloneOnMove] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
 
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
@@ -308,6 +310,37 @@ export default function EstimatorClient() {
       });
   }, [designObjects, toast]);
 
+  const copyAsImage = async () => {
+    const workspace = document.getElementById('canvas-workspace');
+    if (!workspace) return;
+    
+    toast({ title: "প্রক্রিয়াধীন", description: "ইমেজ জেনারেট করা হচ্ছে..." });
+    
+    try {
+      const canvas = await html2canvas(workspace, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+          toast({ title: "সফল", description: "ইমেজটি ক্লিপবোর্ডে কপি করা হয়েছে। এখন ওয়ার্ড ফাইলে পেস্ট (Ctrl+V) করতে পারবেন।" });
+        } catch (err) {
+          console.error(err);
+          toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ ক্লিপবোর্ডে কপি করা যায়নি।" });
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ তৈরি করতে সমস্যা হয়েছে।" });
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace');
     const rect = container?.getBoundingClientRect();
@@ -412,6 +445,11 @@ export default function EstimatorClient() {
         setSelectedObjectIds([]);
       }
       setShouldCloneOnMove(false);
+      // Start marquee selection
+      if (selectedTool === 'select') {
+        setInteractionMode('selecting');
+        setSelectionBox({ x1: curX, y1: curY, x2: curX, y2: curY });
+      }
     }
   };
 
@@ -438,6 +476,11 @@ export default function EstimatorClient() {
       const snap = findSnapPoint(endX, endY);
       setTempDrawEnd(snap || { x: Math.round(endX * 20) / 20, y: Math.round(endY * 20) / 20 });
       setSnapPoint(snap);
+      return;
+    }
+
+    if (interactionMode === 'selecting' && selectionBox) {
+      setSelectionBox(prev => prev ? { ...prev, x2: curX, y2: curY } : null);
       return;
     }
 
@@ -516,6 +559,19 @@ export default function EstimatorClient() {
         });
       }
       setDrawStart(null); setTempDrawEnd(null);
+    } else if (interactionMode === 'selecting' && selectionBox) {
+      const xMin = Math.min(selectionBox.x1, selectionBox.x2);
+      const xMax = Math.max(selectionBox.x1, selectionBox.x2);
+      const yMin = Math.min(selectionBox.y1, selectionBox.y2);
+      const yMax = Math.max(selectionBox.y1, selectionBox.y2);
+
+      const inBox = designObjects.filter(obj => 
+        obj.x >= xMin && (obj.x + obj.w) <= xMax &&
+        obj.y >= yMin && (obj.y + obj.h) <= yMax
+      ).map(o => o.id);
+
+      setSelectedObjectIds(inBox);
+      setSelectionBox(null);
     } else if (interactionMode !== 'none') {
       saveToHistory(designObjects);
     }
@@ -621,6 +677,11 @@ export default function EstimatorClient() {
       
       const moveStep = 0.05; 
       
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setSelectedObjectIds(designObjects.map(o => o.id));
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         e.preventDefault(); copyObjects();
       }
@@ -706,6 +767,7 @@ export default function EstimatorClient() {
         {activeRibbonTab === 'file' && (
            <div className="flex items-center h-full px-2 gap-1">
               <RibbonButton icon={<Save />} label="Save (Ctrl+S)" onClick={saveToFirestore} />
+              <RibbonButton icon={<ImageIcon />} label="Copy as Image" onClick={copyAsImage} />
               <RibbonButton icon={<FolderOpen />} label="Open Saved" onClick={loadFromFirestore} />
               <RibbonButton icon={<FilePlus />} label="New Project" onClick={() => { setDesignObjects([]); saveToHistory([]); }} />
               <RibbonButton icon={<Printer />} label="Print Design" onClick={() => window.print()} />
@@ -815,6 +877,16 @@ export default function EstimatorClient() {
                 backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000
               }}>
               
+              {/* Marquee Selection Box */}
+              {interactionMode === 'selecting' && selectionBox && (
+                <div className="absolute border border-blue-500 bg-blue-500/10 z-[100]" style={{
+                  left: Math.min(selectionBox.x1, selectionBox.x2) * zoom,
+                  top: Math.min(selectionBox.y1, selectionBox.y2) * zoom,
+                  width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom,
+                  height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom,
+                }} />
+              )}
+
               {/* Distance Indicators between Pillars */}
               {showDimensions && pillarDistances.map((d, i) => (
                 <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
@@ -911,7 +983,6 @@ export default function EstimatorClient() {
 
                   {obj.type === 'stair' && (
                     <div className="w-full h-full relative border flex overflow-hidden">
-                       {/* Double flight stair design */}
                        <div className="flex-1 border-r flex flex-col justify-between">
                           {Array.from({ length: Math.ceil((obj.stepCount || 10) / 2) }).map((_, i) => (
                             <div key={i} className="w-full h-[1px] bg-slate-400" />
@@ -922,7 +993,6 @@ export default function EstimatorClient() {
                             <div key={i} className="w-full h-[1px] bg-slate-400" />
                           ))}
                        </div>
-                       {/* Center Gap */}
                        <div className="absolute left-1/2 -translate-x-1/2 h-full w-[2px] bg-slate-300" />
                        <div className="absolute bottom-2 right-2 text-slate-400 opacity-60">
                           <ArrowUpRight className="w-4 h-4" />
@@ -973,9 +1043,9 @@ export default function EstimatorClient() {
              </div>
              <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 <span>Arrow Keys: 0.05"</span>
+                <span>Ctrl+A: Select All</span>
                 <span>Ctrl+S: Save Design</span>
-                <span>Ctrl+Wheel: Zoom Canvas (2%)</span>
-                <span>Ctrl Drawing: Straight Wall</span>
+                <span>Ctrl+Wheel: Zoom (2%)</span>
              </div>
           </div>
         </div>
