@@ -259,6 +259,9 @@ export default function EstimatorClient() {
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       scaleX: 1, scaleY: 1,
       isJoined: true, 
+      fontSize: 14,
+      isBold: false,
+      stepCount: 10,
       ...overrides
     };
     const next = [...designObjects, newObj];
@@ -323,8 +326,8 @@ export default function EstimatorClient() {
       return;
     }
 
-    // Symbol placement logic (Doors, Windows, Pillars, Stairs)
-    const symbolTools = ['door', 'window', 'door_double', 'door_sliding', 'door_bifold', 'window_sliding', 'window_fixed', 'pillar_round', 'pillar', 'stair'];
+    // Symbol placement logic (Doors, Windows, Pillars, Stairs, Text)
+    const symbolTools = ['door', 'window', 'door_double', 'door_sliding', 'door_bifold', 'window_sliding', 'window_fixed', 'pillar_round', 'pillar', 'stair', 'text'];
     if (symbolTools.includes(selectedTool)) {
       const snap = findSnapPoint(curX, curY);
       const pos = snap || { x: curX, y: curY };
@@ -344,6 +347,11 @@ export default function EstimatorClient() {
         subType = 'stair';
         label = 'Stair';
         w = 6; h = 3;
+      } else if (selectedTool === 'text') {
+        type = 'text';
+        subType = 'text';
+        label = 'Label';
+        w = 4; h = 1;
       } else if (selectedTool.includes('window')) {
         label = 'Window';
         w = 4;
@@ -902,12 +910,20 @@ export default function EstimatorClient() {
                   )}
 
                   {obj.type === 'stair' && (
-                    <div className="w-full h-full relative border flex flex-col justify-between overflow-hidden">
-                       <div className="absolute inset-0 flex flex-col justify-between opacity-50">
-                          {Array.from({ length: obj.stepCount || 10 }).map((_, i) => (
+                    <div className="w-full h-full relative border flex overflow-hidden">
+                       {/* Double flight stair design */}
+                       <div className="flex-1 border-r flex flex-col justify-between">
+                          {Array.from({ length: Math.ceil((obj.stepCount || 10) / 2) }).map((_, i) => (
                             <div key={i} className="w-full h-[1px] bg-slate-400" />
                           ))}
                        </div>
+                       <div className="flex-1 flex flex-col justify-between">
+                          {Array.from({ length: Math.floor((obj.stepCount || 10) / 2) }).map((_, i) => (
+                            <div key={i} className="w-full h-[1px] bg-slate-400" />
+                          ))}
+                       </div>
+                       {/* Center Gap */}
+                       <div className="absolute left-1/2 -translate-x-1/2 h-full w-[2px] bg-slate-300" />
                        <div className="absolute bottom-2 right-2 text-slate-400 opacity-60">
                           <ArrowUpRight className="w-4 h-4" />
                        </div>
@@ -1046,7 +1062,13 @@ export default function EstimatorClient() {
                       {firstSelectedObject.type === 'stair' && (
                          <div className="space-y-1.5 border-t pt-2">
                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Steps</Label>
-                            <Input type="number" className="h-7 text-[10px]" value={firstSelectedObject.stepCount} onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} />
+                            <Input 
+                              type="number" 
+                              className="h-7 text-[10px]" 
+                              value={firstSelectedObject.stepCount || 10} 
+                              onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} 
+                              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                            />
                          </div>
                       )}
 
@@ -1068,7 +1090,13 @@ export default function EstimatorClient() {
                       {firstSelectedObject.type === 'text' && (
                          <div className="space-y-1.5 border-t pt-2">
                             <Label className="text-[9px] font-bold text-slate-400 uppercase">Label Text</Label>
-                            <Input className="h-7 text-[10px]" value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(selectedObjectIds[0], { textContent: e.target.value }, true)} />
+                            <Input 
+                              className="h-7 text-[10px]" 
+                              value={firstSelectedObject.textContent || ""} 
+                              onChange={(e) => updateObject(selectedObjectIds[0], { textContent: e.target.value })} 
+                              onBlur={() => updateObject(selectedObjectIds[0], { textContent: firstSelectedObject.textContent }, true)}
+                              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                            />
                          </div>
                       )}
                     </AccordionContent>
