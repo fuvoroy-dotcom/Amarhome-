@@ -299,6 +299,7 @@ export default function EstimatorClient() {
         else if (key === 'y') { e.preventDefault(); redo(); }
         else if (key === 'c') { e.preventDefault(); copySelected(); }
         else if (key === 'v') { e.preventDefault(); pasteSelected(); }
+        else if (key === 's') { e.preventDefault(); saveToFirestore(); }
       }
     };
 
@@ -308,7 +309,7 @@ export default function EstimatorClient() {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [deleteSelected, undo, redo, copySelected, pasteSelected]);
+  }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
@@ -328,7 +329,6 @@ export default function EstimatorClient() {
       let newSelection = (e.ctrlKey || e.metaKey) ? (selectedObjectIds.includes(id) ? selectedObjectIds.filter(sid => sid !== id) : [...selectedObjectIds, id]) : [id];
       setSelectedObjectIds(newSelection);
       
-      // Rotation handle check logic
       const obj = designObjects.find(o => o.id === id);
       if (obj) {
         setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
@@ -434,19 +434,15 @@ export default function EstimatorClient() {
           {obj.subType === 'door' && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.2} stroke="none" />
-              {/* Leaf line */}
               <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 3} />
-              {/* Arc path */}
               <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
             </g>
           )}
           {obj.subType === 'double-door' && (
             <g>
                <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.2} stroke="none" />
-               {/* Left leaf */}
                <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 3} />
                <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-               {/* Right leaf */}
                <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 3} />
                <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
             </g>
@@ -548,19 +544,16 @@ export default function EstimatorClient() {
                       width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
                       transform: `rotate(${obj.rotation}deg)`, 
                       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
-                      border: (obj.subType === 'wall' || obj.subType === 'pillar' || obj.type === 'shape') ? 'none' : 'none',
                       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
                     }}>
                     
                     {renderObjectContent(obj)}
 
                     {selectedObjectIds.includes(obj.id) && (
-                       <>
-                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 transition-colors"
-                           onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}>
-                           <RotateCw className="w-4 h-4 text-blue-500" />
-                         </div>
-                       </>
+                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 transition-colors"
+                         onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}>
+                         <RotateCw className="w-4 h-4 text-blue-500" />
+                       </div>
                     )}
 
                     {showDimensions && (
@@ -637,7 +630,10 @@ export default function EstimatorClient() {
                 {(firstSelectedObject.type === 'text' || firstSelectedObject.subType === 'label') && (
                   <div className="flex items-center gap-2 border-l pl-4 shrink-0 w-[200px]">
                     <span className="text-[9px] font-bold text-slate-400 uppercase">লেখা</span>
-                    <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" placeholder="Type here..." value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })} />
+                    <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" placeholder="Type here..." value={firstSelectedObject.textContent || ""} 
+                      onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })}
+                      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                      onBlur={() => saveToHistory(designObjects)} />
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 border-l pl-4 shrink-0">
@@ -681,7 +677,10 @@ function PropField({ label, value, onChange, onBlur }: { label: string, value: s
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] font-black text-slate-300 uppercase shrink-0 min-w-[50px]">{label}</span>
-      <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
+      <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} 
+        onChange={e => onChange(e.target.value)} 
+        onBlur={onBlur} 
+        onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} />
     </div>
   );
 }
