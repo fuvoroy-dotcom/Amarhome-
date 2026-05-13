@@ -188,9 +188,6 @@ export default function EstimatorClient() {
   }, [designObjects, toast]);
 
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
-    const obj = designObjects.find(o => o.id === id);
-    if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.rotation !== undefined)) return; 
-
     setDesignObjects(prev => {
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
@@ -300,10 +297,10 @@ export default function EstimatorClient() {
 
     if (id) {
       e.stopPropagation();
+      const obj = designObjects.find(o => o.id === id);
       let newSelection = (e.ctrlKey || e.metaKey) ? (selectedObjectIds.includes(id) ? selectedObjectIds.filter(sid => sid !== id) : [...selectedObjectIds, id]) : [id];
       setSelectedObjectIds(newSelection);
       
-      const obj = designObjects.find(o => o.id === id);
       if (obj) {
         if (obj.isJoined) return; 
         setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
@@ -339,7 +336,7 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
-      if (firstSelectedObject.isJoined) return; 
+      if (firstSelectedObject.isJoined) return;
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
@@ -410,7 +407,7 @@ export default function EstimatorClient() {
     if (isOpening) {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.01} stroke="none" />
           {obj.subType === 'window' && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 3} />
@@ -450,13 +447,11 @@ export default function EstimatorClient() {
     return null;
   };
 
-  // Helper to handle coordinate rotation and alignment
   const getObjectStyle = (obj: DesignObject) => {
     let xOffset = 0;
     let yOffset = 0;
     
-    // Fix: When rotation is 90, 180, 270, transform-origin (0,0) shifts the visual rectangle
-    // We adjust x and y so the visual outer edge stays at the coordinate
+    // Fix for Vertical walls (90 deg) to start at X=0 and extend right
     if (obj.rotation === 90) xOffset = obj.h;
     else if (obj.rotation === 180) { xOffset = obj.w; yOffset = obj.h; }
     else if (obj.rotation === 270) yOffset = obj.w;
@@ -468,6 +463,7 @@ export default function EstimatorClient() {
       transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.01)',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
+      cursor: obj.isJoined ? 'not-allowed' : 'move'
     };
   };
 
@@ -550,7 +546,7 @@ export default function EstimatorClient() {
                 }}>
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
-                    className={cn("absolute cursor-move", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
+                    className={cn("absolute", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
                     style={getObjectStyle(obj)}>
                     
                     {renderObjectContent(obj)}
@@ -593,6 +589,16 @@ export default function EstimatorClient() {
                       left: drawStart.x * zoom + CANVAS_OFFSET, top: drawStart.y * zoom + CANVAS_OFFSET,
                       width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
                       height: currentWallThickness * zoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
+                    }}
+                  />
+                )}
+                {interactionMode === 'selecting' && selectionBox && (
+                  <div className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none z-[70]"
+                    style={{
+                      left: Math.min(selectionBox.x1, selectionBox.x2) * zoom + CANVAS_OFFSET,
+                      top: Math.min(selectionBox.y1, selectionBox.y2) * zoom + CANVAS_OFFSET,
+                      width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom,
+                      height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom
                     }}
                   />
                 )}
