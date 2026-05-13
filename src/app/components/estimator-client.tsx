@@ -83,7 +83,6 @@ export default function EstimatorClient() {
   const [localPropH, setLocalPropH] = useState("");
 
   const formatFeetInches = (val: number) => {
-    // Round to nearest 0.25 inch (1/48 foot)
     const roundedVal = Math.round(val * 48) / 48;
     const absVal = Math.abs(roundedVal);
     const feet = Math.floor(absVal + 0.0001); 
@@ -276,7 +275,7 @@ export default function EstimatorClient() {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const zoomSpeed = 0.02; // Smooth 2% step
+        const zoomSpeed = 0.02; 
         setZoom(prev => {
           const delta = e.deltaY > 0 ? -1 : 1;
           const newZoom = prev * (1 + delta * zoomSpeed);
@@ -496,7 +495,7 @@ export default function EstimatorClient() {
                     }}>
                     {(obj.type === 'opening') && (
                       <div className="w-full h-full flex items-center justify-center border border-slate-200 pointer-events-none">
-                        <span className="text-[7px] font-black uppercase text-slate-400">{obj.label}</span>
+                        <span className="text-[7px] font-black uppercase text-slate-400">{obj.subType}</span>
                       </div>
                     )}
                     {(obj.type === 'text' || obj.subType === 'label') && (
@@ -504,7 +503,7 @@ export default function EstimatorClient() {
                     )}
                     {showDimensions && (
                       <div className="absolute top-full mt-1 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-50">
-                        <span className="text-[9px] font-bold text-slate-800">{formatFeetInches(obj.w)}</span>
+                        <span className="text-[9px] font-bold text-slate-800">{formatFeetInches(obj.w)} x {formatFeetInches(obj.h)}</span>
                       </div>
                     )}
                   </div>
@@ -539,9 +538,9 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+          <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
-              <div className="flex items-center gap-6 w-full overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-6 min-w-max">
                 <div className="flex items-center gap-2 pr-4 border-r shrink-0">
                    <Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75" />
                    <span className="text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত</span>
@@ -549,14 +548,15 @@ export default function EstimatorClient() {
                 <div className="flex items-center gap-3 shrink-0">
                   <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} />
                   <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} />
-                  <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} />
+                  <PropField label="W (দৈর্ঘ্য)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} />
+                  <PropField label="H (প্রস্থ)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} />
                 </div>
                 <div className="flex items-center gap-4 shrink-0 min-w-[120px]">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">ঘুরান</span>
                   <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="w-24" onValueChange={(v) => updateObject(firstSelectedObject.id, { rotation: v[0] })} />
                 </div>
                 {(firstSelectedObject.type === 'text' || firstSelectedObject.subType === 'label') && (
-                  <div className="flex items-center gap-2 border-l pl-4 flex-1 min-w-[150px]">
+                  <div className="flex items-center gap-2 border-l pl-4 shrink-0 w-[200px]">
                     <span className="text-[9px] font-bold text-slate-400 uppercase">লেখা</span>
                     <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" placeholder="Type here..." value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })} />
                   </div>
@@ -602,7 +602,7 @@ function PropField({ label, value, onChange, onBlur }: { label: string, value: s
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] font-black text-slate-300 uppercase">{label}</span>
-      <Input className="h-7 w-16 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
+      <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
     </div>
   );
 }
