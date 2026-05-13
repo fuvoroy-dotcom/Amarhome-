@@ -939,10 +939,11 @@ export default function EstimatorClient() {
                     <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50", 
                         (() => {
                           const norm = (obj.rotation % 360 + 360) % 360;
-                          if (norm >= 45 && norm < 135) return "top-full mt-2"; // global right
-                          if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // global bottom
-                          if (norm >= 225 && norm < 315) return "bottom-full mb-2"; // global right
-                          return "top-full mt-2"; // global bottom
+                          // Standardize dimension labels to display on the South (Bottom) or Right of the line
+                          if (norm >= 45 && norm < 135) return "bottom-full mb-2"; // 90 deg -> Vertical (display Right)
+                          if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // 180 deg -> Horizontal (display South)
+                          if (norm >= 225 && norm < 315) return "top-full mt-2"; // 270 deg -> Vertical (display Right)
+                          return "top-full mt-2"; // 0 deg -> Horizontal (display South)
                         })()
                       )}>
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
