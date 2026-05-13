@@ -184,11 +184,6 @@ export default function EstimatorClient() {
     });
   };
 
-  // Removed all previous snapping/joining logic per user request
-  const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
-    return null;
-  }, []);
-
   const addObject = useCallback((type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
@@ -259,7 +254,7 @@ export default function EstimatorClient() {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const zoomSpeed = 0.05; 
+        const zoomSpeed = 0.1; 
         setZoom(prev => {
           const delta = e.deltaY > 0 ? -1 : 1;
           const newZoom = prev * (1 + delta * zoomSpeed);
@@ -335,7 +330,7 @@ export default function EstimatorClient() {
         if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) { endY = drawStart.y; } else { endX = drawStart.x; }
       }
       setTempDrawEnd({ x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
-      setSnapPoint(null); return;
+      return;
     }
 
     if (interactionMode === 'selecting' && selectionBox) { 
@@ -343,8 +338,7 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
-      // If locked, cannot rotate
-      if (firstSelectedObject.isJoined) return;
+      if (firstSelectedObject.isJoined) return; // Locked
 
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
@@ -356,8 +350,7 @@ export default function EstimatorClient() {
       const mainId = selectedObjectIds[0];
       const mainObj = designObjects.find(o => o.id === mainId);
       
-      // If primary selected object is locked, cannot move the selection
-      if (!mainObj || mainObj.isJoined) return;
+      if (!mainObj || mainObj.isJoined) return; // Locked
 
       const mainOffset = dragOffsets[mainId];
       if (!mainOffset) return;
@@ -370,7 +363,6 @@ export default function EstimatorClient() {
       
       if (dx !== 0 || dy !== 0) {
         setDesignObjects(prev => prev.map(o => {
-          // Only move objects that are NOT locked (isJoined is false)
           if (selectedObjectIds.includes(o.id) && !o.isJoined) {
             return { ...o, x: o.x + dx, y: o.y + dy };
           }
@@ -561,15 +553,30 @@ export default function EstimatorClient() {
 
                     {showDimensions && (
                       <>
-                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-[50] flex items-center gap-1">
-                           <span className="text-[7px]">◀</span>
-                           <span className="text-[9px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
-                           <span className="text-[7px]">▶</span>
+                        {/* Horizontal Dimension: Edge to Edge as per user image */}
+                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50]">
+                           <div className="w-[1.5px] h-4 bg-slate-500" /> {/* Left Tick */}
+                           <div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center">
+                              <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex items-center gap-1.5">
+                                 <span className="text-[7px] text-slate-500">◀</span>
+                                 <span className="text-[10px] font-black text-slate-900 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
+                                 <span className="text-[7px] text-slate-500">▶</span>
+                              </div>
+                           </div>
+                           <div className="w-[1.5px] h-4 bg-slate-500" /> {/* Right Tick */}
                         </div>
-                        <div className="absolute top-1/2 -right-10 -translate-y-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-[50] flex flex-col items-center">
-                           <span className="text-[7px]">▲</span>
-                           <span className="text-[9px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.h)}</span>
-                           <span className="text-[7px]">▼</span>
+
+                        {/* Vertical Dimension: Edge to Edge */}
+                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50]">
+                           <div className="h-[1.5px] w-4 bg-slate-500" /> {/* Top Tick */}
+                           <div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center">
+                              <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex flex-col items-center gap-1.5 rotate-90">
+                                 <span className="text-[7px] text-slate-500">▲</span>
+                                 <span className="text-[10px] font-black text-slate-900 whitespace-nowrap">{formatFeetInches(obj.h)}</span>
+                                 <span className="text-[7px] text-slate-500">▼</span>
+                              </div>
+                           </div>
+                           <div className="h-[1.5px] w-4 bg-slate-500" /> {/* Bottom Tick */}
                         </div>
                       </>
                     )}
