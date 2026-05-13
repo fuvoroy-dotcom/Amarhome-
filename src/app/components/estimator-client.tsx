@@ -83,6 +83,7 @@ export default function EstimatorClient() {
   const [localPropH, setLocalPropH] = useState("");
 
   const formatFeetInches = (val: number) => {
+    // Round to nearest 0.25 inch (1/48 foot)
     const roundedVal = Math.round(val * 48) / 48;
     const absVal = Math.abs(roundedVal);
     const feet = Math.floor(absVal + 0.0001); 
@@ -154,7 +155,7 @@ export default function EstimatorClient() {
     const selected = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
     if (selected.length > 0) {
       setClipboard(selected.map(obj => ({ ...obj })));
-      toast({ title: "Copied", description: `${selected.length} objects copied to clipboard.` });
+      toast({ title: "Copied", description: `${selected.length} objects copied.` });
     }
   }, [designObjects, selectedObjectIds, toast]);
 
@@ -164,8 +165,8 @@ export default function EstimatorClient() {
       const pasted = clipboard.map(obj => ({
         ...obj,
         id: Math.random().toString(36).substr(2, 9),
-        x: obj.x + offset,
-        y: obj.y + offset
+        x: Math.round((obj.x + offset) / ARCH_SNAP) * ARCH_SNAP,
+        y: Math.round((obj.y + offset) / ARCH_SNAP) * ARCH_SNAP
       }));
       const next = [...designObjects, ...pasted];
       setDesignObjects(next);
@@ -213,11 +214,12 @@ export default function EstimatorClient() {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
       type, subType, x: 2, y: 2, w: 2, h: 2, label, 
-      color: '#000000', fillColor: subType === 'pillar' ? '#000000' : '#ffffff',
+      color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       scaleX: 1, scaleY: 1, isJoined: true, fontSize: 14, isBold: false, stepCount: 10,
       ...overrides
     };
+    if (subType === 'pillar') newObj.fillColor = '#000000';
     const next = [...designObjects, newObj];
     setDesignObjects(next);
     setSelectedObjectIds([newObj.id]);
@@ -259,21 +261,22 @@ export default function EstimatorClient() {
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data();
-        setDesignObjects(data.objects);
-        setHistory([data.objects]);
-        setHistoryIndex(0);
+        if (data.objects) {
+          setDesignObjects(data.objects);
+          setHistory([data.objects]);
+          setHistoryIndex(0);
+        }
       }
     } catch (e: any) { console.error(e); }
   }, []);
 
   useEffect(() => { loadFromFirestore(); }, [loadFromFirestore]);
 
-  // Keyboard and Wheel listeners
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const zoomSpeed = 0.05;
+        const zoomSpeed = 0.02; // Smooth 2% step
         setZoom(prev => {
           const delta = e.deltaY > 0 ? -1 : 1;
           const newZoom = prev * (1 + delta * zoomSpeed);
@@ -317,8 +320,8 @@ export default function EstimatorClient() {
     const container = document.getElementById('canvas-workspace-inner');
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
-    const curX = (e.clientX - rect.left - CANVAS_OFFSET) / zoom;
-    const curY = (e.clientY - rect.top - CANVAS_OFFSET) / zoom;
+    const curX = (e.clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
+    const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
 
     if (selectedTool === 'wall') {
       const snap = findSnapPoint(curX, curY);
@@ -348,8 +351,8 @@ export default function EstimatorClient() {
     const container = document.getElementById('canvas-workspace-inner');
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
-    const curX = (e.clientX - rect.left - CANVAS_OFFSET) / zoom;
-    const curY = (e.clientY - rect.top - CANVAS_OFFSET) / zoom;
+    const curX = (e.clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
+    const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX, endY = curY;
@@ -465,8 +468,8 @@ export default function EstimatorClient() {
             <div className="pt-4 border-t space-y-2">
               <Label className="text-[10px] font-bold text-slate-400 uppercase">Openings</Label>
               <div className="grid grid-cols-2 gap-2">
-                <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: currentWallThickness })} />
-                <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: currentWallThickness })} />
+                <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: currentWallThickness, fillColor: '#ffffff' })} />
+                <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: currentWallThickness, fillColor: '#ffffff' })} />
               </div>
             </div>
           </ScrollArea>
@@ -491,6 +494,11 @@ export default function EstimatorClient() {
                       transform: `rotate(${obj.rotation}deg)`, 
                       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : obj.fillColor,
                     }}>
+                    {(obj.type === 'opening') && (
+                      <div className="w-full h-full flex items-center justify-center border border-slate-200 pointer-events-none">
+                        <span className="text-[7px] font-black uppercase text-slate-400">{obj.label}</span>
+                      </div>
+                    )}
                     {(obj.type === 'text' || obj.subType === 'label') && (
                       <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40) }}>{obj.textContent || obj.label}</div>
                     )}
@@ -514,7 +522,6 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Status Bar */}
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} />
@@ -532,7 +539,6 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Fixed Inspector Bar at the bottom */}
           <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             {firstSelectedObject ? (
               <div className="flex items-center gap-6 w-full overflow-x-auto no-scrollbar">
