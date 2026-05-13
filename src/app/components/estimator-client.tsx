@@ -14,7 +14,7 @@ import {
   Ruler as RulerIcon, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical, Image as ImageIcon,
-  Eye, EyeOff
+  Eye, EyeOff, RotateCcw
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -154,13 +154,13 @@ export default function EstimatorClient() {
     const selected = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
     if (selected.length > 0) {
       setClipboard(selected.map(obj => ({ ...obj })));
-      toast({ title: "Copied", description: `${selected.length} objects copied.` });
+      toast({ title: "কপি করা হয়েছে", description: `${selected.length}টি অবজেক্ট কপি হয়েছে।` });
     }
   }, [designObjects, selectedObjectIds, toast]);
 
   const pasteSelected = useCallback(() => {
     if (clipboard.length > 0) {
-      const offset = 0.5; // Offset by 6 inches
+      const offset = 0.5; // 6 inches offset
       const pasted = clipboard.map(obj => ({
         ...obj,
         id: Math.random().toString(36).substr(2, 9),
@@ -171,7 +171,7 @@ export default function EstimatorClient() {
       setDesignObjects(next);
       setSelectedObjectIds(pasted.map(p => p.id));
       saveToHistory(next);
-      toast({ title: "Pasted", description: `${pasted.length} objects pasted.` });
+      toast({ title: "পেস্ট করা হয়েছে", description: `${pasted.length}টি অবজেক্ট পেস্ট হয়েছে।` });
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
@@ -219,11 +219,15 @@ export default function EstimatorClient() {
       ...overrides
     };
     if (subType === 'pillar') newObj.fillColor = '#000000';
+    if (subType === 'door') { newObj.w = 3; newObj.h = currentWallThickness; }
+    if (subType === 'window') { newObj.w = 4; newObj.h = currentWallThickness; }
+    if (subType === 'double-door') { newObj.w = 6; newObj.h = currentWallThickness; }
+
     const next = [...designObjects, newObj];
     setDesignObjects(next);
     setSelectedObjectIds([newObj.id]);
     saveToHistory(next);
-  }, [designObjects, saveToHistory]);
+  }, [designObjects, saveToHistory, currentWallThickness]);
 
   const addRoom = useCallback(() => {
     const startX = 5, startY = 5, w = 12, h = 10;
@@ -238,7 +242,7 @@ export default function EstimatorClient() {
     setDesignObjects(next);
     setSelectedObjectIds(roomWalls.map(w => w.id));
     saveToHistory(next);
-    toast({ title: "Room Added", description: "12'x10' room inserted." });
+    toast({ title: "রুম যোগ করা হয়েছে", description: "১২'x১০' রুম তৈরি হয়েছে।" });
   }, [designObjects, currentWallThickness, saveToHistory, toast]);
 
   const saveToFirestore = useCallback(() => {
@@ -291,19 +295,10 @@ export default function EstimatorClient() {
         deleteSelected();
       } else if (e.ctrlKey || e.metaKey) {
         const key = e.key.toLowerCase();
-        if (key === 'z') {
-          e.preventDefault();
-          undo();
-        } else if (key === 'y') {
-          e.preventDefault();
-          redo();
-        } else if (key === 'c') {
-          e.preventDefault();
-          copySelected();
-        } else if (key === 'v') {
-          e.preventDefault();
-          pasteSelected();
-        }
+        if (key === 'z') { e.preventDefault(); undo(); }
+        else if (key === 'y') { e.preventDefault(); redo(); }
+        else if (key === 'c') { e.preventDefault(); copySelected(); }
+        else if (key === 'v') { e.preventDefault(); pasteSelected(); }
       }
     };
 
@@ -331,13 +326,14 @@ export default function EstimatorClient() {
     if (id) {
       e.stopPropagation();
       let newSelection = (e.ctrlKey || e.metaKey) ? (selectedObjectIds.includes(id) ? selectedObjectIds.filter(sid => sid !== id) : [...selectedObjectIds, id]) : [id];
-      setSelectedObjectIds(newSelection); setInteractionMode('dragging');
-      const newOffsets: { [id: string]: { x: number, y: number } } = {};
-      newSelection.forEach(sid => {
-        const obj = designObjects.find(o => o.id === sid);
-        if (obj) newOffsets[sid] = { x: curX - obj.x, y: curY - obj.y };
-      });
-      setDragOffsets(newOffsets);
+      setSelectedObjectIds(newSelection);
+      
+      // Rotation handle check logic
+      const obj = designObjects.find(o => o.id === id);
+      if (obj) {
+        setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
+        setInteractionMode('dragging');
+      }
     } else {
       setSelectedObjectIds([]);
       if (selectedTool === 'select') {
@@ -365,6 +361,13 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'selecting' && selectionBox) { setSelectionBox(prev => prev ? { ...prev, x2: curX, y2: curY } : null); }
+
+    if (interactionMode === 'rotating' && firstSelectedObject) {
+      const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
+      const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
+      const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
+      updateObject(firstSelectedObject.id, { rotation: Math.round(angle / 15) * 15 });
+    }
 
     if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
       const mainId = selectedObjectIds[0];
@@ -412,6 +415,58 @@ export default function EstimatorClient() {
     );
   };
 
+  const renderObjectContent = (obj: DesignObject) => {
+    const isOpening = obj.type === 'opening';
+    const isText = obj.type === 'text' || obj.subType === 'label';
+    
+    if (isOpening) {
+      const strokeW = 1 / zoom;
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
+          {obj.subType === 'window' && (
+            <g>
+              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 2} />
+              <line x1="0" y1={obj.h / 2} x2={obj.w} y2={obj.h / 2} stroke={obj.color} strokeWidth={strokeW} />
+              <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW} />
+              <line x1="0" y1={(obj.h * 2) / 3} x2={obj.w} y2={(obj.h * 2) / 3} stroke={obj.color} strokeWidth={strokeW} />
+            </g>
+          )}
+          {obj.subType === 'door' && (
+            <g>
+              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.2} stroke="none" />
+              {/* Leaf line */}
+              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 3} />
+              {/* Arc path */}
+              <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+            </g>
+          )}
+          {obj.subType === 'double-door' && (
+            <g>
+               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.2} stroke="none" />
+               {/* Left leaf */}
+               <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 3} />
+               <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+               {/* Right leaf */}
+               <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 3} />
+               <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+            </g>
+          )}
+        </svg>
+      );
+    }
+
+    if (isText) {
+      return (
+        <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" 
+          style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'bold' : 'normal' }}>
+          {obj.textContent || obj.label}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="w-full h-screen bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
@@ -453,7 +508,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="w-[240px] bg-slate-50 border-r z-30 shrink-0 flex flex-col shadow-inner">
+        <div className="w-[200px] bg-slate-50 border-r z-30 shrink-0 flex flex-col shadow-inner">
           <div className="p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
           <ScrollArea className="flex-1 p-3 space-y-4">
             <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
@@ -467,8 +522,9 @@ export default function EstimatorClient() {
             <div className="pt-4 border-t space-y-2">
               <Label className="text-[10px] font-bold text-slate-400 uppercase">Openings</Label>
               <div className="grid grid-cols-2 gap-2">
-                <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door', { w: 3, h: currentWallThickness, fillColor: '#ffffff' })} />
-                <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window', { w: 4, h: currentWallThickness, fillColor: '#ffffff' })} />
+                <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door')} />
+                <SymbolButton icon={<LayoutGrid />} label="Double Door" onClick={() => addObject('opening', 'double-door', 'Double Door')} />
+                <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
               </div>
             </div>
           </ScrollArea>
@@ -486,25 +542,40 @@ export default function EstimatorClient() {
                 }}>
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
-                    className={cn("absolute transition-shadow", selectedObjectIds.includes(obj.id) ? "z-30 ring-2 ring-blue-500" : "z-10")}
+                    className={cn("absolute", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
                     style={{ 
                       left: obj.x * zoom + CANVAS_OFFSET, top: obj.y * zoom + CANVAS_OFFSET, 
                       width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
                       transform: `rotate(${obj.rotation}deg)`, 
-                      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : obj.fillColor,
+                      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
+                      border: (obj.subType === 'wall' || obj.subType === 'pillar' || obj.type === 'shape') ? 'none' : 'none',
+                      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
                     }}>
-                    {(obj.type === 'opening') && (
-                      <div className="w-full h-full flex items-center justify-center border border-slate-200 pointer-events-none">
-                        <span className="text-[7px] font-black uppercase text-slate-400">{obj.subType}</span>
-                      </div>
+                    
+                    {renderObjectContent(obj)}
+
+                    {selectedObjectIds.includes(obj.id) && (
+                       <>
+                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 transition-colors"
+                           onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}>
+                           <RotateCw className="w-4 h-4 text-blue-500" />
+                         </div>
+                       </>
                     )}
-                    {(obj.type === 'text' || obj.subType === 'label') && (
-                      <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40) }}>{obj.textContent || obj.label}</div>
-                    )}
+
                     {showDimensions && (
-                      <div className="absolute top-full mt-1 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-50">
-                        <span className="text-[9px] font-bold text-slate-800">{formatFeetInches(obj.w)} x {formatFeetInches(obj.h)}</span>
-                      </div>
+                      <>
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-50 flex items-center gap-1">
+                           <span className="text-[7px]">◀</span>
+                           <span className="text-[9px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
+                           <span className="text-[7px]">▶</span>
+                        </div>
+                        <div className="absolute top-1/2 -right-10 -translate-y-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-50 flex flex-col items-center">
+                           <span className="text-[7px]">▲</span>
+                           <span className="text-[9px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.h)}</span>
+                           <span className="text-[7px]">▼</span>
+                        </div>
+                      </>
                     )}
                   </div>
                 ))}
