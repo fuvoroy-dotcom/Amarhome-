@@ -41,13 +41,9 @@ type DesignObject = {
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   rotation: number;
-  scaleX?: number;
-  scaleY?: number;
   textContent?: string;
   fontSize?: number;
   isBold?: boolean;
-  rows?: number;
-  cols?: number;
   isJoined?: boolean; 
   stepCount?: number;
 };
@@ -67,7 +63,6 @@ export default function EstimatorClient() {
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [zoom, setZoom] = useState(40);
-  const [activeRibbonTab, setActiveRibbonTab] = useState('home');
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); // 5 inches
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -222,7 +217,7 @@ export default function EstimatorClient() {
       type, subType, x, y, w: 2, h: 2, label, 
       color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
-      scaleX: 1, scaleY: 1, isJoined: false, fontSize: 14, isBold: false, stepCount: 10,
+      isJoined: false, fontSize: 14, isBold: false, stepCount: 10,
       ...overrides
     };
     if (subType === 'pillar') newObj.fillColor = '#000000';
@@ -270,9 +265,6 @@ export default function EstimatorClient() {
   useEffect(() => { loadFromFirestore(); }, [loadFromFirestore]);
 
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) { e.preventDefault(); const zoomSpeed = 0.001; setZoom(prev => Math.min(250, Math.max(5, prev - e.deltaY * zoomSpeed * prev))); }
-    };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
@@ -286,9 +278,8 @@ export default function EstimatorClient() {
         else if (key === 's') { e.preventDefault(); saveToFirestore(); }
       }
     };
-    window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
-    return () => { window.removeEventListener('wheel', handleWheel); window.removeEventListener('keydown', handleKeyDown); };
+    return () => { window.removeEventListener('keydown', handleKeyDown); };
   }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore, moveSelectedWithArrows]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
@@ -430,10 +421,8 @@ export default function EstimatorClient() {
   );
 
   const renderObjectContent = (obj: DesignObject) => {
-    const isOpening = obj.type === 'opening';
-    const isText = obj.type === 'text' || obj.subType === 'label';
     const sw = 1 / zoom;
-    if (isOpening) {
+    if (obj.type === 'opening') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke="none" />
@@ -444,32 +433,28 @@ export default function EstimatorClient() {
               <line x1="0" y1={obj.h * 0.75} x2={obj.w} y2={obj.h * 0.75} stroke={obj.color} strokeWidth={sw * 1.5} />
             </g>
           )}
-          {obj.subType === 'door-1' && ( // Hinged Right, Swing Up-Left (TL quadrant)
+          {obj.subType === 'door-1' && (
             <g>
               <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} />
               <path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={sw} /><line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={sw} />
             </g>
           )}
-          {obj.subType === 'door-2' && ( // Hinged Left, Swing Up-Right (TR quadrant)
+          {obj.subType === 'door-2' && (
             <g>
-              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} />
+              <line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} />
               <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={sw} /><line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={sw} />
             </g>
           )}
-          {obj.subType === 'door-3' && ( // Hinged Right, Swing Down-Left (BL quadrant)
+          {obj.subType === 'door-3' && (
             <g>
               <line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} />
               <path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={sw} /><line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={sw} />
             </g>
           )}
-          {obj.subType === 'door-4' && ( // Hinged Left, Swing Down-Right (BR quadrant)
+          {obj.subType === 'door-4' && (
             <g>
               <line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} />
               <path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={sw} /><line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={sw} />
             </g>
           )}
           {obj.subType === 'double-door' && (
@@ -478,7 +463,6 @@ export default function EstimatorClient() {
               <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
               <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} />
               <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={sw} /><line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={sw} />
             </g>
           )}
           {obj.subType === 'sliding-door' && (
@@ -486,13 +470,12 @@ export default function EstimatorClient() {
               <rect x="0" y={obj.h*0.25} width={obj.w} height={obj.h*0.5} fill="none" stroke={obj.color} strokeWidth={sw * 2} />
               <line x1={obj.w * 0.4} y1={obj.h*0.25} x2={obj.w * 0.4} y2={obj.h*0.75} stroke={obj.color} strokeWidth={sw * 2} />
               <line x1={obj.w * 0.4} y1={obj.h*0.5} x2={obj.w * 0.9} y2={obj.h*0.5} stroke={obj.color} strokeWidth={sw * 4} />
-              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={sw} /><line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={sw} />
             </g>
           )}
         </svg>
       );
     }
-    if (isText) return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'bold' : 'normal' }}>{obj.textContent || obj.label}</div>;
+    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'bold' : 'normal' }}>{obj.textContent || obj.label}</div>;
     return null;
   };
 
@@ -518,8 +501,8 @@ export default function EstimatorClient() {
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
         <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
         <RibbonButton icon={<PillarIcon />} label="Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
-        <RibbonButton icon={<SplitSquareVertical />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
         <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'label'} onClick={() => setSelectedTool('label')} />
+        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={showDimensions ? <Eye /> : <EyeOff />} label={showDimensions ? "মাপ দেখুন" : "মাপ লুকান"} onClick={() => setShowDimensions(!showDimensions)} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><Button variant="outline" size="sm" className="text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
       </div>
       <div className="flex-1 flex overflow-hidden relative">
@@ -606,4 +589,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
-
