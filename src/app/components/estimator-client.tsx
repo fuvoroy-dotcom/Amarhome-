@@ -196,6 +196,38 @@ export default function EstimatorClient() {
     });
   };
 
+  const moveSelectedWithArrows = useCallback((key: string) => {
+    if (selectedObjectIds.length === 0) return;
+    
+    let dx = 0;
+    let dy = 0;
+    const step = ARCH_SNAP;
+
+    if (key === 'ArrowUp') dy = -step;
+    if (key === 'ArrowDown') dy = step;
+    if (key === 'ArrowLeft') dx = -step;
+    if (key === 'ArrowRight') dx = step;
+
+    setDesignObjects(prev => {
+      const next = prev.map(o => {
+        if (selectedObjectIds.includes(o.id) && !o.isJoined) {
+          return { 
+            ...o, 
+            x: Math.round((o.x + dx) * 48) / 48, 
+            y: Math.round((o.y + dy) * 48) / 48 
+          };
+        }
+        return o;
+      });
+      
+      const moved = next.some((o, i) => o.x !== prev[i].x || o.y !== prev[i].y);
+      if (moved) {
+        saveToHistory(next);
+      }
+      return next;
+    });
+  }, [selectedObjectIds, saveToHistory]);
+
   const addObjectAt = useCallback((type: DesignObject['type'], subType: string, label: string, x: number, y: number, overrides = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
@@ -266,6 +298,9 @@ export default function EstimatorClient() {
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteSelected();
+      } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        moveSelectedWithArrows(e.key);
       } else if (e.ctrlKey || e.metaKey) {
         const key = e.key.toLowerCase();
         if (key === 'z') { e.preventDefault(); undo(); }
@@ -282,7 +317,7 @@ export default function EstimatorClient() {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore]);
+  }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore, moveSelectedWithArrows]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
