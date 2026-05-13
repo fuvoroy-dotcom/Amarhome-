@@ -936,7 +936,15 @@ export default function EstimatorClient() {
                   }}>
                   
                   {showDimensions && (obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
+                    <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50", 
+                        (() => {
+                          const norm = (obj.rotation % 360 + 360) % 360;
+                          if (norm >= 45 && norm < 135) return "top-full mt-2"; // global right
+                          if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // global bottom
+                          if (norm >= 225 && norm < 315) return "bottom-full mb-2"; // global right
+                          return "top-full mt-2"; // global bottom
+                        })()
+                      )}>
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                     </div>
                   )}
