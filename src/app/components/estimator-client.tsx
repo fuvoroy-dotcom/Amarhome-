@@ -68,6 +68,9 @@ type DesignObject = {
 const COLORS = ['#000000', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 48];
 
+// Architectural snap: 0.25 inch = 1/48 of a foot
+const ARCH_SNAP = 1/48; 
+
 export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
@@ -96,6 +99,7 @@ export default function EstimatorClient() {
   const formatFeetInches = (val: number) => {
     const feet = Math.floor(Math.abs(val));
     const inches = Math.round((Math.abs(val) - feet) * 12);
+    if (feet === 0 && inches === 0) return "0'";
     if (feet === 0) return `${inches}"`;
     if (inches === 0) return `${feet}'`;
     if (inches === 12) return `${feet + 1}'`;
@@ -103,9 +107,23 @@ export default function EstimatorClient() {
   };
 
   const parseFeetInches = (str: string) => {
-    const match = str.match(/(\d+)'\s*(\d+)"/);
-    if (match) return parseInt(match[1]) + parseInt(match[2]) / 12;
-    const decimal = parseFloat(str);
+    if (!str || str.trim() === "") return 0;
+    const s = str.trim();
+    
+    // Match "X' Y\""
+    const matchFull = s.match(/(\d+)'\s*(\d+)"/);
+    if (matchFull) return parseInt(matchFull[1]) + parseInt(matchFull[2]) / 12;
+    
+    // Match "X'"
+    const matchFeet = s.match(/^(\d+)'$/);
+    if (matchFeet) return parseInt(matchFeet[1]);
+    
+    // Match "X\""
+    const matchInches = s.match(/^(\d+)"$/);
+    if (matchInches) return parseInt(matchInches[1]) / 12;
+    
+    // Fallback to plain number as feet
+    const decimal = parseFloat(s);
     return isNaN(decimal) ? 0 : decimal;
   };
 
@@ -118,7 +136,7 @@ export default function EstimatorClient() {
       setLocalPropW(formatFeetInches(firstSelectedObject.w));
       setLocalPropH(formatFeetInches(firstSelectedObject.h));
     }
-  }, [firstSelectedObject]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -147,7 +165,7 @@ export default function EstimatorClient() {
 
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
-    let minDist = 0.8; 
+    let minDist = 0.5; 
 
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
@@ -213,7 +231,7 @@ export default function EstimatorClient() {
         if (!isSelfJoined && !isOtherJoined) return;
 
         const dist = Math.sqrt(Math.pow(curr.x - other.x, 2) + Math.pow(curr.y - other.y, 2));
-        if (dist < 1.5) {
+        if (dist < 1) {
           connected.add(other.id);
           stack.push(other.id);
           return;
@@ -238,7 +256,7 @@ export default function EstimatorClient() {
               if (blenSq > 0) {
                 const t = Math.max(0, Math.min(1, ((pt.x - b1.x) * bdx + (pt.y - b1.y) * bdy) / blenSq));
                 const proj = { x: b1.x + t * bdx, y: b1.y + t * bdy };
-                if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.8) found = true;
+                if (Math.sqrt(Math.pow(pt.x - proj.x, 2) + Math.pow(pt.y - proj.y, 2)) < 0.5) found = true;
               }
             });
             return found;
@@ -380,7 +398,7 @@ export default function EstimatorClient() {
 
     if (selectedTool === 'wall') {
       const snap = findSnapPoint(curX, curY);
-      const start = snap || { x: Math.round(curX * 20) / 20, y: Math.round(curY * 20) / 20 };
+      const start = snap || { x: Math.round(curX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(curY / ARCH_SNAP) * ARCH_SNAP };
       setDrawStart(start);
       setTempDrawEnd(start);
       setInteractionMode('drawing');
@@ -401,7 +419,7 @@ export default function EstimatorClient() {
         type = 'pillar';
         subType = selectedTool === 'pillar' ? 'pillar' : 'pillar_round';
         label = selectedTool === 'pillar' ? 'Column' : 'Round Pillar';
-        w = 0.8; h = 0.8;
+        w = 0.83; h = 0.83; // 10 inch pillars
       } else if (selectedTool === 'stair') {
         type = 'stair';
         subType = 'stair';
@@ -430,8 +448,8 @@ export default function EstimatorClient() {
       const finalY = (type === 'pillar') ? pos.y - h/2 : pos.y;
       
       addObject(type, subType, label, { 
-        x: Math.round(finalX * 20) / 20, 
-        y: Math.round(finalY * 20) / 20, 
+        x: Math.round(finalX / ARCH_SNAP) * ARCH_SNAP, 
+        y: Math.round(finalY / ARCH_SNAP) * ARCH_SNAP, 
         w, h 
       });
       setSelectedTool('select');
@@ -498,7 +516,7 @@ export default function EstimatorClient() {
       }
       
       const snap = findSnapPoint(endX, endY);
-      setTempDrawEnd(snap || { x: Math.round(endX * 20) / 20, y: Math.round(endY * 20) / 20 });
+      setTempDrawEnd(snap || { x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
       setSnapPoint(snap);
       return;
     }
@@ -548,8 +566,8 @@ export default function EstimatorClient() {
       const potentialY = curY - mainOffset.y;
       
       const snap = findSnapPoint(potentialX, potentialY, group);
-      const targetX = snap ? snap.x : Math.round(potentialX * 20) / 20;
-      const targetY = snap ? snap.y : Math.round(potentialY * 20) / 20;
+      const targetX = snap ? snap.x : Math.round(potentialX / ARCH_SNAP) * ARCH_SNAP;
+      const targetY = snap ? snap.y : Math.round(potentialY / ARCH_SNAP) * ARCH_SNAP;
       
       const mainObj = designObjects.find(o => o.id === mainId);
       if (!mainObj) return;
@@ -557,7 +575,9 @@ export default function EstimatorClient() {
       const dx = targetX - mainObj.x;
       const dy = targetY - mainObj.y;
       
-      setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+      if (dx !== 0 || dy !== 0) {
+        setDesignObjects(prev => prev.map(o => group.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+      }
       setSnapPoint(snap);
     }
 
@@ -565,8 +585,8 @@ export default function EstimatorClient() {
       const id = selectedObjectIds[0];
       const curr = designObjects.find(o => o.id === id);
       if (!curr) return;
-      const nextW = Math.max(0.1, curX - curr.x);
-      const nextH = Math.max(0.1, curY - curr.y);
+      const nextW = Math.max(ARCH_SNAP, Math.round((curX - curr.x) / ARCH_SNAP) * ARCH_SNAP);
+      const nextH = Math.max(ARCH_SNAP, Math.round((curY - curr.y) / ARCH_SNAP) * ARCH_SNAP);
       setDesignObjects(prev => prev.map(o => o.id === id ? { ...o, w: nextW, h: nextH } : o));
     }
   };
@@ -700,7 +720,7 @@ export default function EstimatorClient() {
     const handleKey = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
       
-      const moveStep = 0.05; 
+      const moveStep = ARCH_SNAP; 
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
@@ -778,12 +798,12 @@ export default function EstimatorClient() {
             <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3" : "h-[1px] w-3")} />
             <span className="text-[9px] font-bold text-slate-500 mt-0.5">{t * steps}</span>
             {orientation === 'horizontal' && (
-              <div className="absolute top-0 flex gap-0" style={{ left: '10%' }}>
+              <div className="absolute top-0 flex gap-0" style={{ left: '0' }}>
                  {[1,2,3].map(st => <div key={st} className="w-[1px] h-1.5 bg-slate-300" style={{ marginLeft: zoom - 1 }} />)}
               </div>
             )}
             {orientation === 'vertical' && (
-              <div className="absolute left-0 flex flex-col gap-0" style={{ top: '10%' }}>
+              <div className="absolute left-0 flex flex-col gap-0" style={{ top: '0' }}>
                  {[1,2,3].map(st => <div key={st} className="h-[1px] w-1.5 bg-slate-300" style={{ marginTop: zoom - 1 }} />)}
               </div>
             )}
@@ -818,7 +838,7 @@ export default function EstimatorClient() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Move: 0.05" | Ctrl+S: Save | Ctrl+Wheel: Zoom</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Snap: 0.25" | Ctrl+S: Save | Ctrl+Wheel: Zoom</span>
           <User className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white" />
         </div>
       </div>
@@ -980,11 +1000,10 @@ export default function EstimatorClient() {
                         <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/95 px-1.5 py-0.5 rounded border border-slate-300 shadow-sm pointer-events-none z-50", 
                             (() => {
                               const norm = (obj.rotation % 360 + 360) % 360;
-                              // Force label to Screen Right or Screen Bottom
-                              if (norm >= 45 && norm < 135) return "bottom-full mb-2"; // 90 deg -> Screen Right
-                              if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // 180 deg -> Screen Bottom
-                              if (norm >= 225 && norm < 315) return "top-full mt-2"; // 270 deg -> Screen Right
-                              return "top-full mt-2"; // 0 deg -> Screen Bottom
+                              if (norm >= 45 && norm < 135) return "left-full ml-2"; // 90 deg -> Right
+                              if (norm >= 135 && norm < 225) return "top-full mt-2"; // 180 deg -> Bottom
+                              if (norm >= 225 && norm < 315) return "left-full ml-2"; // 270 deg -> Right
+                              return "top-full mt-2"; // 0 deg -> Bottom
                             })()
                           )}>
                           <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
@@ -1113,7 +1132,7 @@ export default function EstimatorClient() {
                 <span className="text-[10px] font-bold text-slate-500">{zoom}% Precision</span>
              </div>
              <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <span>Arrow Keys: 0.05"</span>
+                <span>Arrow Keys: 0.25"</span>
                 <span>Ctrl+A: Select All</span>
                 <span>Ctrl+S: Save Design</span>
                 <span>Ctrl+Wheel: Zoom (2%)</span>
@@ -1163,10 +1182,10 @@ export default function EstimatorClient() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2.5">
-                         <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
-                         <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
-                         <PropInput label="Width" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
-                         <PropInput label="Height" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
+                         <PropInput label="X POS" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
+                         <PropInput label="Y POS" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
+                         <PropInput label="WIDTH" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
+                         <PropInput label="HEIGHT" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
                       </div>
 
                       <div className="space-y-2 border-t pt-2">
