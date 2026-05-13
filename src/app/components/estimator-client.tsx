@@ -915,7 +915,8 @@ export default function EstimatorClient() {
                   height: d.horizontal ? 2 : Math.abs(d.y2 - d.y1) * zoom,
                   backgroundColor: 'rgba(59, 130, 246, 0.4)',
                 }}>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 py-1 border border-blue-300 rounded text-[11px] font-bold text-blue-600 shadow-md whitespace-nowrap">
+                  <div className={cn("absolute bg-white px-2 py-1 border border-blue-300 rounded text-[11px] font-bold text-blue-600 shadow-md whitespace-nowrap",
+                    d.horizontal ? "top-full mt-1 left-1/2 -translate-x-1/2" : "left-full ml-1 top-1/2 -translate-y-1/2")}>
                     {d.dist}
                   </div>
                 </div>
@@ -935,7 +936,7 @@ export default function EstimatorClient() {
                   }}>
                   
                   {showDimensions && (obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-10 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                     </div>
                   )}
