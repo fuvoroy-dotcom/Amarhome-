@@ -191,6 +191,8 @@ export default function EstimatorClient() {
       const rad = (obj.rotation || 0) * (Math.PI / 180);
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
+      
+      // Endpoints of walls/stairs or corners of shapes
       const pts = (obj.subType === 'wall' || obj.type === 'stair') ? [
         { x: obj.x, y: obj.y },
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
@@ -201,6 +203,7 @@ export default function EstimatorClient() {
         { x: obj.x + obj.w, y: obj.y + obj.h },
         { x: obj.x + obj.w / 2, y: obj.y + obj.h / 2 }
       ];
+      
       pts.forEach(p => {
         const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
         if (d < minDist) { minDist = d; bestSnap = p; }
@@ -279,7 +282,7 @@ export default function EstimatorClient() {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const zoomSpeed = 0.02; 
+        const zoomSpeed = 0.05; 
         setZoom(prev => {
           const delta = e.deltaY > 0 ? -1 : 1;
           const newZoom = prev * (1 + delta * zoomSpeed);
@@ -335,9 +338,10 @@ export default function EstimatorClient() {
         setInteractionMode('dragging');
       }
     } else {
-      setSelectedObjectIds([]);
       if (selectedTool === 'select') {
-        setInteractionMode('selecting'); setSelectionBox({ x1: curX, y1: curY, x2: curX, y2: curY });
+        setSelectedObjectIds([]);
+        setInteractionMode('selecting'); 
+        setSelectionBox({ x1: curX, y1: curY, x2: curX, y2: curY });
       }
     }
   };
@@ -351,16 +355,22 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX, endY = curY;
-      if (e.shiftKey) {
-        if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) endY = drawStart.y;
-        else endX = drawStart.x;
+      // Constraint to straight lines if Shift or Ctrl is pressed
+      if (e.shiftKey || e.ctrlKey) {
+        if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) {
+          endY = drawStart.y;
+        } else {
+          endX = drawStart.x;
+        }
       }
       const snap = findSnapPoint(endX, endY);
       setTempDrawEnd(snap || { x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
       setSnapPoint(snap); return;
     }
 
-    if (interactionMode === 'selecting' && selectionBox) { setSelectionBox(prev => prev ? { ...prev, x2: curX, y2: curY } : null); }
+    if (interactionMode === 'selecting' && selectionBox) { 
+      setSelectionBox(prev => prev ? { ...prev, x2: curX, y2: curY } : null); 
+    }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
@@ -373,8 +383,19 @@ export default function EstimatorClient() {
       const mainId = selectedObjectIds[0];
       const mainOffset = dragOffsets[mainId];
       if (!mainOffset) return;
-      const targetX = Math.round((curX - mainOffset.x) / ARCH_SNAP) * ARCH_SNAP;
-      const targetY = Math.round((curY - mainOffset.y) / ARCH_SNAP) * ARCH_SNAP;
+      
+      let targetX = curX - mainOffset.x;
+      let targetY = curY - mainOffset.y;
+      
+      // Snap while dragging
+      const snap = findSnapPoint(targetX, targetY, selectedObjectIds);
+      if (snap) {
+        targetX = snap.x; targetY = snap.y;
+      } else {
+        targetX = Math.round(targetX / ARCH_SNAP) * ARCH_SNAP;
+        targetY = Math.round(targetY / ARCH_SNAP) * ARCH_SNAP;
+      }
+
       const mainObj = designObjects.find(o => o.id === mainId);
       if (!mainObj) return;
       const dx = targetX - mainObj.x; const dy = targetY - mainObj.y;
@@ -395,7 +416,9 @@ export default function EstimatorClient() {
       const yMin = Math.min(selectionBox.y1, selectionBox.y2), yMax = Math.max(selectionBox.y1, selectionBox.y2);
       const inBox = designObjects.filter(obj => obj.x >= xMin && obj.x <= xMax && obj.y >= yMin && obj.y <= yMax).map(o => o.id);
       setSelectedObjectIds(inBox); setSelectionBox(null);
-    } else if (interactionMode !== 'none') { saveToHistory(designObjects); }
+    } else if (interactionMode !== 'none') { 
+      saveToHistory(designObjects); 
+    }
     setInteractionMode('none'); setSnapPoint(null);
   };
 
@@ -426,25 +449,27 @@ export default function EstimatorClient() {
           {obj.subType === 'window' && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 2} />
-              <line x1="0" y1={obj.h / 2} x2={obj.w} y2={obj.h / 2} stroke={obj.color} strokeWidth={strokeW} />
               <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW} />
               <line x1="0" y1={(obj.h * 2) / 3} x2={obj.w} y2={(obj.h * 2) / 3} stroke={obj.color} strokeWidth={strokeW} />
+              <text x={obj.w/2} y={obj.h/2} dominantBaseline="middle" textAnchor="middle" fontSize={0.4} fill={obj.color} style={{ pointerEvents: 'none' }}>WINDOW</text>
             </g>
           )}
           {obj.subType === 'door' && (
             <g>
-              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.2} stroke="none" />
-              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 3} />
+              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
+              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
               <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+              <text x={obj.w/2} y={obj.h/2} dominantBaseline="middle" textAnchor="middle" fontSize={0.4} fill={obj.color} style={{ pointerEvents: 'none' }}>DOOR</text>
             </g>
           )}
           {obj.subType === 'double-door' && (
             <g>
-               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.2} stroke="none" />
-               <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 3} />
+               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
+               <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
                <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-               <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 3} />
+               <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
                <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+               <text x={obj.w/2} y={obj.h/2} dominantBaseline="middle" textAnchor="middle" fontSize={0.4} fill={obj.color} style={{ pointerEvents: 'none' }}>D. DOOR</text>
             </g>
           )}
         </svg>
@@ -478,7 +503,10 @@ export default function EstimatorClient() {
             ))}
           </nav>
         </div>
-        <User className="w-5 h-5 text-slate-400" />
+        <div className="flex items-center gap-4">
+           <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white" onClick={saveToFirestore}><Save className="w-4 h-4 mr-2"/> SAVE</Button>
+           <User className="w-5 h-5 text-slate-400" />
+        </div>
       </div>
 
       <div className="h-16 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-40 overflow-x-auto">
@@ -498,7 +526,6 @@ export default function EstimatorClient() {
           <RibbonButton icon={<TypeIcon />} label="Label" onClick={() => addObject('text', 'label', 'Label', { textContent: 'Room Name', w: 4, h: 1 })} />
         </div>
         <div className="flex items-center border-r px-2 h-full gap-2">
-          <Button variant="default" size="sm" className="gap-2 h-9 px-4" onClick={saveToFirestore}><Save className="w-4 h-4" /> Save</Button>
           <Button variant="outline" size="sm" className="gap-2 h-9 px-4 text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
         </div>
       </div>
@@ -508,6 +535,7 @@ export default function EstimatorClient() {
           <div className="p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
           <ScrollArea className="flex-1 p-3 space-y-4">
             <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
+            
             <div className="pt-4 border-t space-y-2">
               <Label className="text-[10px] font-bold text-slate-400 uppercase">Dimensions & Area</Label>
               <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
@@ -515,6 +543,7 @@ export default function EstimatorClient() {
                 <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} />
               </div>
             </div>
+
             <div className="pt-4 border-t space-y-2">
               <Label className="text-[10px] font-bold text-slate-400 uppercase">Openings</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -581,6 +610,10 @@ export default function EstimatorClient() {
                     }}
                   />
                 )}
+                {snapPoint && (
+                   <div className="absolute w-3 h-3 bg-red-500 rounded-full z-[100] -translate-x-1/2 -translate-y-1/2"
+                     style={{ left: snapPoint.x * zoom + CANVAS_OFFSET, top: snapPoint.y * zoom + CANVAS_OFFSET }} />
+                )}
               </div>
             </div>
           </div>
@@ -632,7 +665,12 @@ export default function EstimatorClient() {
                     <span className="text-[9px] font-bold text-slate-400 uppercase">লেখা</span>
                     <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" placeholder="Type here..." value={firstSelectedObject.textContent || ""} 
                       onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })}
-                      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                          saveToHistory(designObjects);
+                        }
+                      }}
                       onBlur={() => saveToHistory(designObjects)} />
                   </div>
                 )}
@@ -680,7 +718,11 @@ function PropField({ label, value, onChange, onBlur }: { label: string, value: s
       <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} 
         onChange={e => onChange(e.target.value)} 
         onBlur={onBlur} 
-        onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} />
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+        }} />
     </div>
   );
 }
