@@ -940,9 +940,9 @@ export default function EstimatorClient() {
                         (() => {
                           const norm = (obj.rotation % 360 + 360) % 360;
                           // Standardize dimension labels to display on the South (Bottom) or Right of the line
-                          if (norm >= 45 && norm < 135) return "bottom-full mb-2"; // 90 deg -> Vertical (display Right)
+                          if (norm >= 45 && norm < 135) return "top-full mt-2"; // 90 deg -> Vertical (display Right)
                           if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // 180 deg -> Horizontal (display South)
-                          if (norm >= 225 && norm < 315) return "top-full mt-2"; // 270 deg -> Vertical (display Right)
+                          if (norm >= 225 && norm < 315) return "bottom-full mb-2"; // 270 deg -> Vertical (display Right)
                           return "top-full mt-2"; // 0 deg -> Horizontal (display South)
                         })()
                       )}>
