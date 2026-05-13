@@ -548,8 +548,16 @@ export default function EstimatorClient() {
                 <div className="flex items-center gap-3 shrink-0">
                   <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} />
                   <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} />
-                  <PropField label="W (দৈর্ঘ্য)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} />
-                  <PropField label="H (প্রস্থ)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} />
+                  <PropField 
+                    label={firstSelectedObject.subType === 'wall' ? "L (দৈর্ঘ্য)" : "W (দৈর্ঘ্য)"} 
+                    value={localPropW} onChange={setLocalPropW} 
+                    onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} 
+                  />
+                  <PropField 
+                    label={firstSelectedObject.subType === 'wall' ? "T (পুরুত্ব)" : "H (প্রস্থ)"} 
+                    value={localPropH} onChange={setLocalPropH} 
+                    onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} 
+                  />
                 </div>
                 <div className="flex items-center gap-4 shrink-0 min-w-[120px]">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">ঘুরান</span>
@@ -601,7 +609,7 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-black text-slate-300 uppercase">{label}</span>
+      <span className="text-[10px] font-black text-slate-300 uppercase shrink-0 min-w-[50px]">{label}</span>
       <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
     </div>
   );
