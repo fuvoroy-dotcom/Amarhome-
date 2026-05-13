@@ -555,31 +555,39 @@ export default function EstimatorClient() {
     if (isOpening) {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.01} stroke="none" />
+          {/* The "Gap" effect: Solid white background that covers the wall underneath */}
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke="none" />
+          
           {obj.subType === 'window' && (
             <g>
+              {/* Window frame and internal lines consistent with architectural style */}
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 3} />
-              <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW * 1.5} />
-              <line x1="0" y1={(obj.h / 3) * 2} x2={obj.w} y2={(obj.h / 3) * 2} stroke={obj.color} strokeWidth={strokeW * 1.5} />
-              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.25} fill={obj.color} className="font-bold">WINDOW</text>
+              <line x1="0" y1={obj.h * 0.25} x2={obj.w} y2={obj.h * 0.25} stroke={obj.color} strokeWidth={strokeW * 1.5} />
+              <line x1="0" y1={obj.h * 0.75} x2={obj.w} y2={obj.h * 0.75} stroke={obj.color} strokeWidth={strokeW * 1.5} />
             </g>
           )}
-          {(obj.subType === 'door' || obj.subType === 'double-door') && (
+          {obj.subType === 'door' && (
             <g>
-              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.25} fill={obj.color} className="font-bold">DOOR</text>
-              {obj.subType === 'door' ? (
-                <>
-                  <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
-                  <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-                </>
-              ) : (
-                <>
-                  <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
-                  <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-                  <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
-                  <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-                </>
-              )}
+              {/* Door leaf (the solid line) */}
+              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
+              {/* Swing arc */}
+              <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 2} strokeDasharray={`${strokeW*3},${strokeW*3}`} />
+              {/* Edges of the wall gap */}
+              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={strokeW} />
+              <line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={strokeW} />
+            </g>
+          )}
+          {obj.subType === 'double-door' && (
+            <g>
+              {/* Left Leaf */}
+              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
+              <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 2} strokeDasharray={`${strokeW*3},${strokeW*3}`} />
+              {/* Right Leaf */}
+              <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
+              <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 2} strokeDasharray={`${strokeW*3},${strokeW*3}`} />
+              {/* Edges */}
+              <line x1="0" y1="0" x2="0" y2={obj.h} stroke={obj.color} strokeWidth={strokeW} />
+              <line x1={obj.w} y1="0" x2={obj.w} y2={obj.h} stroke={obj.color} strokeWidth={strokeW} />
             </g>
           )}
         </svg>
@@ -602,7 +610,7 @@ export default function EstimatorClient() {
     let xOffset = 0;
     let yOffset = 0;
     
-    // Vertical alignment fix: Start at 0, go right
+    // Vertical alignment fix: Ensures X=0 starts at the ruler mark and expands right
     if (obj.rotation === 90) xOffset = obj.h;
     else if (obj.rotation === 180) { xOffset = obj.w; yOffset = obj.h; }
     else if (obj.rotation === 270) yOffset = obj.w;
@@ -614,7 +622,8 @@ export default function EstimatorClient() {
       transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
-      cursor: obj.isJoined ? 'not-allowed' : 'move'
+      cursor: obj.isJoined ? 'not-allowed' : 'move',
+      zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10)
     };
   };
 
