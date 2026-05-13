@@ -175,7 +175,22 @@ export default function EstimatorClient() {
     }
   }, [clipboard, designObjects, saveToHistory, toast]);
 
+  const saveToFirestore = useCallback(() => {
+    const { firestore } = initializeFirebase();
+    const docRef = doc(firestore, 'designs', 'current-layout');
+    const data = { objects: designObjects, updatedAt: serverTimestamp() };
+    setDoc(docRef, data, { merge: true }).then(() => {
+      toast({ title: "সফল", description: "ডিজাইনটি সেভ করা হয়েছে।" });
+    }).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+  }, [designObjects, toast]);
+
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
+    const obj = designObjects.find(o => o.id === id);
+    if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.rotation !== undefined)) return; 
+
     setDesignObjects(prev => {
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
@@ -216,20 +231,7 @@ export default function EstimatorClient() {
     setDesignObjects(next);
     setSelectedObjectIds(roomWalls.map(w => w.id));
     saveToHistory(next);
-    toast({ title: "রুম যোগ করা হয়েছে", description: "১২'x১০' রুম তৈরি হয়েছে।" });
-  }, [designObjects, currentWallThickness, saveToHistory, toast]);
-
-  const saveToFirestore = useCallback(() => {
-    const { firestore } = initializeFirebase();
-    const docRef = doc(firestore, 'designs', 'current-layout');
-    const data = { objects: designObjects, updatedAt: serverTimestamp() };
-    setDoc(docRef, data, { merge: true }).then(() => {
-      toast({ title: "সফল", description: "ডিজাইনটি সেভ করা হয়েছে।" });
-    }).catch(async (serverError) => {
-      const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
-      errorEmitter.emit('permission-error', permissionError);
-    });
-  }, [designObjects, toast]);
+  }, [designObjects, currentWallThickness, saveToHistory]);
 
   const loadFromFirestore = useCallback(async () => {
     try {
@@ -253,10 +255,9 @@ export default function EstimatorClient() {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const zoomSpeed = 0.1; 
+        const zoomSpeed = 0.001; 
         setZoom(prev => {
-          const delta = e.deltaY > 0 ? -1 : 1;
-          const newZoom = prev * (1 + delta * zoomSpeed);
+          const newZoom = prev - e.deltaY * zoomSpeed * prev;
           return Math.min(250, Math.max(5, newZoom));
         });
       }
@@ -304,6 +305,7 @@ export default function EstimatorClient() {
       
       const obj = designObjects.find(o => o.id === id);
       if (obj) {
+        if (obj.isJoined) return; 
         setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
         setInteractionMode('dragging');
       }
@@ -403,17 +405,16 @@ export default function EstimatorClient() {
   const renderObjectContent = (obj: DesignObject) => {
     const isOpening = obj.type === 'opening';
     const isText = obj.type === 'text' || obj.subType === 'label';
+    const strokeW = 1 / zoom;
     
     if (isOpening) {
-      const strokeW = 1 / zoom;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.05} stroke="none" />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
           {obj.subType === 'window' && (
             <g>
-              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 2} />
-              <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW} />
-              <line x1="0" y1={(obj.h * 2) / 3} x2={obj.w} y2={(obj.h * 2) / 3} stroke={obj.color} strokeWidth={strokeW} />
+              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 3} />
+              <line x1="0" y1={obj.h / 2} x2={obj.w} y2={obj.h / 2} stroke={obj.color} strokeWidth={strokeW * 1.5} />
             </g>
           )}
           {(obj.subType === 'door' || obj.subType === 'double-door') && (
@@ -447,6 +448,27 @@ export default function EstimatorClient() {
     }
 
     return null;
+  };
+
+  // Helper to handle coordinate rotation and alignment
+  const getObjectStyle = (obj: DesignObject) => {
+    let xOffset = 0;
+    let yOffset = 0;
+    
+    // Fix: When rotation is 90, 180, 270, transform-origin (0,0) shifts the visual rectangle
+    // We adjust x and y so the visual outer edge stays at the coordinate
+    if (obj.rotation === 90) xOffset = obj.h;
+    else if (obj.rotation === 180) { xOffset = obj.w; yOffset = obj.h; }
+    else if (obj.rotation === 270) yOffset = obj.w;
+
+    return { 
+      left: (obj.x + xOffset) * zoom + CANVAS_OFFSET, 
+      top: (obj.y + yOffset) * zoom + CANVAS_OFFSET, 
+      width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
+      transform: `rotate(${obj.rotation}deg)`, 
+      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.01)',
+      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
+    };
   };
 
   return (
@@ -529,13 +551,7 @@ export default function EstimatorClient() {
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
                     className={cn("absolute cursor-move", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
-                    style={{ 
-                      left: obj.x * zoom + CANVAS_OFFSET, top: obj.y * zoom + CANVAS_OFFSET, 
-                      width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
-                      transform: `rotate(${obj.rotation}deg)`, 
-                      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.01)',
-                      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
-                    }}>
+                    style={getObjectStyle(obj)}>
                     
                     {renderObjectContent(obj)}
 
@@ -552,9 +568,7 @@ export default function EstimatorClient() {
                            <div className="w-[1.5px] h-4 bg-slate-500" />
                            <div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center">
                               <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex items-center gap-1.5">
-                                 <span className="text-[7px] text-slate-500">◀</span>
                                  <span className="text-[10px] font-black text-slate-900 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
-                                 <span className="text-[7px] text-slate-500">▶</span>
                               </div>
                            </div>
                            <div className="w-[1.5px] h-4 bg-slate-500" />
@@ -563,10 +577,8 @@ export default function EstimatorClient() {
                         <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50]">
                            <div className="h-[1.5px] w-4 bg-slate-500" />
                            <div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center">
-                              <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex flex-col items-center gap-1.5 rotate-90">
-                                 <span className="text-[7px] text-slate-500">▲</span>
+                              <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex flex-col items-center rotate-90">
                                  <span className="text-[10px] font-black text-slate-900 whitespace-nowrap">{formatFeetInches(obj.h)}</span>
-                                 <span className="text-[7px] text-slate-500">▼</span>
                               </div>
                            </div>
                            <div className="h-[1.5px] w-4 bg-slate-500" />
@@ -595,14 +607,6 @@ export default function EstimatorClient() {
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
               <span className="text-[9px] font-bold text-slate-400 uppercase ml-2">{Math.round(zoom)}%</span>
             </div>
-            <div className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span>Snap: 0.25"</span>
-              <span className="text-slate-200">|</span>
-              <div className="flex items-center gap-1.5">
-                <Grid className="w-3 h-3" />
-                <span>Grid 1'</span>
-              </div>
-            </div>
           </div>
 
           <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
@@ -613,17 +617,19 @@ export default function EstimatorClient() {
                    <span className="text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} />
-                  <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} />
+                  <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
+                  <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField 
                     label={firstSelectedObject.subType === 'wall' ? "L (দৈর্ঘ্য)" : "W (দৈর্ঘ্য)"} 
                     value={localPropW} onChange={setLocalPropW} 
                     onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} 
+                    disabled={firstSelectedObject.isJoined}
                   />
                   <PropField 
                     label={firstSelectedObject.subType === 'wall' ? "T (পুরুত্ব)" : "H (প্রস্থ)"} 
                     value={localPropH} onChange={setLocalPropH} 
                     onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} 
+                    disabled={firstSelectedObject.isJoined}
                   />
                 </div>
                 <div className="flex items-center gap-4 shrink-0 min-w-[120px]">
@@ -676,12 +682,13 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
   );
 }
 
-function PropField({ label, value, onChange, onBlur }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void }) {
+function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] font-black text-slate-300 uppercase shrink-0 min-w-[50px]">{label}</span>
       <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} 
         onChange={e => onChange(e.target.value)} 
+        disabled={disabled}
         onBlur={onBlur} 
         onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }} />
     </div>
