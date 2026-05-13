@@ -14,7 +14,7 @@ import {
   Ruler as RulerIcon, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical, Image as ImageIcon,
-  Eye, EyeOff, RotateCcw
+  Eye, EyeOff, RotateCcw, Rows
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,7 @@ export default function EstimatorClient() {
   const [localPropW, setLocalPropW] = useState("");
   const [localPropH, setLocalPropH] = useState("");
   const [localPropRot, setLocalPropRot] = useState("");
+  const [localPropSteps, setLocalPropSteps] = useState("");
 
   const formatFeetInches = (val: number) => {
     const roundedVal = Math.round(val * 48) / 48;
@@ -109,8 +110,9 @@ export default function EstimatorClient() {
       setLocalPropW(formatFeetInches(firstSelectedObject.w));
       setLocalPropH(formatFeetInches(firstSelectedObject.h));
       setLocalPropRot(firstSelectedObject.rotation.toString());
+      setLocalPropSteps((firstSelectedObject.stepCount || 10).toString());
     }
-  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -185,7 +187,7 @@ export default function EstimatorClient() {
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
-      if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.w !== undefined || updates.h !== undefined || updates.rotation !== undefined)) {
+      if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.w !== undefined || updates.h !== undefined || updates.rotation !== undefined || updates.stepCount !== undefined)) {
         return prev;
       }
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
@@ -228,6 +230,7 @@ export default function EstimatorClient() {
     if (subType.startsWith('door') || subType === 'sliding-door') { newObj.w = 3.5; newObj.h = currentWallThickness; }
     if (subType === 'double-door') { newObj.w = 6; newObj.h = currentWallThickness; }
     if (subType === 'window') { newObj.w = 4; newObj.h = currentWallThickness; }
+    if (subType === 'stair') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
 
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -327,7 +330,7 @@ export default function EstimatorClient() {
         else if (selectedTool === 'sliding-door') addObjectAt('opening', 'sliding-door', 'Sliding Door', snappedX, snappedY);
         else if (selectedTool === 'double-door') addObjectAt('opening', 'double-door', 'Double Door', snappedX, snappedY);
         else if (selectedTool === 'window') addObjectAt('opening', 'window', 'Window', snappedX, snappedY);
-        else if (selectedTool === 'stair') addObjectAt('stair', 'stair', 'Stair', snappedX, snappedY, { w: 8, h: 3, stepCount: 10 });
+        else if (selectedTool === 'stair') addObjectAt('stair', 'stair', 'Stair', snappedX, snappedY);
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
         setSelectedTool('select'); return;
     }
@@ -500,6 +503,32 @@ export default function EstimatorClient() {
         </svg>
       );
     }
+    if (obj.subType === 'stair') {
+      const steps = obj.stepCount || 10;
+      const landingH = obj.h * 0.2;
+      const flightW = obj.w * 0.45;
+      const gapW = obj.w * 0.1;
+      const stepH = (obj.h - landingH * 2) / (steps / 2);
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Top Landing */}
+          <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Bottom Landing */}
+          <line x1="0" y1={obj.h - landingH} x2={obj.w} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Central Rails */}
+          <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={flightW + gapW} y1={landingH} x2={flightW + gapW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Steps */}
+          {Array.from({ length: Math.ceil(steps / 2) }).map((_, i) => (
+            <React.Fragment key={i}>
+              <line x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
+              <line x1={flightW + gapW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
+            </React.Fragment>
+          ))}
+        </svg>
+      );
+    }
     if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'bold' : 'normal' }}>{obj.textContent || obj.label}</div>;
     return null;
   };
@@ -530,6 +559,7 @@ export default function EstimatorClient() {
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
         <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
         <RibbonButton icon={<PillarIcon />} label="Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
+        <RibbonButton icon={<Rows />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
         <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'label'} onClick={() => setSelectedTool('label')} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><Button variant="outline" size="sm" className="text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
       </div>
@@ -602,6 +632,9 @@ export default function EstimatorClient() {
                   <PropField label="W (দৈর্ঘ্য)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="H (প্রস্থ)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="কোণ (°)" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} disabled={firstSelectedObject.isJoined} />
+                  {firstSelectedObject.subType === 'stair' && (
+                    <PropField label="ধাপের সংখ্যা" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} disabled={firstSelectedObject.isJoined} />
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 border-l pl-4">
                   {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
@@ -626,4 +659,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
-
