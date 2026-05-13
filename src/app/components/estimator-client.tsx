@@ -124,6 +124,31 @@ export default function EstimatorClient() {
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prev = history[historyIndex - 1];
+      setHistoryIndex(historyIndex - 1);
+      setDesignObjects([...prev]);
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const next = history[historyIndex + 1];
+      setHistoryIndex(historyIndex + 1);
+      setDesignObjects([...next]);
+    }
+  }, [history, historyIndex]);
+
+  const deleteSelected = useCallback(() => {
+    if (selectedObjectIds.length > 0) {
+      const next = designObjects.filter(obj => !selectedObjectIds.includes(obj.id));
+      setDesignObjects(next);
+      setSelectedObjectIds([]);
+      saveToHistory(next);
+    }
+  }, [designObjects, selectedObjectIds, saveToHistory]);
+
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
@@ -201,7 +226,7 @@ export default function EstimatorClient() {
     });
   }, [designObjects, toast]);
 
-  const loadFromFirestore = async () => {
+  const loadFromFirestore = useCallback(async () => {
     try {
       const { firestore } = initializeFirebase();
       const docRef = doc(firestore, 'designs', 'current-layout');
@@ -209,23 +234,51 @@ export default function EstimatorClient() {
       if (snap.exists()) {
         const data = snap.data();
         setDesignObjects(data.objects);
-        saveToHistory(data.objects);
+        setHistory([data.objects]);
+        setHistoryIndex(0);
       }
     } catch (e: any) { console.error(e); }
-  };
+  }, []);
 
-  useEffect(() => { loadFromFirestore(); }, []);
+  useEffect(() => { loadFromFirestore(); }, [loadFromFirestore]);
 
+  // Keyboard and Wheel listeners
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        setZoom(prev => Math.min(150, Math.max(10, prev - e.deltaY * 0.1)));
+        const zoomSpeed = 0.05;
+        setZoom(prev => {
+          const delta = e.deltaY > 0 ? -1 : 1;
+          const newZoom = prev * (1 + delta * zoomSpeed);
+          return Math.min(250, Math.max(5, newZoom));
+        });
       }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        deleteSelected();
+      } else if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          undo();
+        } else if (e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          redo();
+        }
+      }
+    };
+
     window.addEventListener('wheel', handleWheel, { passive: false });
-    return () => window.removeEventListener('wheel', handleWheel);
-  }, []);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [deleteSelected, undo, redo]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
@@ -311,7 +364,7 @@ export default function EstimatorClient() {
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => {
     const steps = 4; const count = 100; const ticks = []; for (let i = 0; i < count; i++) ticks.push(i);
     return (
-      <div className={cn("bg-slate-50 border-slate-200 overflow-hidden", orientation === 'horizontal' ? "h-8 border-b w-full relative" : "w-8 border-r h-full relative")}>
+      <div className={cn("bg-slate-50 border-slate-200 overflow-hidden", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
         {ticks.map(t => (
           <div key={t} className="absolute flex flex-col items-center justify-start overflow-visible" style={
             orientation === 'horizontal' ? { left: t * steps * zoom + CANVAS_OFFSET, top: 0, width: zoom } : { top: t * steps * zoom + CANVAS_OFFSET, left: 0, height: zoom }
@@ -330,7 +383,7 @@ export default function EstimatorClient() {
         <div className="flex items-center gap-6 h-full">
           <div className="flex items-center gap-2 pr-4 border-r border-slate-700">
             <Building className="w-5 h-5 text-blue-400" />
-            <span className="font-bold text-xs uppercase">Architectural Pro Studio</span>
+            <span className="font-bold text-xs uppercase tracking-tighter">Architectural Pro Studio</span>
           </div>
           <nav className="flex gap-1 h-full">
             {['File', 'Home', 'Design'].map(item => (
@@ -342,26 +395,26 @@ export default function EstimatorClient() {
         <User className="w-5 h-5 text-slate-400" />
       </div>
 
-      <div className="h-20 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-40 overflow-x-auto">
-        <div className="flex items-center border-r px-3 h-full gap-1">
-          <RibbonButton icon={<Undo2 />} label="Undo" onClick={() => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setDesignObjects(history[historyIndex - 1]); } }} />
-          <RibbonButton icon={<Redo2 />} label="Redo" onClick={() => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setDesignObjects(history[historyIndex + 1]); } }} />
+      <div className="h-16 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-40 overflow-x-auto">
+        <div className="flex items-center border-r px-2 h-full gap-1">
+          <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} />
+          <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
         </div>
-        <div className="flex items-center border-r px-3 h-full gap-1">
+        <div className="flex items-center border-r px-2 h-full gap-1">
           <RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
           <RibbonButton icon={<Square />} label="Room" onClick={addRoom} />
           <RibbonButton icon={<PillarIcon />} label="Pillar" onClick={() => addObject('pillar', 'pillar', 'Pillar', { w: 0.83, h: 0.83 })} />
           <RibbonButton icon={<SplitSquareVertical />} label="Stair" onClick={() => addObject('stair', 'stair', 'Stair', { w: 8, h: 3, stepCount: 10 })} />
           <RibbonButton icon={<TypeIcon />} label="Label" onClick={() => addObject('text', 'label', 'Label', { textContent: 'Room Name', w: 4, h: 1 })} />
         </div>
-        <div className="flex items-center border-r px-3 h-full gap-4">
+        <div className="flex items-center border-r px-2 h-full gap-2">
           <Button variant="default" size="sm" className="gap-2 h-9 px-4" onClick={saveToFirestore}><Save className="w-4 h-4" /> Save</Button>
-          <Button variant="outline" size="sm" className="gap-2 h-9 px-4" onClick={() => setSelectedObjectIds([])}><Trash2 className="w-4 h-4" /> Clear</Button>
+          <Button variant="outline" size="sm" className="gap-2 h-9 px-4 text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="w-[260px] bg-slate-50 border-r z-30 shrink-0 flex flex-col shadow-inner">
+        <div className="w-[240px] bg-slate-50 border-r z-30 shrink-0 flex flex-col shadow-inner">
           <div className="p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
           <ScrollArea className="flex-1 p-3 space-y-4">
             <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
@@ -390,7 +443,7 @@ export default function EstimatorClient() {
               onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
               <div className="absolute inset-0" style={{ 
                   backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`,
-                  backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 5000, height: 5000
+                  backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000
                 }}>
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
@@ -399,7 +452,7 @@ export default function EstimatorClient() {
                       left: obj.x * zoom + CANVAS_OFFSET, top: obj.y * zoom + CANVAS_OFFSET, 
                       width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
                       transform: `rotate(${obj.rotation}deg)`, 
-                      backgroundColor: obj.subType === 'wall' ? obj.color : obj.fillColor,
+                      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : obj.fillColor,
                     }}>
                     {(obj.type === 'text' || obj.subType === 'label') && (
                       <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40) }}>{obj.textContent || obj.label}</div>
@@ -424,46 +477,48 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          <div className="h-10 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
+          {/* Status Bar */}
+          <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-4">
-              <ZoomOut className="w-4 h-4 text-slate-400" />
-              <Slider value={[zoom]} max={150} min={10} step={2} className="w-40" onValueChange={(val) => setZoom(val[0])} />
-              <ZoomIn className="w-4 h-4 text-slate-400" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase ml-4">{Math.round(zoom)}%</span>
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} />
+              <Slider value={[zoom]} max={250} min={5} step={1} className="w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
+              <span className="text-[9px] font-bold text-slate-400 uppercase ml-2">{Math.round(zoom)}%</span>
             </div>
-            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <span>Snap: 0.25" Precision</span>
+            <div className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              <span>Snap: 0.25"</span>
               <span className="text-slate-200">|</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Grid className="w-3 h-3" />
                 <span>Grid 1'</span>
               </div>
             </div>
           </div>
 
+          {/* Fixed Inspector Bar at the bottom */}
           <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             {firstSelectedObject ? (
-              <div className="flex items-center gap-6 w-full">
-                <div className="flex items-center gap-2 pr-4 border-r">
+              <div className="flex items-center gap-6 w-full overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-2 pr-4 border-r shrink-0">
                    <Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75" />
-                   <span className="text-[10px] font-bold text-slate-500 uppercase">সংযুক্ত</span>
+                   <span className="text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত</span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 shrink-0">
                   <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} />
                   <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} />
                   <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} />
                 </div>
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 shrink-0 min-w-[120px]">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">ঘুরান</span>
-                  <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="w-32" onValueChange={(v) => updateObject(firstSelectedObject.id, { rotation: v[0] })} />
+                  <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="w-24" onValueChange={(v) => updateObject(firstSelectedObject.id, { rotation: v[0] })} />
                 </div>
                 {(firstSelectedObject.type === 'text' || firstSelectedObject.subType === 'label') && (
-                  <div className="flex-1 flex items-center gap-2 border-l pl-4">
+                  <div className="flex items-center gap-2 border-l pl-4 flex-1 min-w-[150px]">
                     <span className="text-[9px] font-bold text-slate-400 uppercase">লেখা</span>
-                    <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })} />
+                    <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" placeholder="Type here..." value={firstSelectedObject.textContent || ""} onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })} />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 border-l pl-4">
+                <div className="flex items-center gap-1.5 border-l pl-4 shrink-0">
                   {COLORS.map(c => (
                     <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)}
                       className={cn("w-5 h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")}
@@ -472,7 +527,7 @@ export default function EstimatorClient() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center w-full text-slate-300 italic text-[11px] uppercase tracking-widest font-medium">Select an object to inspect</div>
+              <div className="flex items-center justify-center w-full text-slate-300 italic text-[10px] uppercase tracking-widest font-medium">অবজেক্ট সিলেক্ট করুন</div>
             )}
           </div>
         </div>
@@ -483,8 +538,8 @@ export default function EstimatorClient() {
 
 function RibbonButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
   return (
-    <Button variant="ghost" className={cn("h-16 flex flex-col gap-1 px-4 transition-all hover:bg-slate-50", active && "bg-slate-100 text-blue-600")} onClick={onClick}>
-      {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5" })}
+    <Button variant="ghost" className={cn("h-14 flex flex-col gap-1 px-3 transition-all hover:bg-slate-50", active && "bg-slate-100 text-blue-600")} onClick={onClick}>
+      {React.cloneElement(icon as React.ReactElement, { className: "w-4.5 h-4.5" })}
       <span className="text-[9px] uppercase font-bold tracking-tight">{label}</span>
     </Button>
   );
@@ -504,8 +559,7 @@ function PropField({ label, value, onChange, onBlur }: { label: string, value: s
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] font-black text-slate-300 uppercase">{label}</span>
-      <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
+      <Input className="h-7 w-16 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
     </div>
   );
 }
-
