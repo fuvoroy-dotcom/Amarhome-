@@ -69,7 +69,6 @@ export default function EstimatorClient() {
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [zoom, setZoom] = useState(40);
-  const [snapPoint, setSnapPoint] = useState<{x: number, y: number} | null>(null);
   const [activeRibbonTab, setActiveRibbonTab] = useState('home');
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); // 5 inches
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -160,13 +159,13 @@ export default function EstimatorClient() {
 
   const pasteSelected = useCallback(() => {
     if (clipboard.length > 0) {
-      const offset = 0.5; // 6 inches offset
+      const offset = 0.5;
       const pasted = clipboard.map(obj => ({
         ...obj,
         id: Math.random().toString(36).substr(2, 9),
         x: Math.round((obj.x + offset) / ARCH_SNAP) * ARCH_SNAP,
         y: Math.round((obj.y + offset) / ARCH_SNAP) * ARCH_SNAP,
-        isJoined: false // Paste as unlocked
+        isJoined: false
       }));
       const next = [...designObjects, ...pasted];
       setDesignObjects(next);
@@ -338,8 +337,7 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
-      if (firstSelectedObject.isJoined) return; // Locked
-
+      if (firstSelectedObject.isJoined) return; 
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
@@ -349,18 +347,13 @@ export default function EstimatorClient() {
     if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
       const mainId = selectedObjectIds[0];
       const mainObj = designObjects.find(o => o.id === mainId);
-      
-      if (!mainObj || mainObj.isJoined) return; // Locked
-
+      if (!mainObj || mainObj.isJoined) return; 
       const mainOffset = dragOffsets[mainId];
       if (!mainOffset) return;
-      
       let targetX = Math.round((curX - mainOffset.x) / ARCH_SNAP) * ARCH_SNAP;
       let targetY = Math.round((curY - mainOffset.y) / ARCH_SNAP) * ARCH_SNAP;
-      
       const dx = targetX - mainObj.x; 
       const dy = targetY - mainObj.y;
-      
       if (dx !== 0 || dy !== 0) {
         setDesignObjects(prev => prev.map(o => {
           if (selectedObjectIds.includes(o.id) && !o.isJoined) {
@@ -386,7 +379,7 @@ export default function EstimatorClient() {
     } else if (interactionMode !== 'none') { 
       saveToHistory(designObjects); 
     }
-    setInteractionMode('none'); setSnapPoint(null);
+    setInteractionMode('none');
   };
 
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => {
@@ -394,11 +387,13 @@ export default function EstimatorClient() {
     return (
       <div className={cn("bg-slate-50 border-slate-200 overflow-hidden", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
         {ticks.map(t => (
-          <div key={t} className="absolute flex flex-col items-center justify-start overflow-visible" style={
-            orientation === 'horizontal' ? { left: t * steps * zoom + CANVAS_OFFSET, top: 0, width: zoom } : { top: t * steps * zoom + CANVAS_OFFSET, left: 0, height: zoom }
+          <div key={t} className="absolute overflow-visible" style={
+            orientation === 'horizontal' ? { left: t * steps * zoom + CANVAS_OFFSET, top: 0 } : { top: t * steps * zoom + CANVAS_OFFSET, left: 0 }
           }>
             <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3" : "h-[1px] w-3")} />
-            <span className="text-[9px] font-bold text-slate-500 mt-0.5">{t * steps}</span>
+            <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>
+              {t * steps}
+            </span>
           </div>
         ))}
       </div>
@@ -413,7 +408,7 @@ export default function EstimatorClient() {
       const strokeW = 1 / zoom;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.01} stroke="none" />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.05} stroke="none" />
           {obj.subType === 'window' && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 2} />
@@ -553,9 +548,8 @@ export default function EstimatorClient() {
 
                     {showDimensions && (
                       <>
-                        {/* Horizontal Dimension: Edge to Edge as per user image */}
                         <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50]">
-                           <div className="w-[1.5px] h-4 bg-slate-500" /> {/* Left Tick */}
+                           <div className="w-[1.5px] h-4 bg-slate-500" />
                            <div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center">
                               <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex items-center gap-1.5">
                                  <span className="text-[7px] text-slate-500">◀</span>
@@ -563,12 +557,11 @@ export default function EstimatorClient() {
                                  <span className="text-[7px] text-slate-500">▶</span>
                               </div>
                            </div>
-                           <div className="w-[1.5px] h-4 bg-slate-500" /> {/* Right Tick */}
+                           <div className="w-[1.5px] h-4 bg-slate-500" />
                         </div>
 
-                        {/* Vertical Dimension: Edge to Edge */}
                         <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50]">
-                           <div className="h-[1.5px] w-4 bg-slate-500" /> {/* Top Tick */}
+                           <div className="h-[1.5px] w-4 bg-slate-500" />
                            <div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center">
                               <div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm flex flex-col items-center gap-1.5 rotate-90">
                                  <span className="text-[7px] text-slate-500">▲</span>
@@ -576,7 +569,7 @@ export default function EstimatorClient() {
                                  <span className="text-[7px] text-slate-500">▼</span>
                               </div>
                            </div>
-                           <div className="h-[1.5px] w-4 bg-slate-500" /> {/* Bottom Tick */}
+                           <div className="h-[1.5px] w-4 bg-slate-500" />
                         </div>
                       </>
                     )}
