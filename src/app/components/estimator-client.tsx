@@ -52,7 +52,7 @@ type DesignObject = {
   stepCount?: number;
 };
 
-// Colors with Red and Black first
+// Colors with Black and Red first as requested
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 
 // Architectural snap: 0.25 inch = 1/48 of a foot
@@ -404,6 +404,94 @@ export default function EstimatorClient() {
     setInteractionMode('none');
   };
 
+  const renderPillarDistances = () => {
+    const pillars = designObjects.filter(obj => obj.subType === 'pillar');
+    if (pillars.length < 2) return null;
+
+    const dimensions: React.ReactNode[] = [];
+    const TOLERANCE = 1.0; 
+
+    // Horizontal Distances
+    const yGroups: { y: number, items: DesignObject[] }[] = [];
+    pillars.forEach(p => {
+      let group = yGroups.find(g => Math.abs(g.y - p.y) < TOLERANCE);
+      if (group) group.items.push(p);
+      else yGroups.push({ y: p.y, items: [p] });
+    });
+
+    yGroups.forEach(group => {
+      const sorted = [...group.items].sort((a, b) => a.x - b.x);
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const p1 = sorted[i];
+        const p2 = sorted[i+1];
+        const c1x = p1.x + p1.w / 2;
+        const c2x = p2.x + p2.w / 2;
+        const c1y = p1.y + p1.h / 2;
+        const centerDist = c2x - c1x;
+
+        if (centerDist > 0.1) {
+          dimensions.push(
+            <div key={`h-dist-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center"
+              style={{
+                left: c1x * zoom + CANVAS_OFFSET,
+                top: (c1y - 1.2) * zoom + CANVAS_OFFSET,
+                width: centerDist * zoom,
+              }}>
+              <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center">
+                <div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
+                <div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
+                <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4">
+                  {formatFeetInches(centerDist)}
+                </div>
+              </div>
+            </div>
+          );
+        }
+      }
+    });
+
+    // Vertical Distances
+    const xGroups: { x: number, items: DesignObject[] }[] = [];
+    pillars.forEach(p => {
+      let group = xGroups.find(g => Math.abs(g.x - p.x) < TOLERANCE);
+      if (group) group.items.push(p);
+      else xGroups.push({ x: p.x, items: [p] });
+    });
+
+    xGroups.forEach(group => {
+      const sorted = [...group.items].sort((a, b) => a.y - b.y);
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const p1 = sorted[i];
+        const p2 = sorted[i+1];
+        const c1x = p1.x + p1.w / 2;
+        const c1y = p1.y + p1.h / 2;
+        const c2y = p2.y + p2.h / 2;
+        const centerDist = c2y - c1y;
+
+        if (centerDist > 0.1) {
+          dimensions.push(
+            <div key={`v-dist-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center"
+              style={{
+                left: (c1x - 1.2) * zoom + CANVAS_OFFSET,
+                top: c1y * zoom + CANVAS_OFFSET,
+                height: centerDist * zoom,
+              }}>
+              <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center">
+                <div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
+                <div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
+                <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-x-10 rotate-90">
+                  {formatFeetInches(centerDist)}
+                </div>
+              </div>
+            </div>
+          );
+        }
+      }
+    });
+
+    return dimensions;
+  };
+
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => {
     const steps = 4; const count = 100; const ticks = []; for (let i = 0; i < count; i++) ticks.push(i);
     return (
@@ -436,12 +524,12 @@ export default function EstimatorClient() {
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 3} />
               <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW * 1.5} />
               <line x1="0" y1={(obj.h / 3) * 2} x2={obj.w} y2={(obj.h / 3) * 2} stroke={obj.color} strokeWidth={strokeW * 1.5} />
-              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.2} fill={obj.color} className="font-bold">WINDOW</text>
+              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.25} fill={obj.color} className="font-bold">WINDOW</text>
             </g>
           )}
           {(obj.subType === 'door' || obj.subType === 'double-door') && (
             <g>
-              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.2} fill={obj.color} className="font-bold">DOOR</text>
+              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.25} fill={obj.color} className="font-bold">DOOR</text>
               {obj.subType === 'door' ? (
                 <>
                   <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
@@ -477,7 +565,7 @@ export default function EstimatorClient() {
     let xOffset = 0;
     let yOffset = 0;
     
-    // Correcting visual alignment at X=0 for rotated objects
+    // Vertical alignment fix: Start at 0, go right
     if (obj.rotation === 90) xOffset = obj.h;
     else if (obj.rotation === 180) { xOffset = obj.w; yOffset = obj.h; }
     else if (obj.rotation === 270) yOffset = obj.w;
@@ -487,7 +575,7 @@ export default function EstimatorClient() {
       top: (obj.y + yOffset) * zoom + CANVAS_OFFSET, 
       width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
       transform: `rotate(${obj.rotation}deg)`, 
-      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.1)',
+      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
       cursor: obj.isJoined ? 'not-allowed' : 'move'
     };
@@ -542,7 +630,7 @@ export default function EstimatorClient() {
             <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
             
             <div className="pt-4 border-t space-y-2">
-              <Label className="text-[10px] font-bold text-slate-400 uppercase">Dimensions & Area</Label>
+              <Label className="text-[10px] font-bold text-slate-400 uppercase">Dimensions</Label>
               <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
                 <span className="text-[11px] font-medium text-slate-600">Show Dimensions</span>
                 <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} />
@@ -570,6 +658,9 @@ export default function EstimatorClient() {
                   backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`,
                   backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000
                 }}>
+                
+                {renderPillarDistances()}
+
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
                     className={cn("absolute", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
