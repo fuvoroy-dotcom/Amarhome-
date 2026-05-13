@@ -52,7 +52,8 @@ type DesignObject = {
   stepCount?: number;
 };
 
-const COLORS = ['#000000', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
+// Colors with Red and Black first
+const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 
 // Architectural snap: 0.25 inch = 1/48 of a foot
 const ARCH_SNAP = 1/48; 
@@ -302,7 +303,7 @@ export default function EstimatorClient() {
       setSelectedObjectIds(newSelection);
       
       if (obj) {
-        if (obj.isJoined) return; 
+        if (obj.isJoined) return; // Locked: Cannot move
         setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
         setInteractionMode('dragging');
       }
@@ -336,7 +337,7 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
-      if (firstSelectedObject.isJoined) return;
+      if (firstSelectedObject.isJoined) return; // Locked: Cannot rotate
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
@@ -411,11 +412,14 @@ export default function EstimatorClient() {
           {obj.subType === 'window' && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 3} />
-              <line x1="0" y1={obj.h / 2} x2={obj.w} y2={obj.h / 2} stroke={obj.color} strokeWidth={strokeW * 1.5} />
+              <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW * 1.5} />
+              <line x1="0" y1={(obj.h / 3) * 2} x2={obj.w} y2={(obj.h / 3) * 2} stroke={obj.color} strokeWidth={strokeW * 1.5} />
+              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.2} fill={obj.color} className="font-bold">WINDOW</text>
             </g>
           )}
           {(obj.subType === 'door' || obj.subType === 'double-door') && (
             <g>
+              <text x={obj.w / 2} y={obj.h / 2} dominantBaseline="middle" textAnchor="middle" fontSize={0.2} fill={obj.color} className="font-bold">DOOR</text>
               {obj.subType === 'door' ? (
                 <>
                   <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
@@ -451,7 +455,8 @@ export default function EstimatorClient() {
     let xOffset = 0;
     let yOffset = 0;
     
-    // Fix for Vertical walls (90 deg) to start at X=0 and extend right
+    // Correcting visual alignment at X=0 for rotated objects
+    // When rotation is 90, the thickness shifts it left. Adding h back aligns it to the right of X=0.
     if (obj.rotation === 90) xOffset = obj.h;
     else if (obj.rotation === 180) { xOffset = obj.w; yOffset = obj.h; }
     else if (obj.rotation === 270) yOffset = obj.w;
@@ -461,7 +466,7 @@ export default function EstimatorClient() {
       top: (obj.y + yOffset) * zoom + CANVAS_OFFSET, 
       width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
       transform: `rotate(${obj.rotation}deg)`, 
-      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.01)',
+      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.1)',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
       cursor: obj.isJoined ? 'not-allowed' : 'move'
     };
@@ -620,7 +625,7 @@ export default function EstimatorClient() {
               <div className="flex items-center gap-6 min-w-max">
                 <div className="flex items-center gap-2 pr-4 border-r shrink-0">
                    <Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75" />
-                   <span className="text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত</span>
+                   <span className="text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত (Lock)</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
