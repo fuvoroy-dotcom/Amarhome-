@@ -11,7 +11,7 @@ import {
   BringToFront, SendToBack, GripHorizontal, Menu as MenuIcon,
   Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
   Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
-  Ruler, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
+  Ruler as RulerIcon, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
   Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical, Image as ImageIcon
 } from "lucide-react";
@@ -311,7 +311,7 @@ export default function EstimatorClient() {
   }, [designObjects, toast]);
 
   const copyAsImage = async () => {
-    const workspace = document.getElementById('canvas-workspace');
+    const workspace = document.getElementById('canvas-workspace-inner');
     if (!workspace) return;
     
     toast({ title: "প্রক্রিয়াধীন", description: "ইমেজ জেনারেট করা হচ্ছে..." });
@@ -371,12 +371,12 @@ export default function EstimatorClient() {
   };
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
-    const container = document.getElementById('canvas-workspace');
+    const container = document.getElementById('canvas-workspace-inner');
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
     
-    const curX = (e.clientX - rect.left + container.scrollLeft) / zoom;
-    const curY = (e.clientY - rect.top + container.scrollTop) / zoom;
+    const curX = (e.clientX - rect.left) / zoom;
+    const curY = (e.clientY - rect.top) / zoom;
 
     if (selectedTool === 'wall') {
       const snap = findSnapPoint(curX, curY);
@@ -479,12 +479,12 @@ export default function EstimatorClient() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    const container = document.getElementById('canvas-workspace');
+    const container = document.getElementById('canvas-workspace-inner');
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
     
-    const curX = (e.clientX - rect.left + container.scrollLeft) / zoom;
-    const curY = (e.clientY - rect.top + container.scrollTop) / zoom;
+    const curX = (e.clientX - rect.left) / zoom;
+    const curY = (e.clientY - rect.top) / zoom;
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX;
@@ -761,6 +761,38 @@ export default function EstimatorClient() {
     };
   }, [selectedObjectIds, copyObjects, pasteObjects, undo, redo, deleteObjects, designObjects, getConnectedGroup, saveToHistory, saveToFirestore]);
 
+  const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => {
+    const steps = 4;
+    const count = 50;
+    const ticks = [];
+    for (let i = 0; i < count; i++) {
+      ticks.push(i);
+    }
+    return (
+      <div className={cn("bg-slate-50 border-slate-200 overflow-hidden", 
+        orientation === 'horizontal' ? "h-8 border-b w-full relative" : "w-8 border-r h-full relative")}>
+        {ticks.map(t => (
+          <div key={t} className="absolute flex flex-col items-center justify-start overflow-visible" style={
+            orientation === 'horizontal' ? { left: t * steps * zoom, top: 0, width: zoom * 4 } : { top: t * steps * zoom, left: 0, height: zoom * 4 }
+          }>
+            <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3" : "h-[1px] w-3")} />
+            <span className="text-[9px] font-bold text-slate-500 mt-0.5">{t * steps}</span>
+            {orientation === 'horizontal' && (
+              <div className="absolute top-0 flex gap-0" style={{ left: '10%' }}>
+                 {[1,2,3].map(st => <div key={st} className="w-[1px] h-1.5 bg-slate-300" style={{ marginLeft: zoom - 1 }} />)}
+              </div>
+            )}
+            {orientation === 'vertical' && (
+              <div className="absolute left-0 flex flex-col gap-0" style={{ top: '10%' }}>
+                 {[1,2,3].map(st => <div key={st} className="h-[1px] w-1.5 bg-slate-300" style={{ marginTop: zoom - 1 }} />)}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white">
@@ -769,8 +801,13 @@ export default function EstimatorClient() {
             <Building className="w-5 h-5 text-blue-400" />
             <span className="font-bold text-xs tracking-tighter uppercase">Architectural Pro Studio</span>
           </div>
-          <div className="flex items-center gap-2 px-4 border-r border-slate-700">
-            <span className="text-[10px] text-slate-400 font-mono tracking-wider">birganj-pouro-high-74409-9ca38</span>
+          <div className="flex items-center gap-4 h-full">
+            <Button variant="ghost" className="h-10 rounded-none hover:bg-slate-700 px-3"><MenuIcon className="w-4 h-4" /></Button>
+            <div className="flex items-center gap-2 bg-slate-700 h-7 px-3 rounded text-[11px] font-bold">
+               <span>Page 1</span>
+               <ChevronDown className="w-3 h-3 text-slate-400" />
+            </div>
+            <Button variant="ghost" className="h-7 w-7 p-0 bg-slate-700 hover:bg-slate-600 rounded"><Plus className="w-4 h-4" /></Button>
           </div>
           <nav className="flex gap-0 h-full">
             {['File', 'Home', 'Design', 'Table'].map(item => (
@@ -854,8 +891,8 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-[280px] bg-white border-r z-20 shrink-0 flex flex-col shadow-lg">
-          <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Toolbox</span><Settings className="w-4 h-4 text-slate-400" /></div>
+        <div className="w-[280px] bg-slate-50 border-r z-20 shrink-0 flex flex-col shadow-inner">
+          <div className="p-3 border-b bg-slate-100 flex items-center justify-between"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Toolbox</span><Settings className="w-4 h-4 text-slate-400" /></div>
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-6">
               <div className="grid grid-cols-2 gap-3">
@@ -891,178 +928,183 @@ export default function EstimatorClient() {
         </div>
 
         <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
-          <div id="canvas-workspace" className="flex-1 relative bg-white overflow-auto cursor-crosshair m-6 shadow-2xl rounded border"
-            onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
-            <div className="absolute inset-0" style={{ 
-                backgroundImage: `linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)`,
-                backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000
-              }}>
-              
-              {interactionMode === 'selecting' && selectionBox && (
-                <div className="absolute border border-blue-500 bg-blue-500/10 z-[100]" style={{
-                  left: Math.min(selectionBox.x1, selectionBox.x2) * zoom,
-                  top: Math.min(selectionBox.y1, selectionBox.y2) * zoom,
-                  width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom,
-                  height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom,
-                }} />
-              )}
-
-              {showDimensions && pillarDistances.map((d, i) => (
-                <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
-                  left: Math.min(d.x1, d.x2) * zoom,
-                  top: Math.min(d.y1, d.y2) * zoom,
-                  width: d.horizontal ? Math.abs(d.x2 - d.x1) * zoom : 2,
-                  height: d.horizontal ? 2 : Math.abs(d.y2 - d.y1) * zoom,
-                  backgroundColor: 'rgba(59, 130, 246, 0.4)',
-                }}>
-                  <div className={cn("absolute bg-white px-2 py-1 border border-blue-300 rounded text-[11px] font-bold text-blue-600 shadow-md whitespace-nowrap",
-                    d.horizontal ? "top-full mt-1 left-1/2 -translate-x-1/2" : "left-full ml-1 top-1/2 -translate-y-1/2")}>
-                    {d.dist}
-                  </div>
-                </div>
-              ))}
-
-              {designObjects.map(obj => (
-                <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
-                  className={cn("absolute flex items-center justify-center transition-shadow", 
-                    selectedObjectIds.includes(obj.id) ? "z-30 ring-2 ring-blue-500 shadow-2xl" : "z-10")}
-                  style={{ 
-                    left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
-                    transformOrigin: '0 0', 
-                    transform: `rotate(${obj.rotation}deg) scale(${obj.scaleX || 1}, ${obj.scaleY || 1})`,
-                    backgroundColor: (obj.type === 'opening' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
-                    border: (obj.subType === 'wall' || obj.type === 'opening') ? 'none' : `2px solid ${obj.color}`,
-                    borderRadius: (obj.subType === 'pillar_round' || obj.subType === 'oval') ? '100%' : '0px'
+          <div id="canvas-workspace" className="flex-1 relative flex flex-col overflow-hidden m-0 shadow-inner">
+            <Ruler orientation="horizontal" />
+            <div className="flex-1 flex overflow-hidden">
+              <Ruler orientation="vertical" />
+              <div id="canvas-workspace-inner" className="flex-1 relative bg-white overflow-auto cursor-crosshair"
+                onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+                <div className="absolute inset-0" style={{ 
+                    backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`,
+                    backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000
                   }}>
                   
-                  {showDimensions && (obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
-                    <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50", 
-                        (() => {
-                          const norm = (obj.rotation % 360 + 360) % 360;
-                          // Standardize labels to always show on Screen Right or Screen Bottom
-                          // Regardless of rotation direction (e.g., drawing up vs drawing down)
-                          if (norm >= 45 && norm < 135) return "bottom-full mb-2"; // 90 deg (Down) -> Show Right
-                          if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // 180 deg (Left) -> Show Bottom
-                          if (norm >= 225 && norm < 315) return "top-full mt-2"; // 270 deg (Up) -> Show Right
-                          return "top-full mt-2"; // 0 deg (Right) -> Show Bottom
-                        })()
-                      )}>
-                      <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
-                    </div>
+                  {interactionMode === 'selecting' && selectionBox && (
+                    <div className="absolute border border-blue-500 bg-blue-500/10 z-[100]" style={{
+                      left: Math.min(selectionBox.x1, selectionBox.x2) * zoom,
+                      top: Math.min(selectionBox.y1, selectionBox.y2) * zoom,
+                      width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom,
+                      height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom,
+                    }} />
                   )}
 
-                  {obj.type === 'opening' && (
-                    <div className="relative w-full h-full bg-white">
-                      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0">
-                        {obj.subType === 'door' && (
-                          <>
-                            <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
-                            <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
-                          </>
-                        )}
-                        {obj.subType === 'door_double' && (
-                          <>
-                            <line x1="0" y1="100" x2="0" y2="50" stroke={obj.color} strokeWidth="6" />
-                            <line x1="100" y1="100" x2="100" y2="50" stroke={obj.color} strokeWidth="6" />
-                            <path d="M 0 50 A 50 50 0 0 1 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
-                            <path d="M 100 50 A 50 50 0 0 0 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
-                          </>
-                        )}
-                        {obj.subType === 'door_sliding' && (
-                          <>
-                             <rect x="0" y="20" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
-                             <rect x="40" y="60" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
-                             <line x1="10" y1="30" x2="30" y2="30" stroke={obj.color} strokeWidth="1" />
-                          </>
-                        )}
-                        {obj.subType === 'door_bifold' && (
-                          <>
-                             <line x1="0" y1="100" x2="25" y2="20" stroke={obj.color} strokeWidth="4" />
-                             <line x1="25" y1="20" x2="50" y2="100" stroke={obj.color} strokeWidth="4" />
-                             <line x1="50" y1="100" x2="75" y2="20" stroke={obj.color} strokeWidth="4" />
-                             <line x1="75" y1="20" x2="100" y2="100" stroke={obj.color} strokeWidth="4" />
-                          </>
-                        )}
-                        {obj.subType === 'window' && (
-                          <>
-                            <line x1="0" y1="0" x2="0" y2="100" stroke={obj.color} strokeWidth="8" />
-                            <line x1="100" y1="0" x2="100" y2="100" stroke={obj.color} strokeWidth="8" />
-                            <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
-                            <line x1="0" y1="30" x2="100" y2="30" stroke={obj.color} strokeWidth="1" opacity="0.5" />
-                            <line x1="0" y1="70" x2="100" y2="70" stroke={obj.color} strokeWidth="1" opacity="0.5" />
-                          </>
-                        )}
-                        {obj.subType === 'window_sliding' && (
-                          <>
-                            <rect x="0" y="10" width="100" height="80" fill="none" stroke={obj.color} strokeWidth="2" />
-                            <line x1="50" y1="10" x2="50" y2="90" stroke={obj.color} strokeWidth="4" />
-                            <line x1="10" y1="50" x2="40" y2="50" stroke={obj.color} strokeWidth="1" />
-                            <line x1="60" y1="50" x2="90" y2="50" stroke={obj.color} strokeWidth="1" />
-                          </>
-                        )}
-                        {obj.subType === 'window_fixed' && (
-                          <>
-                            <rect x="0" y="25" width="100" height="50" fill="none" stroke={obj.color} strokeWidth="4" />
-                            <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
-                          </>
-                        )}
-                      </svg>
+                  {showDimensions && pillarDistances.map((d, i) => (
+                    <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
+                      left: Math.min(d.x1, d.x2) * zoom,
+                      top: Math.min(d.y1, d.y2) * zoom,
+                      width: d.horizontal ? Math.abs(d.x2 - d.x1) * zoom : 2,
+                      height: d.horizontal ? 2 : Math.abs(d.y2 - d.y1) * zoom,
+                      backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                    }}>
+                      <div className={cn("absolute bg-white px-2 py-1 border border-blue-300 rounded text-[11px] font-bold text-blue-600 shadow-md whitespace-nowrap",
+                        d.horizontal ? "top-full mt-1 left-1/2 -translate-x-1/2" : "left-full ml-1 top-1/2 -translate-y-1/2")}>
+                        {d.dist}
+                      </div>
                     </div>
-                  )}
+                  ))}
 
-                  {obj.type === 'stair' && (
-                    <div className="w-full h-full relative border flex overflow-hidden">
-                       <div className="flex-1 border-r flex flex-col justify-between">
-                          {Array.from({ length: Math.ceil((obj.stepCount || 10) / 2) }).map((_, i) => (
-                            <div key={i} className="w-full h-[1px] bg-slate-400" />
-                          ))}
-                       </div>
-                       <div className="flex-1 flex flex-col justify-between">
-                          {Array.from({ length: Math.floor((obj.stepCount || 10) / 2) }).map((_, i) => (
-                            <div key={i} className="w-full h-[1px] bg-slate-400" />
-                          ))}
-                       </div>
-                       <div className="absolute left-1/2 -translate-x-1/2 h-full w-[2px] bg-slate-300" />
-                       <div className="absolute bottom-2 right-2 text-slate-400 opacity-60">
-                          <ArrowUpRight className="w-4 h-4" />
-                       </div>
-                    </div>
-                  )}
-                  {obj.type === 'pillar' && (
-                    <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: obj.subType === 'pillar_round' ? 'transparent' : obj.fillColor }}>
-                      {obj.subType === 'pillar_round' && (
-                        <svg width="100%" height="100%" viewBox="0 0 100 100">
-                           <circle cx="50" cy="50" r="48" fill={obj.fillColor === '#ffffff' ? 'none' : obj.fillColor} stroke={obj.color} strokeWidth="4" />
-                           <line x1="15" y1="15" x2="85" y2="85" stroke={obj.color} strokeWidth="2" />
-                           <line x1="85" y1="15" x2="15" y2="85" stroke={obj.color} strokeWidth="2" />
-                        </svg>
+                  {designObjects.map(obj => (
+                    <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
+                      className={cn("absolute flex items-center justify-center transition-shadow", 
+                        selectedObjectIds.includes(obj.id) ? "z-30 ring-2 ring-blue-500 shadow-2xl" : "z-10")}
+                      style={{ 
+                        left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
+                        transformOrigin: '0 0', 
+                        transform: `rotate(${obj.rotation}deg) scale(${obj.scaleX || 1}, ${obj.scaleY || 1})`,
+                        backgroundColor: (obj.type === 'opening' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
+                        border: (obj.subType === 'wall' || obj.type === 'opening') ? 'none' : `2px solid ${obj.color}`,
+                        borderRadius: (obj.subType === 'pillar_round' || obj.subType === 'oval') ? '100%' : '0px'
+                      }}>
+                      
+                      {showDimensions && (obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
+                        <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/95 px-1.5 py-0.5 rounded border border-slate-300 shadow-sm pointer-events-none z-50", 
+                            (() => {
+                              const norm = (obj.rotation % 360 + 360) % 360;
+                              // Force label to Screen Right or Screen Bottom
+                              if (norm >= 45 && norm < 135) return "bottom-full mb-2"; // 90 deg -> Screen Right
+                              if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // 180 deg -> Screen Bottom
+                              if (norm >= 225 && norm < 315) return "top-full mt-2"; // 270 deg -> Screen Right
+                              return "top-full mt-2"; // 0 deg -> Screen Bottom
+                            })()
+                          )}>
+                          <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
+                        </div>
                       )}
-                      {obj.subType === 'pillar' && <div className="w-full h-full" style={{ backgroundColor: obj.fillColor }} />}
+
+                      {obj.type === 'opening' && (
+                        <div className="relative w-full h-full bg-white">
+                          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0">
+                            {obj.subType === 'door' && (
+                              <>
+                                <line x1="0" y1="100" x2="0" y2="0" stroke={obj.color} strokeWidth="6" />
+                                <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                              </>
+                            )}
+                            {obj.subType === 'door_double' && (
+                              <>
+                                <line x1="0" y1="100" x2="0" y2="50" stroke={obj.color} strokeWidth="6" />
+                                <line x1="100" y1="100" x2="100" y2="50" stroke={obj.color} strokeWidth="6" />
+                                <path d="M 0 50 A 50 50 0 0 1 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                                <path d="M 100 50 A 50 50 0 0 0 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
+                              </>
+                            )}
+                            {obj.subType === 'door_sliding' && (
+                              <>
+                                 <rect x="0" y="20" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
+                                 <rect x="40" y="60" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
+                                 <line x1="10" y1="30" x2="30" y2="30" stroke={obj.color} strokeWidth="1" />
+                              </>
+                            )}
+                            {obj.subType === 'door_bifold' && (
+                              <>
+                                 <line x1="0" y1="100" x2="25" y2="20" stroke={obj.color} strokeWidth="4" />
+                                 <line x1="25" y1="20" x2="50" y2="100" stroke={obj.color} strokeWidth="4" />
+                                 <line x1="50" y1="100" x2="75" y2="20" stroke={obj.color} strokeWidth="4" />
+                                 <line x1="75" y1="20" x2="100" y2="100" stroke={obj.color} strokeWidth="4" />
+                              </>
+                            )}
+                            {obj.subType === 'window' && (
+                              <>
+                                <line x1="0" y1="0" x2="0" y2="100" stroke={obj.color} strokeWidth="8" />
+                                <line x1="100" y1="0" x2="100" y2="100" stroke={obj.color} strokeWidth="8" />
+                                <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
+                                <line x1="0" y1="30" x2="100" y2="30" stroke={obj.color} strokeWidth="1" opacity="0.5" />
+                                <line x1="0" y1="70" x2="100" y2="70" stroke={obj.color} strokeWidth="1" opacity="0.5" />
+                              </>
+                            )}
+                            {obj.subType === 'window_sliding' && (
+                              <>
+                                <rect x="0" y="10" width="100" height="80" fill="none" stroke={obj.color} strokeWidth="2" />
+                                <line x1="50" y1="10" x2="50" y2="90" stroke={obj.color} strokeWidth="4" />
+                                <line x1="10" y1="50" x2="40" y2="50" stroke={obj.color} strokeWidth="1" />
+                                <line x1="60" y1="50" x2="90" y2="50" stroke={obj.color} strokeWidth="1" />
+                              </>
+                            )}
+                            {obj.subType === 'window_fixed' && (
+                              <>
+                                <rect x="0" y="25" width="100" height="50" fill="none" stroke={obj.color} strokeWidth="4" />
+                                <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
+                              </>
+                            )}
+                          </svg>
+                        </div>
+                      )}
+
+                      {obj.type === 'stair' && (
+                        <div className="w-full h-full relative border flex overflow-hidden">
+                           <div className="flex-1 border-r flex flex-col justify-between">
+                              {Array.from({ length: Math.ceil((obj.stepCount || 10) / 2) }).map((_, i) => (
+                                <div key={i} className="w-full h-[1px] bg-slate-400" />
+                              ))}
+                           </div>
+                           <div className="flex-1 flex flex-col justify-between">
+                              {Array.from({ length: Math.floor((obj.stepCount || 10) / 2) }).map((_, i) => (
+                                <div key={i} className="w-full h-[1px] bg-slate-400" />
+                              ))}
+                           </div>
+                           <div className="absolute left-1/2 -translate-x-1/2 h-full w-[2px] bg-slate-300" />
+                           <div className="absolute bottom-2 right-2 text-slate-400 opacity-60">
+                              <ArrowUpRight className="w-4 h-4" />
+                           </div>
+                        </div>
+                      )}
+                      {obj.type === 'pillar' && (
+                        <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: obj.subType === 'pillar_round' ? 'transparent' : obj.fillColor }}>
+                          {obj.subType === 'pillar_round' && (
+                            <svg width="100%" height="100%" viewBox="0 0 100 100">
+                               <circle cx="50" cy="50" r="48" fill={obj.fillColor === '#ffffff' ? 'none' : obj.fillColor} stroke={obj.color} strokeWidth="4" />
+                               <line x1="15" y1="15" x2="85" y2="85" stroke={obj.color} strokeWidth="2" />
+                               <line x1="85" y1="15" x2="15" y2="85" stroke={obj.color} strokeWidth="2" />
+                            </svg>
+                          )}
+                          {obj.subType === 'pillar' && <div className="w-full h-full" style={{ backgroundColor: obj.fillColor }} />}
+                        </div>
+                      )}
+                      {obj.type === 'text' && (
+                        <span className={cn("text-center px-1 whitespace-nowrap", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
+                      )}
+                      {selectedObjectIds.length === 1 && selectedObjectIds[0] === obj.id && (
+                        <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg" 
+                          onMouseDown={(e) => handleMouseDown(e, obj.id)} />
+                      )}
                     </div>
+                  ))}
+                  {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
+                    <div className="absolute bg-blue-500/20 pointer-events-none z-50 border-2 border-blue-500 border-dashed"
+                      style={{
+                        left: drawStart.x * zoom, top: drawStart.y * zoom,
+                        width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
+                        height: currentWallThickness * zoom,
+                        transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
+                      }}
+                    />
                   )}
-                  {obj.type === 'text' && (
-                    <span className={cn("text-center px-1 whitespace-nowrap", obj.isBold && "font-bold")} style={{ color: obj.color, fontSize: obj.fontSize }}>{obj.textContent || obj.label}</span>
-                  )}
-                  {selectedObjectIds.length === 1 && selectedObjectIds[0] === obj.id && (
-                    <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full cursor-se-resize z-40 border-2 border-white shadow-lg" 
-                      onMouseDown={(e) => handleMouseDown(e, obj.id)} />
+                  {snapPoint && (
+                    <div className="absolute w-20 h-20 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_60px_rgba(37,99,235,1)] animate-pulse"
+                      style={{ left: snapPoint.x * zoom - 40, top: snapPoint.y * zoom - 40 }} />
                   )}
                 </div>
-              ))}
-              {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                <div className="absolute bg-blue-500/20 pointer-events-none z-50 border-2 border-blue-500 border-dashed"
-                  style={{
-                    left: drawStart.x * zoom, top: drawStart.y * zoom,
-                    width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
-                    height: currentWallThickness * zoom,
-                    transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
-                  }}
-                />
-              )}
-              {snapPoint && (
-                <div className="absolute w-20 h-20 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_60px_rgba(37,99,235,1)] animate-pulse"
-                  style={{ left: snapPoint.x * zoom - 40, top: snapPoint.y * zoom - 40 }} />
-              )}
+              </div>
             </div>
           </div>
           <div className="h-10 bg-white border-t flex items-center px-4 justify-between shrink-0 shadow-inner">
@@ -1088,7 +1130,7 @@ export default function EstimatorClient() {
                   <AccordionContent className="pt-2">
                     <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
                       <Label className="text-[11px] font-medium text-slate-700 flex items-center gap-2">
-                        <Ruler className="w-3.5 h-3.5 text-slate-400" />
+                        <RulerIcon className="w-3.5 h-3.5 text-slate-400" />
                         Show Dimensions
                       </Label>
                       <Switch 
