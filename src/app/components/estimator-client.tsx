@@ -49,7 +49,7 @@ type DesignObject = {
 };
 
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
-const ARCH_SNAP = 1/48; 
+const ARCH_SNAP = 1/48; // 0.25 inches
 const CANVAS_OFFSET = 60; 
 
 export default function EstimatorClient() {
@@ -291,7 +291,10 @@ export default function EstimatorClient() {
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
 
-    if (selectedTool !== 'select' && selectedTool !== 'wall' && !id) {
+    if (selectedTool !== 'select' && !id) {
+        if (selectedTool === 'wall') {
+            const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
+        }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
         else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
         else if (selectedTool.startsWith('door')) addObjectAt('opening', selectedTool, 'Door', snappedX, snappedY);
@@ -301,10 +304,6 @@ export default function EstimatorClient() {
         else if (selectedTool === 'stair') addObjectAt('stair', 'stair', 'Stair', snappedX, snappedY, { w: 8, h: 3, stepCount: 10 });
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
         setSelectedTool('select'); return;
-    }
-
-    if (selectedTool === 'wall') {
-      const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
     }
 
     if (id) {
@@ -339,7 +338,7 @@ export default function EstimatorClient() {
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
-      updateObject(firstSelectedObject.id, { rotation: Math.round(angle / 15) * 15 });
+      updateObject(firstSelectedObject.id, { rotation: Math.round(angle / 1) * 1 });
     } else if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
       const mainId = selectedObjectIds[0];
       const mainObj = designObjects.find(o => o.id === mainId);
@@ -367,6 +366,14 @@ export default function EstimatorClient() {
       setSelectedObjectIds(inBox); setSelectionBox(null);
     } else if (interactionMode !== 'none') { saveToHistory(designObjects); }
     setInteractionMode('none');
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -2 : 2;
+      setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
+    }
   };
 
   const renderPillarDistances = () => {
@@ -413,7 +420,7 @@ export default function EstimatorClient() {
     <div className={cn("bg-slate-50 border-slate-200 overflow-hidden", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
       {Array.from({ length: 100 }).map((_, t) => (
         <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: t * 4 * zoom + CANVAS_OFFSET, top: 0 } : { top: t * 4 * zoom + CANVAS_OFFSET, left: 0 }}>
-          <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3" : "h-[1px] w-3")} />
+          <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
           <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{t * 4}</span>
         </div>
       ))}
@@ -481,7 +488,10 @@ export default function EstimatorClient() {
 
   const getObjectStyle = (obj: DesignObject) => {
     let ox = 0, oy = 0;
-    if (obj.rotation === 90) ox = obj.h; else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } else if (obj.rotation === 270) oy = obj.w;
+    if (obj.rotation === 90) ox = obj.h; 
+    else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
+    else if (obj.rotation === 270) oy = obj.w;
+    
     return { 
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
@@ -502,7 +512,6 @@ export default function EstimatorClient() {
         <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
         <RibbonButton icon={<PillarIcon />} label="Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
         <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'label'} onClick={() => setSelectedTool('label')} />
-        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={showDimensions ? <Eye /> : <EyeOff />} label={showDimensions ? "মাপ দেখুন" : "মাপ লুকান"} onClick={() => setShowDimensions(!showDimensions)} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><Button variant="outline" size="sm" className="text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
       </div>
       <div className="flex-1 flex overflow-hidden relative">
@@ -526,7 +535,7 @@ export default function EstimatorClient() {
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
           <div className="flex-1 flex overflow-hidden"><Ruler orientation="vertical" />
-            <div id="canvas-workspace-inner" className="flex-1 relative bg-white overflow-auto cursor-crosshair" onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+            <div id="canvas-workspace-inner" className="flex-1 relative bg-white overflow-auto cursor-crosshair" onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onWheel={handleWheel}>
               <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
@@ -553,7 +562,16 @@ export default function EstimatorClient() {
             </div>
           </div>
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
-            <div className="flex items-center gap-4"><ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} /><Slider value={[zoom]} max={250} min={5} step={1} className="w-32" onValueChange={(val) => setZoom(val[0])} /><ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} /><span className="text-[9px] font-bold text-slate-400 uppercase ml-2">{Math.round(zoom)}%</span></div>
+            <div className="flex items-center gap-4">
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} />
+              <Slider value={[zoom]} max={250} min={5} step={1} className="w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
+              <span className="text-[9px] font-bold text-slate-400 uppercase ml-2">{Math.round(zoom)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-500">Show Dimensions</span>
+              <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} />
+            </div>
           </div>
           <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
@@ -589,3 +607,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
+
