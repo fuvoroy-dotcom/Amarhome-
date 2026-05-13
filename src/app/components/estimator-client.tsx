@@ -50,7 +50,7 @@ type DesignObject = {
 
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 const ARCH_SNAP = 1/48; // 0.25 inches
-const CANVAS_OFFSET = 60; 
+const CANVAS_OFFSET = 40; 
 
 export default function EstimatorClient() {
   const { toast } = useToast();
@@ -184,6 +184,10 @@ export default function EstimatorClient() {
 
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
+      const obj = prev.find(o => o.id === id);
+      if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.w !== undefined || updates.h !== undefined || updates.rotation !== undefined)) {
+        return prev;
+      }
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
       return next;
@@ -488,6 +492,7 @@ export default function EstimatorClient() {
 
   const getObjectStyle = (obj: DesignObject) => {
     let ox = 0, oy = 0;
+    // Fix Vertical Alignment for 90/270 rotations to start at 0 and expand right/down
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
@@ -607,4 +612,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
-
