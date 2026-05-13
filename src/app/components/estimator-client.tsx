@@ -70,6 +70,8 @@ const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 48];
 
 // Architectural snap: 0.25 inch = 1/48 of a foot
 const ARCH_SNAP = 1/48; 
+// Offset to prevent objects from clipping at 0,0 coordinates
+const CANVAS_OFFSET = 60; 
 
 export default function EstimatorClient() {
   const { toast } = useToast();
@@ -110,19 +112,15 @@ export default function EstimatorClient() {
     if (!str || str.trim() === "") return 0;
     const s = str.trim();
     
-    // Match "X' Y\""
     const matchFull = s.match(/(\d+)'\s*(\d+)"/);
     if (matchFull) return parseInt(matchFull[1]) + parseInt(matchFull[2]) / 12;
     
-    // Match "X'"
     const matchFeet = s.match(/^(\d+)'$/);
     if (matchFeet) return parseInt(matchFeet[1]);
     
-    // Match "X\""
     const matchInches = s.match(/^(\d+)"$/);
     if (matchInches) return parseInt(matchInches[1]) / 12;
     
-    // Fallback to plain number as feet
     const decimal = parseFloat(s);
     return isNaN(decimal) ? 0 : decimal;
   };
@@ -363,8 +361,8 @@ export default function EstimatorClient() {
         });
 
         const padding = 1; 
-        options.x = (minX - padding) * zoom;
-        options.y = (minY - padding) * zoom;
+        options.x = (minX - padding) * zoom + CANVAS_OFFSET;
+        options.y = (minY - padding) * zoom + CANVAS_OFFSET;
         options.width = (maxX - minX + padding * 2) * zoom;
         options.height = (maxY - minY + padding * 2) * zoom;
       }
@@ -398,8 +396,6 @@ export default function EstimatorClient() {
         setDesignObjects(data.objects);
         saveToHistory(data.objects);
         toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
-      } else {
-        toast({ title: "তথ্য নেই", description: "সেভ করা কোনো ডিজাইন পাওয়া যায়নি।" });
       }
     } catch (e: any) {
       const permissionError = new FirestorePermissionError({
@@ -410,7 +406,6 @@ export default function EstimatorClient() {
     }
   };
 
-  // Auto-load saved design on mount
   useEffect(() => {
     loadFromFirestore();
   }, []);
@@ -420,8 +415,8 @@ export default function EstimatorClient() {
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
     
-    const curX = (e.clientX - rect.left) / zoom;
-    const curY = (e.clientY - rect.top) / zoom;
+    const curX = (e.clientX - rect.left - CANVAS_OFFSET) / zoom;
+    const curY = (e.clientY - rect.top - CANVAS_OFFSET) / zoom;
 
     if (selectedTool === 'wall') {
       const snap = findSnapPoint(curX, curY);
@@ -446,7 +441,7 @@ export default function EstimatorClient() {
         type = 'pillar';
         subType = selectedTool === 'pillar' ? 'pillar' : 'pillar_round';
         label = selectedTool === 'pillar' ? 'Column' : 'Round Pillar';
-        w = 0.83; h = 0.83; // 10 inch pillars
+        w = 0.83; h = 0.83; 
       } else if (selectedTool === 'stair') {
         type = 'stair';
         subType = 'stair';
@@ -528,8 +523,8 @@ export default function EstimatorClient() {
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return;
     
-    const curX = (e.clientX - rect.left) / zoom;
-    const curY = (e.clientY - rect.top) / zoom;
+    const curX = (e.clientX - rect.left - CANVAS_OFFSET) / zoom;
+    const curY = (e.clientY - rect.top - CANVAS_OFFSET) / zoom;
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX;
@@ -798,20 +793,10 @@ export default function EstimatorClient() {
         orientation === 'horizontal' ? "h-8 border-b w-full relative" : "w-8 border-r h-full relative")}>
         {ticks.map(t => (
           <div key={t} className="absolute flex flex-col items-center justify-start overflow-visible" style={
-            orientation === 'horizontal' ? { left: t * steps * zoom, top: 0, width: zoom * 4 } : { top: t * steps * zoom, left: 0, height: zoom * 4 }
+            orientation === 'horizontal' ? { left: t * steps * zoom + CANVAS_OFFSET, top: 0, width: zoom * 4 } : { top: t * steps * zoom + CANVAS_OFFSET, left: 0, height: zoom * 4 }
           }>
             <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3" : "h-[1px] w-3")} />
             <span className="text-[9px] font-bold text-slate-500 mt-0.5">{t * steps}</span>
-            {orientation === 'horizontal' && (
-              <div className="absolute top-0 flex gap-0" style={{ left: '0' }}>
-                 {[1,2,3].map(st => <div key={st} className="w-[1px] h-1.5 bg-slate-300" style={{ marginLeft: zoom - 1 }} />)}
-              </div>
-            )}
-            {orientation === 'vertical' && (
-              <div className="absolute left-0 flex flex-col gap-0" style={{ top: '0' }}>
-                 {[1,2,3].map(st => <div key={st} className="h-[1px] w-1.5 bg-slate-300" style={{ marginTop: zoom - 1 }} />)}
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -825,14 +810,6 @@ export default function EstimatorClient() {
           <div className="flex items-center gap-2 pr-4 border-r border-slate-700">
             <Building className="w-5 h-5 text-blue-400" />
             <span className="font-bold text-xs tracking-tighter uppercase">Architectural Pro Studio</span>
-          </div>
-          <div className="flex items-center gap-4 h-full">
-            <Button variant="ghost" className="h-10 rounded-none hover:bg-slate-700 px-3"><MenuIcon className="w-4 h-4" /></Button>
-            <div className="flex items-center gap-2 bg-slate-700 h-7 px-3 rounded text-[11px] font-bold">
-               <span>Page 1</span>
-               <ChevronDown className="w-3 h-3 text-slate-400" />
-            </div>
-            <Button variant="ghost" className="h-7 w-7 p-0 bg-slate-700 hover:bg-slate-600 rounded"><Plus className="w-4 h-4" /></Button>
           </div>
           <nav className="flex gap-0 h-full">
             {['File', 'Home', 'Design', 'Table'].map(item => (
@@ -927,24 +904,28 @@ export default function EstimatorClient() {
                 <ToolCard icon={<PillarIcon />} label="Column" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
                 <ToolCard icon={<ArrowUpRight />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
               </div>
-              <Accordion type="multiple" defaultValue={["openings", "advanced"]} className="w-full">
+              <Accordion type="multiple" defaultValue={["dims", "openings"]} className="w-full">
+                <AccordionItem value="dims" className="border-none mb-4">
+                  <AccordionTrigger className="h-8 px-0 text-[10px] font-bold text-slate-400 uppercase hover:no-underline">Dimensions & Area</AccordionTrigger>
+                  <AccordionContent className="pt-2">
+                    <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
+                      <Label className="text-[11px] font-medium text-slate-700 flex items-center gap-2">
+                        <RulerIcon className="w-3.5 h-3.5 text-slate-400" />
+                        Show Dimensions
+                      </Label>
+                      <Switch 
+                        checked={showDimensions} 
+                        onCheckedChange={setShowDimensions}
+                        className="scale-75"
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
                 <AccordionItem value="openings" className="border-none">
                   <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Openings</AccordionTrigger>
                   <AccordionContent className="grid grid-cols-2 gap-3">
                     <SymbolButton icon={<DoorOpen />} label="Door" active={selectedTool === 'door'} onClick={() => setSelectedTool('door')} />
                     <SymbolButton icon={<Wind />} label="Window" active={selectedTool === 'window'} onClick={() => setSelectedTool('window')} />
-                    <SymbolButton icon={<SplitSquareVertical />} label="Double Door" active={selectedTool === 'door_double'} onClick={() => setSelectedTool('door_double')} />
-                    <SymbolButton icon={<Move />} label="Sliding Door" active={selectedTool === 'door_sliding'} onClick={() => setSelectedTool('door_sliding')} />
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="advanced" className="border-none">
-                  <AccordionTrigger className="h-10 px-0 text-[10px] font-bold text-slate-400 uppercase">Advanced Symbols</AccordionTrigger>
-                  <AccordionContent className="grid grid-cols-2 gap-3">
-                    <SymbolButton icon={<Layers />} label="Bifold Door" active={selectedTool === 'door_bifold'} onClick={() => setSelectedTool('door_bifold')} />
-                    <SymbolButton icon={<Grid />} label="Sliding Window" active={selectedTool === 'window_sliding'} onClick={() => setSelectedTool('window_sliding')} />
-                    <SymbolButton icon={<RectangleHorizontal />} label="Fixed Window" active={selectedTool === 'window_fixed'} onClick={() => setSelectedTool('window_fixed')} />
-                    <SymbolButton icon={<Circle />} label="Circular Pillar" active={selectedTool === 'pillar_round'} onClick={() => setSelectedTool('pillar_round')} />
-                    <SymbolButton icon={<TypeIcon />} label="Text" active={selectedTool === 'text'} onClick={() => setSelectedTool('text')} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -961,13 +942,15 @@ export default function EstimatorClient() {
                 onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
                 <div className="absolute inset-0" style={{ 
                     backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`,
-                    backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000
+                    backgroundSize: `${zoom}px ${zoom}px`, 
+                    backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`,
+                    width: 4000, height: 4000
                   }}>
                   
                   {interactionMode === 'selecting' && selectionBox && (
                     <div className="absolute border border-blue-500 bg-blue-500/10 z-[100]" style={{
-                      left: Math.min(selectionBox.x1, selectionBox.x2) * zoom,
-                      top: Math.min(selectionBox.y1, selectionBox.y2) * zoom,
+                      left: Math.min(selectionBox.x1, selectionBox.x2) * zoom + CANVAS_OFFSET,
+                      top: Math.min(selectionBox.y1, selectionBox.y2) * zoom + CANVAS_OFFSET,
                       width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom,
                       height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom,
                     }} />
@@ -975,8 +958,8 @@ export default function EstimatorClient() {
 
                   {showDimensions && pillarDistances.map((d, i) => (
                     <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
-                      left: Math.min(d.x1, d.x2) * zoom,
-                      top: Math.min(d.y1, d.y2) * zoom,
+                      left: Math.min(d.x1, d.x2) * zoom + CANVAS_OFFSET,
+                      top: Math.min(d.y1, d.y2) * zoom + CANVAS_OFFSET,
                       width: d.horizontal ? Math.abs(d.x2 - d.x1) * zoom : 2,
                       height: d.horizontal ? 2 : Math.abs(d.y2 - d.y1) * zoom,
                       backgroundColor: 'rgba(59, 130, 246, 0.4)',
@@ -993,7 +976,7 @@ export default function EstimatorClient() {
                       className={cn("absolute flex items-center justify-center transition-shadow", 
                         selectedObjectIds.includes(obj.id) ? "z-30 ring-2 ring-blue-500 shadow-2xl" : "z-10")}
                       style={{ 
-                        left: obj.x * zoom, top: obj.y * zoom, width: obj.w * zoom, height: obj.h * zoom, 
+                        left: obj.x * zoom + CANVAS_OFFSET, top: obj.y * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, 
                         transformOrigin: '0 0', 
                         transform: `rotate(${obj.rotation}deg) scale(${obj.scaleX || 1}, ${obj.scaleY || 1})`,
                         backgroundColor: (obj.type === 'opening' || obj.type === 'stair') ? 'white' : (obj.type === 'pillar' ? obj.fillColor : (obj.subType === 'wall' ? obj.color : 'transparent')),
@@ -1005,10 +988,10 @@ export default function EstimatorClient() {
                         <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/95 px-1.5 py-0.5 rounded border border-slate-300 shadow-sm pointer-events-none z-50", 
                             (() => {
                               const norm = (obj.rotation % 360 + 360) % 360;
-                              if (norm >= 45 && norm < 135) return "left-full ml-2"; // 90 deg -> Right
-                              if (norm >= 135 && norm < 225) return "top-full mt-2"; // 180 deg -> Bottom
-                              if (norm >= 225 && norm < 315) return "left-full ml-2"; // 270 deg -> Right
-                              return "top-full mt-2"; // 0 deg -> Bottom
+                              if (norm >= 45 && norm < 135) return "left-full ml-2"; 
+                              if (norm >= 135 && norm < 225) return "top-full mt-2"; 
+                              if (norm >= 225 && norm < 315) return "left-full ml-2"; 
+                              return "top-full mt-2"; 
                             })()
                           )}>
                           <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
@@ -1024,49 +1007,10 @@ export default function EstimatorClient() {
                                 <path d="M 0 0 A 100 100 0 0 1 100 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
                               </>
                             )}
-                            {obj.subType === 'door_double' && (
-                              <>
-                                <line x1="0" y1="100" x2="0" y2="50" stroke={obj.color} strokeWidth="6" />
-                                <line x1="100" y1="100" x2="100" y2="50" stroke={obj.color} strokeWidth="6" />
-                                <path d="M 0 50 A 50 50 0 0 1 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
-                                <path d="M 100 50 A 50 50 0 0 0 50 100" fill="none" stroke={obj.color} strokeWidth="3" strokeDasharray="4 2" />
-                              </>
-                            )}
-                            {obj.subType === 'door_sliding' && (
-                              <>
-                                 <rect x="0" y="20" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
-                                 <rect x="40" y="60" width="60" height="20" fill={obj.color} fillOpacity="0.2" stroke={obj.color} strokeWidth="2" />
-                                 <line x1="10" y1="30" x2="30" y2="30" stroke={obj.color} strokeWidth="1" />
-                              </>
-                            )}
-                            {obj.subType === 'door_bifold' && (
-                              <>
-                                 <line x1="0" y1="100" x2="25" y2="20" stroke={obj.color} strokeWidth="4" />
-                                 <line x1="25" y1="20" x2="50" y2="100" stroke={obj.color} strokeWidth="4" />
-                                 <line x1="50" y1="100" x2="75" y2="20" stroke={obj.color} strokeWidth="4" />
-                                 <line x1="75" y1="20" x2="100" y2="100" stroke={obj.color} strokeWidth="4" />
-                              </>
-                            )}
                             {obj.subType === 'window' && (
                               <>
                                 <line x1="0" y1="0" x2="0" y2="100" stroke={obj.color} strokeWidth="8" />
                                 <line x1="100" y1="0" x2="100" y2="100" stroke={obj.color} strokeWidth="8" />
-                                <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
-                                <line x1="0" y1="30" x2="100" y2="30" stroke={obj.color} strokeWidth="1" opacity="0.5" />
-                                <line x1="0" y1="70" x2="100" y2="70" stroke={obj.color} strokeWidth="1" opacity="0.5" />
-                              </>
-                            )}
-                            {obj.subType === 'window_sliding' && (
-                              <>
-                                <rect x="0" y="10" width="100" height="80" fill="none" stroke={obj.color} strokeWidth="2" />
-                                <line x1="50" y1="10" x2="50" y2="90" stroke={obj.color} strokeWidth="4" />
-                                <line x1="10" y1="50" x2="40" y2="50" stroke={obj.color} strokeWidth="1" />
-                                <line x1="60" y1="50" x2="90" y2="50" stroke={obj.color} strokeWidth="1" />
-                              </>
-                            )}
-                            {obj.subType === 'window_fixed' && (
-                              <>
-                                <rect x="0" y="25" width="100" height="50" fill="none" stroke={obj.color} strokeWidth="4" />
                                 <line x1="0" y1="50" x2="100" y2="50" stroke={obj.color} strokeWidth="2" />
                               </>
                             )}
@@ -1086,10 +1030,6 @@ export default function EstimatorClient() {
                                 <div key={i} className="w-full h-[1px] bg-slate-400" />
                               ))}
                            </div>
-                           <div className="absolute left-1/2 -translate-x-1/2 h-full w-[2px] bg-slate-300" />
-                           <div className="absolute bottom-2 right-2 text-slate-400 opacity-60">
-                              <ArrowUpRight className="w-4 h-4" />
-                           </div>
                         </div>
                       )}
                       {obj.type === 'pillar' && (
@@ -1097,8 +1037,6 @@ export default function EstimatorClient() {
                           {obj.subType === 'pillar_round' && (
                             <svg width="100%" height="100%" viewBox="0 0 100 100">
                                <circle cx="50" cy="50" r="48" fill={obj.fillColor === '#ffffff' ? 'none' : obj.fillColor} stroke={obj.color} strokeWidth="4" />
-                               <line x1="15" y1="15" x2="85" y2="85" stroke={obj.color} strokeWidth="2" />
-                               <line x1="85" y1="15" x2="15" y2="85" stroke={obj.color} strokeWidth="2" />
                             </svg>
                           )}
                           {obj.subType === 'pillar' && <div className="w-full h-full" style={{ backgroundColor: obj.fillColor }} />}
@@ -1116,7 +1054,7 @@ export default function EstimatorClient() {
                   {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
                     <div className="absolute bg-blue-500/20 pointer-events-none z-50 border-2 border-blue-500 border-dashed"
                       style={{
-                        left: drawStart.x * zoom, top: drawStart.y * zoom,
+                        left: drawStart.x * zoom + CANVAS_OFFSET, top: drawStart.y * zoom + CANVAS_OFFSET,
                         width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom,
                         height: currentWallThickness * zoom,
                         transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
@@ -1125,7 +1063,7 @@ export default function EstimatorClient() {
                   )}
                   {snapPoint && (
                     <div className="absolute w-20 h-20 bg-blue-500/30 rounded-full border-4 border-blue-600 z-50 pointer-events-none shadow-[0_0_60px_rgba(37,99,235,1)] animate-pulse"
-                      style={{ left: snapPoint.x * zoom - 40, top: snapPoint.y * zoom - 40 }} />
+                      style={{ left: snapPoint.x * zoom + CANVAS_OFFSET - 40, top: snapPoint.y * zoom + CANVAS_OFFSET - 40 }} />
                   )}
                 </div>
               </div>
@@ -1140,7 +1078,6 @@ export default function EstimatorClient() {
                 <span>Arrow Keys: 0.25"</span>
                 <span>Ctrl+A: Select All</span>
                 <span>Ctrl+S: Save Design</span>
-                <span>Ctrl+Wheel: Zoom (2%)</span>
              </div>
           </div>
         </div>
@@ -1148,24 +1085,7 @@ export default function EstimatorClient() {
         <div className="w-[240px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Inspector</span><Settings2 className="w-4 h-4 text-slate-400" /></div>
            <ScrollArea className="flex-1 p-3">
-              <Accordion type="multiple" defaultValue={["dims", "props"]} className="w-full">
-                <AccordionItem value="dims" className="border-none mb-4">
-                  <AccordionTrigger className="h-8 px-0 text-[10px] font-bold text-slate-400 uppercase hover:no-underline">Dimensions & Area</AccordionTrigger>
-                  <AccordionContent className="pt-2">
-                    <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
-                      <Label className="text-[11px] font-medium text-slate-700 flex items-center gap-2">
-                        <RulerIcon className="w-3.5 h-3.5 text-slate-400" />
-                        Show Dimensions
-                      </Label>
-                      <Switch 
-                        checked={showDimensions} 
-                        onCheckedChange={setShowDimensions}
-                        className="scale-75"
-                      />
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
+              <Accordion type="multiple" defaultValue={["props"]} className="w-full">
                 {firstSelectedObject ? (
                   <AccordionItem value="props" className="border-none">
                     <AccordionTrigger className="h-8 px-0 text-[10px] font-bold text-slate-400 uppercase hover:no-underline">Object Properties</AccordionTrigger>
@@ -1199,57 +1119,7 @@ export default function EstimatorClient() {
                             <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="flex-1" onValueChange={(v) => updateObject(selectedObjectIds[0], { rotation: v[0] }, true)} />
                             <Input type="number" className="h-7 w-12 text-[10px] px-1" value={firstSelectedObject.rotation} onChange={(e) => updateObject(selectedObjectIds[0], { rotation: parseInt(e.target.value) || 0 }, true)} />
                          </div>
-                         <div className="flex gap-1">
-                            <Button variant="outline" className="h-7 flex-1 text-[9px] font-bold" onClick={() => updateObject(selectedObjectIds[0], { rotation: (firstSelectedObject.rotation + 90) % 360 }, true)}>
-                               <RotateCw className="w-3 h-3 mr-1" /> +90°
-                            </Button>
-                            <Button variant="outline" className="h-7 flex-1 text-[9px] font-bold" onClick={() => updateObject(selectedObjectIds[0], { rotation: (firstSelectedObject.rotation - 90 + 360) % 360 }, true)}>
-                               <RotateCw className="w-3 h-3 mr-1" /> -90°
-                            </Button>
-                         </div>
                       </div>
-
-                      {(firstSelectedObject.type === 'opening' || firstSelectedObject.type === 'structure' || firstSelectedObject.type === 'pillar') && (
-                         <div className="space-y-1.5 border-t pt-2">
-                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Flip / Mirror</Label>
-                            <div className="flex gap-2">
-                               <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateObject(selectedObjectIds[0], { scaleX: (firstSelectedObject.scaleX || 1) * -1 }, true)}>
-                                  <FlipHorizontal className="w-4 h-4" />
-                               </Button>
-                               <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateObject(selectedObjectIds[0], { scaleY: (firstSelectedObject.scaleY || 1) * -1 }, true)}>
-                                  <FlipVertical className="w-4 h-4" />
-                               </Button>
-                            </div>
-                         </div>
-                      )}
-
-                      {firstSelectedObject.type === 'stair' && (
-                         <div className="space-y-1.5 border-t pt-2">
-                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Steps</Label>
-                            <Input 
-                              type="number" 
-                              className="h-7 text-[10px]" 
-                              value={firstSelectedObject.stepCount || 10} 
-                              onChange={(e) => updateObject(selectedObjectIds[0], { stepCount: parseInt(e.target.value) || 0 }, true)} 
-                              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                            />
-                         </div>
-                      )}
-
-                      {(firstSelectedObject.subType.includes('wall') || firstSelectedObject.type === 'opening') && (
-                         <div className="space-y-1.5 border-t pt-2">
-                            <Label className="text-[9px] font-bold text-slate-400 uppercase">Thickness</Label>
-                            <Select value={firstSelectedObject.h.toString()} onValueChange={(v) => updateObject(selectedObjectIds[0], { h: parseFloat(v) }, true)}>
-                              <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="0.25">3 inches</SelectItem>
-                                <SelectItem value="0.33">4 inches</SelectItem>
-                                <SelectItem value="0.42">5 inches</SelectItem>
-                                <SelectItem value="0.83">10 inches</SelectItem>
-                              </SelectContent>
-                            </Select>
-                         </div>
-                      )}
 
                       {firstSelectedObject.type === 'text' && (
                          <div className="space-y-1.5 border-t pt-2">
