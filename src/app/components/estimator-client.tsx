@@ -192,7 +192,6 @@ export default function EstimatorClient() {
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
       
-      // Endpoints of walls/stairs or corners of shapes
       const pts = (obj.subType === 'wall' || obj.type === 'stair') ? [
         { x: obj.x, y: obj.y },
         { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
@@ -355,13 +354,8 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX, endY = curY;
-      // Constraint to straight lines if Shift or Ctrl is pressed
       if (e.shiftKey || e.ctrlKey) {
-        if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) {
-          endY = drawStart.y;
-        } else {
-          endX = drawStart.x;
-        }
+        if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) { endY = drawStart.y; } else { endX = drawStart.x; }
       }
       const snap = findSnapPoint(endX, endY);
       setTempDrawEnd(snap || { x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
@@ -387,11 +381,8 @@ export default function EstimatorClient() {
       let targetX = curX - mainOffset.x;
       let targetY = curY - mainOffset.y;
       
-      // Snap while dragging
       const snap = findSnapPoint(targetX, targetY, selectedObjectIds);
-      if (snap) {
-        targetX = snap.x; targetY = snap.y;
-      } else {
+      if (snap) { targetX = snap.x; targetY = snap.y; } else {
         targetX = Math.round(targetX / ARCH_SNAP) * ARCH_SNAP;
         targetY = Math.round(targetY / ARCH_SNAP) * ARCH_SNAP;
       }
@@ -451,25 +442,24 @@ export default function EstimatorClient() {
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 2} />
               <line x1="0" y1={obj.h / 3} x2={obj.w} y2={obj.h / 3} stroke={obj.color} strokeWidth={strokeW} />
               <line x1="0" y1={(obj.h * 2) / 3} x2={obj.w} y2={(obj.h * 2) / 3} stroke={obj.color} strokeWidth={strokeW} />
-              <text x={obj.w/2} y={obj.h/2} dominantBaseline="middle" textAnchor="middle" fontSize={0.4} fill={obj.color} style={{ pointerEvents: 'none' }}>WINDOW</text>
             </g>
           )}
-          {obj.subType === 'door' && (
+          {(obj.subType === 'door' || obj.subType === 'double-door') && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
-              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
-              <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-              <text x={obj.w/2} y={obj.h/2} dominantBaseline="middle" textAnchor="middle" fontSize={0.4} fill={obj.color} style={{ pointerEvents: 'none' }}>DOOR</text>
-            </g>
-          )}
-          {obj.subType === 'double-door' && (
-            <g>
-               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
-               <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
-               <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-               <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
-               <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
-               <text x={obj.w/2} y={obj.h/2} dominantBaseline="middle" textAnchor="middle" fontSize={0.4} fill={obj.color} style={{ pointerEvents: 'none' }}>D. DOOR</text>
+              {obj.subType === 'door' ? (
+                <>
+                  <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
+                  <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+                </>
+              ) : (
+                <>
+                  <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
+                  <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+                  <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={strokeW * 4} />
+                  <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={strokeW * 1.5} strokeDasharray="0.05,0.05" />
+                </>
+              )}
             </g>
           )}
         </svg>
@@ -567,19 +557,19 @@ export default function EstimatorClient() {
                 }}>
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)}
-                    className={cn("absolute", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
+                    className={cn("absolute cursor-move", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")}
                     style={{ 
                       left: obj.x * zoom + CANVAS_OFFSET, top: obj.y * zoom + CANVAS_OFFSET, 
                       width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', 
                       transform: `rotate(${obj.rotation}deg)`, 
-                      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
+                      backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'rgba(255,255,255,0.01)',
                       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none',
                     }}>
                     
                     {renderObjectContent(obj)}
 
                     {selectedObjectIds.includes(obj.id) && (
-                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 transition-colors"
+                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 transition-colors z-[60]"
                          onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}>
                          <RotateCw className="w-4 h-4 text-blue-500" />
                        </div>
@@ -587,12 +577,12 @@ export default function EstimatorClient() {
 
                     {showDimensions && (
                       <>
-                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-50 flex items-center gap-1">
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-[50] flex items-center gap-1">
                            <span className="text-[7px]">◀</span>
                            <span className="text-[9px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
                            <span className="text-[7px]">▶</span>
                         </div>
-                        <div className="absolute top-1/2 -right-10 -translate-y-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-50 flex flex-col items-center">
+                        <div className="absolute top-1/2 -right-10 -translate-y-1/2 bg-white/90 px-1 py-0.5 rounded border border-slate-300 pointer-events-none z-[50] flex flex-col items-center">
                            <span className="text-[7px]">▲</span>
                            <span className="text-[9px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.h)}</span>
                            <span className="text-[7px]">▼</span>
@@ -665,12 +655,7 @@ export default function EstimatorClient() {
                     <span className="text-[9px] font-bold text-slate-400 uppercase">লেখা</span>
                     <Input className="h-8 text-[11px] w-full bg-slate-50 border-slate-200" placeholder="Type here..." value={firstSelectedObject.textContent || ""} 
                       onChange={(e) => updateObject(firstSelectedObject.id, { textContent: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.currentTarget.blur();
-                          saveToHistory(designObjects);
-                        }
-                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); saveToHistory(designObjects); } }}
                       onBlur={() => saveToHistory(designObjects)} />
                   </div>
                 )}
@@ -718,11 +703,7 @@ function PropField({ label, value, onChange, onBlur }: { label: string, value: s
       <Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200 focus:ring-1 p-1" value={value} 
         onChange={e => onChange(e.target.value)} 
         onBlur={onBlur} 
-        onKeyDown={e => {
-          if (e.key === 'Enter') {
-            e.currentTarget.blur();
-          }
-        }} />
+        onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }} />
     </div>
   );
 }
