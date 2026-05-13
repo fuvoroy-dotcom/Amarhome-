@@ -268,9 +268,31 @@ export default function EstimatorClient() {
 
   useEffect(() => { loadFromFirestore(); }, [loadFromFirestore]);
 
+  // Handle Wheel for Zoom specifically to prevent browser zoom
+  useEffect(() => {
+    const container = document.getElementById('canvas-workspace-inner');
+    if (!container) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -4 : 4;
+        setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
+      }
+    };
+
+    container.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        return;
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
       else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); moveSelectedWithArrows(e.key); }
       else if (e.ctrlKey || e.metaKey) {
@@ -370,14 +392,6 @@ export default function EstimatorClient() {
       setSelectedObjectIds(inBox); setSelectionBox(null);
     } else if (interactionMode !== 'none') { saveToHistory(designObjects); }
     setInteractionMode('none');
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -2 : 2;
-      setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
-    }
   };
 
   const renderPillarDistances = () => {
@@ -492,7 +506,7 @@ export default function EstimatorClient() {
 
   const getObjectStyle = (obj: DesignObject) => {
     let ox = 0, oy = 0;
-    // Fix Vertical Alignment for 90/270 rotations to start at 0 and expand right/down
+    // Perfect X=0 alignment for vertical walls/rects
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
@@ -540,7 +554,7 @@ export default function EstimatorClient() {
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
           <div className="flex-1 flex overflow-hidden"><Ruler orientation="vertical" />
-            <div id="canvas-workspace-inner" className="flex-1 relative bg-white overflow-auto cursor-crosshair" onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onWheel={handleWheel}>
+            <div id="canvas-workspace-inner" className="flex-1 relative bg-white overflow-auto cursor-crosshair" onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
               <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
@@ -568,8 +582,8 @@ export default function EstimatorClient() {
           </div>
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-4">
-              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} />
-              <Slider value={[zoom]} max={250} min={5} step={1} className="w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 5))} />
+              <Slider value={[zoom]} max={250} min={10} step={1} className="w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
               <span className="text-[9px] font-bold text-slate-400 uppercase ml-2">{Math.round(zoom)}%</span>
             </div>
@@ -612,3 +626,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
+
