@@ -939,10 +939,11 @@ export default function EstimatorClient() {
                     <div className={cn("absolute left-1/2 -translate-x-1/2 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50", 
                         (() => {
                           const norm = (obj.rotation % 360 + 360) % 360;
-                          // Standardize dimension labels to display on the South (Bottom) or Right of the line
-                          if (norm >= 45 && norm < 135) return "top-full mt-2"; // 90 deg -> Vertical (display Right)
+                          // Standardize dimension labels to display on the South (Bottom) or Right of the line.
+                          // Ensuring perfect vertical and horizontal centering.
+                          if (norm >= 45 && norm < 135) return "bottom-full mb-2"; // 90 deg -> Vertical (display Right)
                           if (norm >= 135 && norm < 225) return "bottom-full mb-2"; // 180 deg -> Horizontal (display South)
-                          if (norm >= 225 && norm < 315) return "bottom-full mb-2"; // 270 deg -> Vertical (display Right)
+                          if (norm >= 225 && norm < 315) return "top-full mt-2"; // 270 deg -> Vertical (display Right)
                           return "top-full mt-2"; // 0 deg -> Horizontal (display South)
                         })()
                       )}>
