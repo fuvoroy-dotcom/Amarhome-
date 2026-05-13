@@ -317,7 +317,6 @@ export default function EstimatorClient() {
     toast({ title: "প্রক্রিয়াধীন", description: "ইমেজ জেনারেট করা হচ্ছে..." });
     
     try {
-      // Logic for selective image export
       let options: any = {
         scale: 2,
         backgroundColor: '#ffffff',
@@ -345,7 +344,6 @@ export default function EstimatorClient() {
           });
         });
 
-        // Add padding around selected objects
         const padding = 1; 
         options.x = (minX - padding) * zoom;
         options.y = (minY - padding) * zoom;
@@ -765,7 +763,6 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full mx-auto p-0 bg-slate-100 min-h-screen flex flex-col overflow-hidden font-body text-slate-900">
-      {/* Header */}
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white">
         <div className="flex items-center gap-6 h-full">
           <div className="flex items-center gap-2 pr-4 border-r border-slate-700">
@@ -789,7 +786,6 @@ export default function EstimatorClient() {
         </div>
       </div>
 
-      {/* Ribbon */}
       <div className="h-24 bg-white border-b flex items-center px-4 gap-0 shrink-0 shadow-sm z-30">
         {activeRibbonTab === 'file' && (
            <div className="flex items-center h-full px-2 gap-1">
@@ -858,7 +854,6 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Toolbox */}
         <div className="w-[280px] bg-white border-r z-20 shrink-0 flex flex-col shadow-lg">
           <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Toolbox</span><Settings className="w-4 h-4 text-slate-400" /></div>
           <ScrollArea className="flex-1">
@@ -895,7 +890,6 @@ export default function EstimatorClient() {
           </ScrollArea>
         </div>
 
-        {/* Canvas Area */}
         <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-200">
           <div id="canvas-workspace" className="flex-1 relative bg-white overflow-auto cursor-crosshair m-6 shadow-2xl rounded border"
             onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
@@ -904,7 +898,6 @@ export default function EstimatorClient() {
                 backgroundSize: `${zoom}px ${zoom}px`, width: 4000, height: 4000
               }}>
               
-              {/* Marquee Selection Box */}
               {interactionMode === 'selecting' && selectionBox && (
                 <div className="absolute border border-blue-500 bg-blue-500/10 z-[100]" style={{
                   left: Math.min(selectionBox.x1, selectionBox.x2) * zoom,
@@ -914,7 +907,6 @@ export default function EstimatorClient() {
                 }} />
               )}
 
-              {/* Distance Indicators between Pillars */}
               {showDimensions && pillarDistances.map((d, i) => (
                 <div key={`dist-${i}`} className="absolute pointer-events-none z-0" style={{
                   left: Math.min(d.x1, d.x2) * zoom,
@@ -942,7 +934,6 @@ export default function EstimatorClient() {
                     borderRadius: (obj.subType === 'pillar_round' || obj.subType === 'oval') ? '100%' : '0px'
                   }}>
                   
-                  {/* Side-Aligned Dimension Labels */}
                   {showDimensions && (obj.subType === 'wall' || obj.type === 'stair' || obj.type === 'opening') && (
                     <div className="absolute left-1/2 -translate-x-1/2 -top-10 bg-white/90 px-1.5 py-0.5 rounded border border-slate-300 shadow-md pointer-events-none z-50">
                       <span className="text-[10px] font-bold text-slate-800 whitespace-nowrap">{formatFeetInches(obj.w)}</span>
@@ -1077,7 +1068,6 @@ export default function EstimatorClient() {
           </div>
         </div>
 
-        {/* Inspector Panel */}
         <div className="w-[240px] bg-white border-l z-20 shrink-0 flex flex-col shadow-xl">
            <div className="p-3 border-b bg-slate-50 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Inspector</span><Settings2 className="w-4 h-4 text-slate-400" /></div>
            <ScrollArea className="flex-1 p-3">
@@ -1121,7 +1111,7 @@ export default function EstimatorClient() {
 
                       <div className="grid grid-cols-2 gap-2.5">
                          <PropInput label="X Pos" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropX) }, true)} />
-                         <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { x: parseFeetInches(localPropY) }, true)} />
+                         <PropInput label="Y Pos" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(selectedObjectIds[0], { y: parseFeetInches(localPropY) }, true)} />
                          <PropInput label="Width" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(selectedObjectIds[0], { w: parseFeetInches(localPropW) }, true)} />
                          <PropInput label="Height" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(selectedObjectIds[0], { h: parseFeetInches(localPropH) }, true)} />
                       </div>
