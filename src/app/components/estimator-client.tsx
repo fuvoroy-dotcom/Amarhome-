@@ -165,7 +165,8 @@ export default function EstimatorClient() {
         ...obj,
         id: Math.random().toString(36).substr(2, 9),
         x: Math.round((obj.x + offset) / ARCH_SNAP) * ARCH_SNAP,
-        y: Math.round((obj.y + offset) / ARCH_SNAP) * ARCH_SNAP
+        y: Math.round((obj.y + offset) / ARCH_SNAP) * ARCH_SNAP,
+        isJoined: false // Paste as unlocked
       }));
       const next = [...designObjects, ...pasted];
       setDesignObjects(next);
@@ -183,37 +184,10 @@ export default function EstimatorClient() {
     });
   };
 
+  // Removed all previous snapping/joining logic per user request
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
-    let bestSnap: {x: number, y: number} | null = null;
-    let minDist = 0.75; // Increased snap radius to 9 inches for better joining
-    designObjects.forEach(obj => {
-      if (excludeIds.includes(obj.id)) return;
-      
-      const rad = (obj.rotation || 0) * (Math.PI / 180);
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-      
-      const pts = (obj.subType === 'wall' || obj.type === 'stair') ? [
-        { x: obj.x, y: obj.y },
-        { x: obj.x + obj.w * cos, y: obj.y + obj.w * sin }
-      ] : [
-        { x: obj.x, y: obj.y },
-        { x: obj.x + obj.w, y: obj.y },
-        { x: obj.x, y: obj.y + obj.h },
-        { x: obj.x + obj.w, y: obj.y + obj.h },
-        { x: obj.x + obj.w / 2, y: obj.y + obj.h / 2 }
-      ];
-      
-      pts.forEach(p => {
-        const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
-        if (d < minDist) { 
-          minDist = d; 
-          bestSnap = { x: p.x, y: p.y }; 
-        }
-      });
-    });
-    return bestSnap;
-  }, [designObjects]);
+    return null;
+  }, []);
 
   const addObject = useCallback((type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
     const newObj: DesignObject = {
@@ -221,7 +195,7 @@ export default function EstimatorClient() {
       type, subType, x: 2, y: 2, w: 2, h: 2, label, 
       color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
-      scaleX: 1, scaleY: 1, isJoined: true, fontSize: 14, isBold: false, stepCount: 10,
+      scaleX: 1, scaleY: 1, isJoined: false, fontSize: 14, isBold: false, stepCount: 10,
       ...overrides
     };
     if (subType === 'pillar') newObj.fillColor = '#000000';
@@ -239,10 +213,10 @@ export default function EstimatorClient() {
     const startX = 5, startY = 5, w = 12, h = 10;
     const thickness = currentWallThickness;
     const roomWalls: DesignObject[] = [
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: true },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: true },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: false },
     ];
     const next = [...designObjects, ...roomWalls];
     setDesignObjects(next);
@@ -325,8 +299,7 @@ export default function EstimatorClient() {
     const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
 
     if (selectedTool === 'wall') {
-      const snap = findSnapPoint(curX, curY);
-      const start = snap || { x: Math.round(curX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(curY / ARCH_SNAP) * ARCH_SNAP };
+      const start = { x: Math.round(curX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(curY / ARCH_SNAP) * ARCH_SNAP };
       setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
     }
 
@@ -361,9 +334,8 @@ export default function EstimatorClient() {
       if (e.shiftKey || e.ctrlKey) {
         if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) { endY = drawStart.y; } else { endX = drawStart.x; }
       }
-      const snap = findSnapPoint(endX, endY);
-      setTempDrawEnd(snap || { x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
-      setSnapPoint(snap); return;
+      setTempDrawEnd({ x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
+      setSnapPoint(null); return;
     }
 
     if (interactionMode === 'selecting' && selectionBox) { 
@@ -371,6 +343,9 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
+      // If locked, cannot rotate
+      if (firstSelectedObject.isJoined) return;
+
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
@@ -379,28 +354,28 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
       const mainId = selectedObjectIds[0];
+      const mainObj = designObjects.find(o => o.id === mainId);
+      
+      // If primary selected object is locked, cannot move the selection
+      if (!mainObj || mainObj.isJoined) return;
+
       const mainOffset = dragOffsets[mainId];
       if (!mainOffset) return;
       
-      let targetX = curX - mainOffset.x;
-      let targetY = curY - mainOffset.y;
+      let targetX = Math.round((curX - mainOffset.x) / ARCH_SNAP) * ARCH_SNAP;
+      let targetY = Math.round((curY - mainOffset.y) / ARCH_SNAP) * ARCH_SNAP;
       
-      const snap = findSnapPoint(targetX, targetY, selectedObjectIds);
-      if (snap) { 
-        targetX = snap.x; 
-        targetY = snap.y; 
-        setSnapPoint(snap);
-      } else {
-        targetX = Math.round(targetX / ARCH_SNAP) * ARCH_SNAP;
-        targetY = Math.round(targetY / ARCH_SNAP) * ARCH_SNAP;
-        setSnapPoint(null);
-      }
-
-      const mainObj = designObjects.find(o => o.id === mainId);
-      if (!mainObj) return;
-      const dx = targetX - mainObj.x; const dy = targetY - mainObj.y;
+      const dx = targetX - mainObj.x; 
+      const dy = targetY - mainObj.y;
+      
       if (dx !== 0 || dy !== 0) {
-        setDesignObjects(prev => prev.map(o => selectedObjectIds.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+        setDesignObjects(prev => prev.map(o => {
+          // Only move objects that are NOT locked (isJoined is false)
+          if (selectedObjectIds.includes(o.id) && !o.isJoined) {
+            return { ...o, x: o.x + dx, y: o.y + dy };
+          }
+          return o;
+        }));
       }
     }
   };
@@ -446,6 +421,7 @@ export default function EstimatorClient() {
       const strokeW = 1 / zoom;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.01} stroke="none" />
           {obj.subType === 'window' && (
             <g>
               <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={strokeW * 2} />
@@ -455,7 +431,6 @@ export default function EstimatorClient() {
           )}
           {(obj.subType === 'door' || obj.subType === 'double-door') && (
             <g>
-              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.01} stroke="none" />
               {obj.subType === 'door' ? (
                 <>
                   <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
@@ -577,7 +552,7 @@ export default function EstimatorClient() {
                     
                     {renderObjectContent(obj)}
 
-                    {selectedObjectIds.includes(obj.id) && (
+                    {selectedObjectIds.includes(obj.id) && !obj.isJoined && (
                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 transition-colors z-[60]"
                          onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}>
                          <RotateCw className="w-4 h-4 text-blue-500" />
@@ -608,10 +583,6 @@ export default function EstimatorClient() {
                       height: currentWallThickness * zoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)`,
                     }}
                   />
-                )}
-                {snapPoint && (
-                   <div className="absolute w-3 h-3 bg-red-500 rounded-full z-[100] -translate-x-1/2 -translate-y-1/2 shadow-lg ring-2 ring-white"
-                     style={{ left: snapPoint.x * zoom + CANVAS_OFFSET, top: snapPoint.y * zoom + CANVAS_OFFSET }} />
                 )}
               </div>
             </div>
@@ -657,7 +628,7 @@ export default function EstimatorClient() {
                 </div>
                 <div className="flex items-center gap-4 shrink-0 min-w-[120px]">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">ঘুরান</span>
-                  <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="w-24" onValueChange={(v) => updateObject(firstSelectedObject.id, { rotation: v[0] })} />
+                  <Slider value={[firstSelectedObject.rotation]} max={360} min={0} step={1} className="w-24" disabled={firstSelectedObject.isJoined} onValueChange={(v) => updateObject(firstSelectedObject.id, { rotation: v[0] })} />
                 </div>
                 {(firstSelectedObject.type === 'text' || firstSelectedObject.subType === 'label') && (
                   <div className="flex items-center gap-2 border-l pl-4 shrink-0 w-[200px]">
