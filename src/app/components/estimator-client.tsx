@@ -388,6 +388,33 @@ export default function EstimatorClient() {
     }
   };
 
+  const loadFromFirestore = async () => {
+    try {
+      const { firestore } = initializeFirebase();
+      const docRef = doc(firestore, 'designs', 'current-layout');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        setDesignObjects(data.objects);
+        saveToHistory(data.objects);
+        toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
+      } else {
+        toast({ title: "তথ্য নেই", description: "সেভ করা কোনো ডিজাইন পাওয়া যায়নি।" });
+      }
+    } catch (e: any) {
+      const permissionError = new FirestorePermissionError({
+        path: 'designs/current-layout',
+        operation: 'get',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
+  // Auto-load saved design on mount
+  useEffect(() => {
+    loadFromFirestore();
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
     const rect = container?.getBoundingClientRect();
@@ -663,28 +690,6 @@ export default function EstimatorClient() {
       setDesignObjects(history[nextIndex]);
     }
   }, [history, historyIndex]);
-
-  const loadFromFirestore = async () => {
-    try {
-      const { firestore } = initializeFirebase();
-      const docRef = doc(firestore, 'designs', 'current-layout');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        setDesignObjects(data.objects);
-        saveToHistory(data.objects);
-        toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
-      } else {
-        toast({ title: "তথ্য নেই", description: "সেভ করা কোনো ডিজাইন পাওয়া যায়নি।" });
-      }
-    } catch (e: any) {
-      const permissionError = new FirestorePermissionError({
-        path: 'designs/current-layout',
-        operation: 'get',
-      } satisfies SecurityRuleContext);
-      errorEmitter.emit('permission-error', permissionError);
-    }
-  };
 
   const pillarDistances = useMemo(() => {
     if (!showDimensions) return [];
