@@ -185,9 +185,10 @@ export default function EstimatorClient() {
 
   const findSnapPoint = useCallback((x: number, y: number, excludeIds: string[] = []) => {
     let bestSnap: {x: number, y: number} | null = null;
-    let minDist = 0.5; 
+    let minDist = 0.75; // Increased snap radius to 9 inches for better joining
     designObjects.forEach(obj => {
       if (excludeIds.includes(obj.id)) return;
+      
       const rad = (obj.rotation || 0) * (Math.PI / 180);
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
@@ -205,7 +206,10 @@ export default function EstimatorClient() {
       
       pts.forEach(p => {
         const d = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
-        if (d < minDist) { minDist = d; bestSnap = p; }
+        if (d < minDist) { 
+          minDist = d; 
+          bestSnap = { x: p.x, y: p.y }; 
+        }
       });
     });
     return bestSnap;
@@ -382,9 +386,14 @@ export default function EstimatorClient() {
       let targetY = curY - mainOffset.y;
       
       const snap = findSnapPoint(targetX, targetY, selectedObjectIds);
-      if (snap) { targetX = snap.x; targetY = snap.y; } else {
+      if (snap) { 
+        targetX = snap.x; 
+        targetY = snap.y; 
+        setSnapPoint(snap);
+      } else {
         targetX = Math.round(targetX / ARCH_SNAP) * ARCH_SNAP;
         targetY = Math.round(targetY / ARCH_SNAP) * ARCH_SNAP;
+        setSnapPoint(null);
       }
 
       const mainObj = designObjects.find(o => o.id === mainId);
@@ -446,7 +455,7 @@ export default function EstimatorClient() {
           )}
           {(obj.subType === 'door' || obj.subType === 'double-door') && (
             <g>
-              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.1} stroke="none" />
+              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" fillOpacity={0.01} stroke="none" />
               {obj.subType === 'door' ? (
                 <>
                   <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w} stroke={obj.color} strokeWidth={strokeW * 4} />
@@ -601,7 +610,7 @@ export default function EstimatorClient() {
                   />
                 )}
                 {snapPoint && (
-                   <div className="absolute w-3 h-3 bg-red-500 rounded-full z-[100] -translate-x-1/2 -translate-y-1/2"
+                   <div className="absolute w-3 h-3 bg-red-500 rounded-full z-[100] -translate-x-1/2 -translate-y-1/2 shadow-lg ring-2 ring-white"
                      style={{ left: snapPoint.x * zoom + CANVAS_OFFSET, top: snapPoint.y * zoom + CANVAS_OFFSET }} />
                 )}
               </div>
