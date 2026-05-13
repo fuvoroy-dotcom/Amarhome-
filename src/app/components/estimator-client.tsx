@@ -52,7 +52,7 @@ type DesignObject = {
   stepCount?: number;
 };
 
-// Colors with Black and Red first as requested
+// Colors with Black and Red first
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 
 // Architectural snap: 0.25 inch = 1/48 of a foot
@@ -81,6 +81,7 @@ export default function EstimatorClient() {
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
   const [localPropH, setLocalPropH] = useState("");
+  const [localPropRot, setLocalPropRot] = useState("");
 
   const formatFeetInches = (val: number) => {
     const roundedVal = Math.round(val * 48) / 48;
@@ -115,8 +116,9 @@ export default function EstimatorClient() {
       setLocalPropY(formatFeetInches(firstSelectedObject.y));
       setLocalPropW(formatFeetInches(firstSelectedObject.w));
       setLocalPropH(formatFeetInches(firstSelectedObject.h));
+      setLocalPropRot(firstSelectedObject.rotation.toString());
     }
-  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -788,6 +790,12 @@ export default function EstimatorClient() {
                     value={localPropH} onChange={setLocalPropH} 
                     onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} 
                     disabled={firstSelectedObject.isJoined}
+                  />
+                  <PropField 
+                    label="কোণ (°)" 
+                    value={localPropRot} onChange={setLocalPropRot} 
+                    onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} 
+                    disabled={firstSelectedObject.isJoined} 
                   />
                 </div>
                 <div className="flex items-center gap-4 shrink-0 min-w-[120px]">
