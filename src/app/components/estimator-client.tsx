@@ -62,6 +62,7 @@ export default function EstimatorClient() {
   const { toast } = useToast();
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
+  const [clipboard, setClipboard] = useState<DesignObject[]>([]);
   const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting'>('none');
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
@@ -148,6 +149,31 @@ export default function EstimatorClient() {
       saveToHistory(next);
     }
   }, [designObjects, selectedObjectIds, saveToHistory]);
+
+  const copySelected = useCallback(() => {
+    const selected = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
+    if (selected.length > 0) {
+      setClipboard(selected.map(obj => ({ ...obj })));
+      toast({ title: "Copied", description: `${selected.length} objects copied to clipboard.` });
+    }
+  }, [designObjects, selectedObjectIds, toast]);
+
+  const pasteSelected = useCallback(() => {
+    if (clipboard.length > 0) {
+      const offset = 0.5; // Offset by 6 inches
+      const pasted = clipboard.map(obj => ({
+        ...obj,
+        id: Math.random().toString(36).substr(2, 9),
+        x: obj.x + offset,
+        y: obj.y + offset
+      }));
+      const next = [...designObjects, ...pasted];
+      setDesignObjects(next);
+      setSelectedObjectIds(pasted.map(p => p.id));
+      saveToHistory(next);
+      toast({ title: "Pasted", description: `${pasted.length} objects pasted.` });
+    }
+  }, [clipboard, designObjects, saveToHistory, toast]);
 
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
@@ -262,12 +288,19 @@ export default function EstimatorClient() {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteSelected();
       } else if (e.ctrlKey || e.metaKey) {
-        if (e.key.toLowerCase() === 'z') {
+        const key = e.key.toLowerCase();
+        if (key === 'z') {
           e.preventDefault();
           undo();
-        } else if (e.key.toLowerCase() === 'y') {
+        } else if (key === 'y') {
           e.preventDefault();
           redo();
+        } else if (key === 'c') {
+          e.preventDefault();
+          copySelected();
+        } else if (key === 'v') {
+          e.preventDefault();
+          pasteSelected();
         }
       }
     };
@@ -278,7 +311,7 @@ export default function EstimatorClient() {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [deleteSelected, undo, redo]);
+  }, [deleteSelected, undo, redo, copySelected, pasteSelected]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
@@ -399,6 +432,10 @@ export default function EstimatorClient() {
         <div className="flex items-center border-r px-2 h-full gap-1">
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
+        </div>
+        <div className="flex items-center border-r px-2 h-full gap-1">
+          <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
+          <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteSelected} />
         </div>
         <div className="flex items-center border-r px-2 h-full gap-1">
           <RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
