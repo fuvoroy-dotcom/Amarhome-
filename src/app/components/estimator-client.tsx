@@ -196,10 +196,10 @@ export default function EstimatorClient() {
     });
   };
 
-  const addObject = useCallback((type: DesignObject['type'], subType: string, label: string, overrides = {}) => {
+  const addObjectAt = useCallback((type: DesignObject['type'], subType: string, label: string, x: number, y: number, overrides = {}) => {
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x: 2, y: 2, w: 2, h: 2, label, 
+      type, subType, x, y, w: 2, h: 2, label, 
       color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
       scaleX: 1, scaleY: 1, isJoined: false, fontSize: 14, isBold: false, stepCount: 10,
@@ -216,14 +216,14 @@ export default function EstimatorClient() {
     saveToHistory(next);
   }, [designObjects, saveToHistory, currentWallThickness]);
 
-  const addRoom = useCallback(() => {
-    const startX = 5, startY = 5, w = 12, h = 10;
+  const addRoomAt = useCallback((x: number, y: number) => {
+    const w = 12, h = 10;
     const thickness = currentWallThickness;
     const roomWalls: DesignObject[] = [
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: false },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: false },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: false },
-      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: startX + w, y: startY, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: x, y: y, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: x, y: y + h, w: w, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 0, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: x, y: y, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: false },
+      { id: Math.random().toString(36).substr(2, 9), type: 'structure', subType: 'wall', x: x + w, y: y, w: h, h: thickness, label: 'Wall', color: '#000000', fillColor: '#ffffff', strokeWidth: 2, strokeStyle: 'solid', rotation: 90, isJoined: false },
     ];
     const next = [...designObjects, ...roomWalls];
     setDesignObjects(next);
@@ -290,9 +290,31 @@ export default function EstimatorClient() {
     if (!rect || !container) return;
     const curX = (e.clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
     const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
+    const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
+    const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
+
+    if (selectedTool !== 'select' && selectedTool !== 'wall' && !id) {
+        if (selectedTool === 'room') {
+            addRoomAt(snappedX, snappedY);
+        } else if (selectedTool === 'pillar') {
+            addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
+        } else if (selectedTool === 'door') {
+            addObjectAt('opening', 'door', 'Door', snappedX, snappedY, { w: 3, h: currentWallThickness });
+        } else if (selectedTool === 'double-door') {
+            addObjectAt('opening', 'double-door', 'Double Door', snappedX, snappedY, { w: 6, h: currentWallThickness });
+        } else if (selectedTool === 'window') {
+            addObjectAt('opening', 'window', 'Window', snappedX, snappedY, { w: 4, h: currentWallThickness });
+        } else if (selectedTool === 'stair') {
+            addObjectAt('stair', 'stair', 'Stair', snappedX, snappedY, { w: 8, h: 3, stepCount: 10 });
+        } else if (selectedTool === 'label') {
+            addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
+        }
+        setSelectedTool('select');
+        return;
+    }
 
     if (selectedTool === 'wall') {
-      const start = { x: Math.round(curX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(curY / ARCH_SNAP) * ARCH_SNAP };
+      const start = { x: snappedX, y: snappedY };
       setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
     }
 
@@ -303,7 +325,7 @@ export default function EstimatorClient() {
       setSelectedObjectIds(newSelection);
       
       if (obj) {
-        if (obj.isJoined) return; // Locked: Cannot move
+        if (obj.isJoined) return; 
         setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
         setInteractionMode('dragging');
       }
@@ -337,7 +359,7 @@ export default function EstimatorClient() {
     }
 
     if (interactionMode === 'rotating' && firstSelectedObject) {
-      if (firstSelectedObject.isJoined) return; // Locked: Cannot rotate
+      if (firstSelectedObject.isJoined) return; 
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
@@ -369,7 +391,7 @@ export default function EstimatorClient() {
     if (interactionMode === 'drawing' && drawStart && tempDrawEnd) {
       const dx = tempDrawEnd.x - drawStart.x, dy = tempDrawEnd.y - drawStart.y;
       const len = Math.sqrt(dx * dx + dy * dy);
-      if (len > 0.1) addObject('structure', 'wall', 'Wall', { x: drawStart.x, y: drawStart.y, w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
+      if (len > 0.1) addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
       setDrawStart(null); setTempDrawEnd(null);
     } else if (interactionMode === 'selecting' && selectionBox) {
       const xMin = Math.min(selectionBox.x1, selectionBox.x2), xMax = Math.max(selectionBox.x1, selectionBox.x2);
@@ -456,7 +478,6 @@ export default function EstimatorClient() {
     let yOffset = 0;
     
     // Correcting visual alignment at X=0 for rotated objects
-    // When rotation is 90, the thickness shifts it left. Adding h back aligns it to the right of X=0.
     if (obj.rotation === 90) xOffset = obj.h;
     else if (obj.rotation === 180) { xOffset = obj.w; yOffset = obj.h; }
     else if (obj.rotation === 270) yOffset = obj.w;
@@ -504,10 +525,10 @@ export default function EstimatorClient() {
         </div>
         <div className="flex items-center border-r px-2 h-full gap-1">
           <RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
-          <RibbonButton icon={<Square />} label="Room" onClick={addRoom} />
-          <RibbonButton icon={<PillarIcon />} label="Pillar" onClick={() => addObject('pillar', 'pillar', 'Pillar', { w: 0.83, h: 0.83 })} />
-          <RibbonButton icon={<SplitSquareVertical />} label="Stair" onClick={() => addObject('stair', 'stair', 'Stair', { w: 8, h: 3, stepCount: 10 })} />
-          <RibbonButton icon={<TypeIcon />} label="Label" onClick={() => addObject('text', 'label', 'Label', { textContent: 'Room Name', w: 4, h: 1 })} />
+          <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
+          <RibbonButton icon={<PillarIcon />} label="Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
+          <RibbonButton icon={<SplitSquareVertical />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
+          <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'label'} onClick={() => setSelectedTool('label')} />
         </div>
         <div className="flex items-center border-r px-2 h-full gap-2">
           <Button variant="outline" size="sm" className="gap-2 h-9 px-4 text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
@@ -531,9 +552,9 @@ export default function EstimatorClient() {
             <div className="pt-4 border-t space-y-2">
               <Label className="text-[10px] font-bold text-slate-400 uppercase">Openings</Label>
               <div className="grid grid-cols-2 gap-2">
-                <SymbolButton icon={<DoorOpen />} label="Door" onClick={() => addObject('opening', 'door', 'Door')} />
-                <SymbolButton icon={<LayoutGrid />} label="Double Door" onClick={() => addObject('opening', 'double-door', 'Double Door')} />
-                <SymbolButton icon={<Wind />} label="Window" onClick={() => addObject('opening', 'window', 'Window')} />
+                <SymbolButton active={selectedTool === 'door'} icon={<DoorOpen />} label="Door" onClick={() => setSelectedTool('door')} />
+                <SymbolButton active={selectedTool === 'double-door'} icon={<LayoutGrid />} label="Double Door" onClick={() => setSelectedTool('double-door')} />
+                <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="Window" onClick={() => setSelectedTool('window')} />
               </div>
             </div>
           </ScrollArea>
