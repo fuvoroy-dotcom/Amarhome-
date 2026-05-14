@@ -137,6 +137,10 @@ export default function EstimatorClient() {
     }
   }, [history, historyIndex]);
 
+  const selectAll = useCallback(() => {
+    setSelectedObjectIds(designObjects.map(obj => obj.id));
+  }, [designObjects]);
+
   const deleteSelected = useCallback(() => {
     if (selectedObjectIds.length > 0) {
       const next = designObjects.filter(obj => !selectedObjectIds.includes(obj.id));
@@ -271,11 +275,9 @@ export default function EstimatorClient() {
 
   useEffect(() => { loadFromFirestore(); }, [loadFromFirestore]);
 
-  // Handle Wheel for Zoom specifically to prevent browser zoom
   useEffect(() => {
     const container = document.getElementById('canvas-workspace-inner');
     if (!container) return;
-
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -283,11 +285,8 @@ export default function EstimatorClient() {
         setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
       }
     };
-
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => {
-      container.removeEventListener('wheel', handleNativeWheel);
-    };
+    return () => { container.removeEventListener('wheel', handleNativeWheel); };
   }, []);
 
   useEffect(() => {
@@ -305,11 +304,12 @@ export default function EstimatorClient() {
         else if (key === 'c') { e.preventDefault(); copySelected(); }
         else if (key === 'v') { e.preventDefault(); pasteSelected(); }
         else if (key === 's') { e.preventDefault(); saveToFirestore(); }
+        else if (key === 'a') { e.preventDefault(); selectAll(); }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => { window.removeEventListener('keydown', handleKeyDown); };
-  }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore, moveSelectedWithArrows]);
+  }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore, moveSelectedWithArrows, selectAll]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
@@ -512,14 +512,10 @@ export default function EstimatorClient() {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Top Landing */}
           <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Bottom Landing */}
           <line x1="0" y1={obj.h - landingH} x2={obj.w} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Central Rails */}
           <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={flightW + gapW} y1={landingH} x2={flightW + gapW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Steps */}
           {Array.from({ length: Math.ceil(steps / 2) }).map((_, i) => (
             <React.Fragment key={i}>
               <line x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
@@ -535,7 +531,6 @@ export default function EstimatorClient() {
 
   const getObjectStyle = (obj: DesignObject) => {
     let ox = 0, oy = 0;
-    // Perfect X=0 alignment for vertical walls/rects
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
@@ -556,6 +551,7 @@ export default function EstimatorClient() {
       <div className="h-16 bg-white border-b flex items-center px-4 gap-1 shrink-0 shadow-sm z-40 overflow-x-auto">
         <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} /><RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} /><RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteSelected} />
+        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
         <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
         <RibbonButton icon={<PillarIcon />} label="Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
