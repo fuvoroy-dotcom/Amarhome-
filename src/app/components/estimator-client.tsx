@@ -57,7 +57,7 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<DesignObject[]>([]);
-  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting'>('none');
+  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting' | 'pasting'>('none');
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
@@ -75,6 +75,7 @@ export default function EstimatorClient() {
   const [localPropH, setLocalPropH] = useState("");
   const [localPropRot, setLocalPropRot] = useState("");
   const [localPropSteps, setLocalPropSteps] = useState("");
+  const [localPropText, setLocalPropText] = useState("");
 
   const formatFeetInches = (val: number) => {
     const roundedVal = Math.round(val * 48) / 48;
@@ -111,8 +112,9 @@ export default function EstimatorClient() {
       setLocalPropH(formatFeetInches(firstSelectedObject.h));
       setLocalPropRot(firstSelectedObject.rotation.toString());
       setLocalPropSteps((firstSelectedObject.stepCount || 10).toString());
+      setLocalPropText(firstSelectedObject.textContent || "");
     }
-  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, firstSelectedObject?.textContent]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -154,27 +156,18 @@ export default function EstimatorClient() {
     const selected = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
     if (selected.length > 0) {
       setClipboard(selected.map(obj => ({ ...obj })));
-      toast({ title: "কপি করা হয়েছে", description: `${selected.length}টি অবজেক্ট কপি হয়েছে।` });
+      toast({ title: "কপি করা হয়েছে", description: `${selected.length}টি অবজেক্ট কপি হয়েছে। পেস্ট করতে ক্যানভাসে ক্লিক করুন।` });
     }
   }, [designObjects, selectedObjectIds, toast]);
 
-  const pasteSelected = useCallback(() => {
+  const enterPasteMode = useCallback(() => {
     if (clipboard.length > 0) {
-      const offset = 0.5;
-      const pasted = clipboard.map(obj => ({
-        ...obj,
-        id: Math.random().toString(36).substr(2, 9),
-        x: Math.round((obj.x + offset) / ARCH_SNAP) * ARCH_SNAP,
-        y: Math.round((obj.y + offset) / ARCH_SNAP) * ARCH_SNAP,
-        isJoined: false
-      }));
-      const next = [...designObjects, ...pasted];
-      setDesignObjects(next);
-      setSelectedObjectIds(pasted.map(p => p.id));
-      saveToHistory(next);
-      toast({ title: "পেস্ট করা হয়েছে", description: `${pasted.length}টি অবজেক্ট পেস্ট হয়েছে।` });
+      setInteractionMode('pasting');
+      toast({ title: "পেস্ট মোড সক্রিয়", description: "ক্যানভাসের যেখানে পেস্ট করতে চান সেখানে ক্লিক করুন।" });
+    } else {
+      toast({ variant: "destructive", title: "ক্লিপবোর্ড খালি", description: "প্রথমে কিছু অবজেক্ট কপি করুন।" });
     }
-  }, [clipboard, designObjects, saveToHistory, toast]);
+  }, [clipboard, toast]);
 
   const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
@@ -191,7 +184,7 @@ export default function EstimatorClient() {
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
-      if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.w !== undefined || updates.h !== undefined || updates.rotation !== undefined || updates.stepCount !== undefined)) {
+      if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.w !== undefined || updates.h !== undefined || updates.rotation !== undefined || updates.stepCount !== undefined || updates.textContent !== undefined)) {
         return prev;
       }
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
@@ -302,14 +295,14 @@ export default function EstimatorClient() {
         if (key === 'z') { e.preventDefault(); undo(); }
         else if (key === 'y') { e.preventDefault(); redo(); }
         else if (key === 'c') { e.preventDefault(); copySelected(); }
-        else if (key === 'v') { e.preventDefault(); pasteSelected(); }
+        else if (key === 'v') { e.preventDefault(); enterPasteMode(); }
         else if (key === 's') { e.preventDefault(); saveToFirestore(); }
         else if (key === 'a') { e.preventDefault(); selectAll(); }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => { window.removeEventListener('keydown', handleKeyDown); };
-  }, [deleteSelected, undo, redo, copySelected, pasteSelected, saveToFirestore, moveSelectedWithArrows, selectAll]);
+  }, [deleteSelected, undo, redo, copySelected, enterPasteMode, saveToFirestore, moveSelectedWithArrows, selectAll]);
 
   const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
     const container = document.getElementById('canvas-workspace-inner');
@@ -319,6 +312,26 @@ export default function EstimatorClient() {
     const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
+
+    // Paste at click logic
+    if (interactionMode === 'pasting' && clipboard.length > 0) {
+      const minX = Math.min(...clipboard.map(obj => obj.x));
+      const minY = Math.min(...clipboard.map(obj => obj.y));
+      const pasted = clipboard.map(obj => ({
+        ...obj,
+        id: Math.random().toString(36).substr(2, 9),
+        x: Math.round((snappedX + (obj.x - minX)) / ARCH_SNAP) * ARCH_SNAP,
+        y: Math.round((snappedY + (obj.y - minY)) / ARCH_SNAP) * ARCH_SNAP,
+        isJoined: false
+      }));
+      const next = [...designObjects, ...pasted];
+      setDesignObjects(next);
+      setSelectedObjectIds(pasted.map(p => p.id));
+      saveToHistory(next);
+      setInteractionMode('none');
+      toast({ title: "পেস্ট সফল", description: `${pasted.length}টি অবজেক্ট পেস্ট করা হয়েছে।` });
+      return;
+    }
 
     if (selectedTool !== 'select' && !id) {
         if (selectedTool === 'wall') {
@@ -393,8 +406,8 @@ export default function EstimatorClient() {
       const yMin = Math.min(selectionBox.y1, selectionBox.y2), yMax = Math.max(selectionBox.y1, selectionBox.y2);
       const inBox = designObjects.filter(obj => obj.x >= xMin && obj.x <= xMax && obj.y >= yMin && obj.y <= yMax).map(o => o.id);
       setSelectedObjectIds(inBox); setSelectionBox(null);
-    } else if (interactionMode !== 'none') { saveToHistory(designObjects); }
-    setInteractionMode('none');
+    } else if (interactionMode !== 'none' && interactionMode !== 'pasting') { saveToHistory(designObjects); }
+    if (interactionMode !== 'pasting') setInteractionMode('none');
   };
 
   const renderPillarDistances = () => {
@@ -550,7 +563,7 @@ export default function EstimatorClient() {
       </div>
       <div className="h-16 bg-white border-b flex items-center px-4 gap-1 shrink-0 shadow-sm z-40 overflow-x-auto">
         <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} /><RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
-        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} /><RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={pasteSelected} />
+        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} /><RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
         <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
@@ -631,6 +644,9 @@ export default function EstimatorClient() {
                   {firstSelectedObject.subType === 'stair' && (
                     <PropField label="ধাপের সংখ্যা" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} disabled={firstSelectedObject.isJoined} />
                   )}
+                  {firstSelectedObject.type === 'text' && (
+                    <PropField label="লেবেল টেক্সট" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} disabled={firstSelectedObject.isJoined} />
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 border-l pl-4">
                   {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
@@ -653,5 +669,5 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-20 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
+  return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-24 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
