@@ -29,6 +29,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import html2canvas from 'html2canvas';
 
 type DesignObject = {
   id: string;
@@ -67,6 +68,7 @@ export default function EstimatorClient() {
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(true);
+  const [is3DMode, setIs3DMode] = useState(false);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
 
   const [localPropX, setLocalPropX] = useState("");
@@ -156,9 +158,43 @@ export default function EstimatorClient() {
     const selected = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
     if (selected.length > 0) {
       setClipboard(selected.map(obj => ({ ...obj })));
-      toast({ title: "কপি করা হয়েছে", description: `${selected.length}টি অবজেক্ট কপি হয়েছে। পেস্ট করতে ক্যানভাসে ক্লিক করুন।` });
+      toast({ title: "কপি করা হয়েছে", description: `${selected.length}টি অবজেক্ট ক্লিপবোর্ডে কপি হয়েছে।` });
     }
   }, [designObjects, selectedObjectIds, toast]);
+
+  const copyAsImage = async () => {
+    const canvas = document.getElementById('canvas-workspace-inner');
+    if (!canvas) return;
+
+    try {
+      // Temporarily hide UI elements for clean capture
+      const handles = document.querySelectorAll('.rotation-handle');
+      handles.forEach(h => (h as HTMLElement).style.display = 'none');
+      
+      const capture = await html2canvas(canvas, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+      });
+
+      capture.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            toast({ title: "ইমেজ কপি সফল", description: "এখন Word বা Excel ফাইলে Ctrl+V চেপে পেস্ট করুন।" });
+          } catch (err) {
+            toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ কপি করা যায়নি।" });
+          }
+        }
+      });
+
+      handles.forEach(h => (h as HTMLElement).style.display = 'flex');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const enterPasteMode = useCallback(() => {
     if (clipboard.length > 0) {
@@ -313,7 +349,6 @@ export default function EstimatorClient() {
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
 
-    // Paste at click logic
     if (interactionMode === 'pasting' && clipboard.length > 0) {
       const minX = Math.min(...clipboard.map(obj => obj.x));
       const minY = Math.min(...clipboard.map(obj => obj.y));
@@ -542,28 +577,50 @@ export default function EstimatorClient() {
     return null;
   };
 
-  const getObjectStyle = (obj: DesignObject) => {
+  const getObjectStyle = (obj: DesignObject): React.CSSProperties => {
     let ox = 0, oy = 0;
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
     
-    return { 
+    const baseStyle: React.CSSProperties = { 
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
-      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : 'move', zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10)
+      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : 'move', zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
+      transition: 'transform 0.3s ease'
     };
+
+    if (is3DMode) {
+      const height3D = (obj.subType === 'wall' || obj.subType === 'pillar') ? 100 : 5;
+      return {
+        ...baseStyle,
+        transform: `perspective(1000px) rotateX(45deg) rotateZ(-20deg) translateZ(${height3D}px)`,
+        boxShadow: `5px 5px 15px rgba(0,0,0,0.3)`
+      };
+    }
+    
+    return baseStyle;
   };
 
   return (
     <div className="w-full h-screen bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-6"><Building className="w-5 h-5 text-blue-400" /><span className="font-bold text-xs uppercase tracking-tighter">Architectural Pro Studio</span></div>
-        <div className="flex items-center gap-4"><Button variant="ghost" size="sm" onClick={saveToFirestore}><Save className="w-4 h-4 mr-2"/> SAVE</Button><User className="w-5 h-5 text-slate-400" /></div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-slate-700 px-3 py-1 rounded-md">
+            <span className="text-[10px] font-bold uppercase">3D View</span>
+            <Switch checked={is3DMode} onCheckedChange={setIs3DMode} className="scale-75" />
+          </div>
+          <Button variant="ghost" size="sm" onClick={saveToFirestore}><Save className="w-4 h-4 mr-2"/> SAVE</Button>
+          <User className="w-5 h-5 text-slate-400" />
+        </div>
       </div>
       <div className="h-16 bg-white border-b flex items-center px-4 gap-1 shrink-0 shadow-sm z-40 overflow-x-auto">
         <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} /><RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
-        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} /><RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
+        <div className="w-px h-8 bg-slate-200 mx-2" />
+        <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
+        <RibbonButton icon={<ImageIcon />} label="Copy as Image" onClick={copyAsImage} />
+        <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
         <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
         <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
@@ -599,10 +656,10 @@ export default function EstimatorClient() {
                 {designObjects.map(obj => (
                   <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} className={cn("absolute", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
                     {renderObjectContent(obj)}
-                    {selectedObjectIds.includes(obj.id) && !obj.isJoined && (
-                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60]" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
+                    {selectedObjectIds.includes(obj.id) && !obj.isJoined && !is3DMode && (
+                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60] rotation-handle" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
                     )}
-                    {showDimensions && (
+                    {showDimensions && !is3DMode && (
                       <>
                         <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50]"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
                         <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50]"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
