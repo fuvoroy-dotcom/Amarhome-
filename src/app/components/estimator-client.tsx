@@ -163,30 +163,60 @@ export default function EstimatorClient() {
   }, [designObjects, selectedObjectIds, toast]);
 
   const copyAsImage = async () => {
-    const canvas = document.getElementById('canvas-workspace-inner');
-    if (!canvas) return;
+    const workspace = document.getElementById('canvas-workspace-inner');
+    if (!workspace) return;
 
-    if (selectedObjectIds.length === 0) {
+    const selectedObjects = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
+    if (selectedObjects.length === 0) {
       toast({ variant: "destructive", title: "সিলেক্ট করুন", description: "ইমেজ কপি করার জন্য অন্তত একটি অবজেক্ট সিলেক্ট করুন।" });
       return;
     }
 
     try {
-      // Temporarily hide UI elements for clean capture
-      const handles = document.querySelectorAll('.rotation-handle');
-      handles.forEach(h => (h as HTMLElement).style.display = 'none');
+      // Calculate bounding box of selected objects in pixel coordinates
+      let minPX = Infinity, minPY = Infinity, maxPX = -Infinity, maxPY = -Infinity;
       
-      const capture = await html2canvas(canvas, {
+      selectedObjects.forEach(obj => {
+        let ox = 0, oy = 0;
+        if (obj.rotation === 90) ox = obj.h; 
+        else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
+        else if (obj.rotation === 270) oy = obj.w;
+
+        const left = (obj.x + ox) * zoom + CANVAS_OFFSET;
+        const top = (obj.y + oy) * zoom + CANVAS_OFFSET;
+        
+        // Simplified bounds - good enough for orthogonal rotations
+        const w = (obj.rotation % 180 === 0 ? obj.w : obj.h) * zoom;
+        const h = (obj.rotation % 180 === 0 ? obj.h : obj.w) * zoom;
+
+        minPX = Math.min(minPX, left);
+        minPY = Math.min(minPY, top);
+        maxPX = Math.max(maxPX, left + w);
+        maxPY = Math.max(maxPY, top + h);
+      });
+
+      // Add padding (20px)
+      const padding = 20;
+      const captureX = minPX - padding;
+      const captureY = minPY - padding;
+      const captureW = (maxPX - minPX) + padding * 2;
+      const captureH = (maxPY - minPY) + padding * 2;
+
+      const capture = await html2canvas(workspace, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
         logging: false,
+        x: captureX,
+        y: captureY,
+        width: captureW,
+        height: captureH,
         onclone: (clonedDoc) => {
-          // In the clone, hide all objects NOT selected
           const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
           if (clonedCanvas) {
-            // Remove the grid for a clean "one page" look
             clonedCanvas.style.backgroundImage = 'none';
+            clonedCanvas.style.width = '10000px'; 
+            clonedCanvas.style.height = '10000px';
           }
           const allDesignElements = clonedDoc.querySelectorAll('.design-object-container');
           allDesignElements.forEach(el => {
@@ -195,11 +225,11 @@ export default function EstimatorClient() {
                (el as HTMLElement).style.display = 'none';
              }
           });
-          // Hide rulers and other UI in the clone
           clonedDoc.querySelectorAll('.ruler-container').forEach(r => (r as HTMLElement).style.display = 'none');
-          clonedDoc.querySelectorAll('.dimension-label').forEach(d => {
-            if (!showDimensions) (d as HTMLElement).style.display = 'none';
-          });
+          clonedDoc.querySelectorAll('.rotation-handle').forEach(h => (h as HTMLElement).style.display = 'none');
+          if (!showDimensions) {
+            clonedDoc.querySelectorAll('.dimension-label').forEach(d => (d as HTMLElement).style.display = 'none');
+          }
         }
       });
 
@@ -209,16 +239,15 @@ export default function EstimatorClient() {
             await navigator.clipboard.write([
               new ClipboardItem({ 'image/png': blob })
             ]);
-            toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অবজেক্টগুলো এক পাতায় ইমেজ হিসেবে কপি হয়েছে। Word ফাইলে Ctrl+V চেপে পেস্ট করুন।" });
+            toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অংশটি এক পাতায় ইমেজ হিসেবে কপি হয়েছে। Word-এ Ctrl+V দিয়ে পেস্ট করুন।" });
           } catch (err) {
             toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ কপি করা যায়নি।" });
           }
         }
       });
-
-      handles.forEach(h => (h as HTMLElement).style.display = 'flex');
     } catch (e) {
       console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ তৈরি করতে সমস্যা হয়েছে।" });
     }
   };
 
@@ -246,8 +275,9 @@ export default function EstimatorClient() {
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
-      if (obj?.isJoined && (updates.x !== undefined || updates.y !== undefined || updates.w !== undefined || updates.h !== undefined || updates.rotation !== undefined || updates.stepCount !== undefined || updates.textContent !== undefined)) {
-        return prev;
+      if (obj?.isJoined) {
+          // If locked, prevent manual input updates too
+          if (interactionMode === 'none' && !updates.isJoined) return prev;
       }
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
@@ -605,7 +635,6 @@ export default function EstimatorClient() {
 
   const getObjectStyle = (obj: DesignObject): React.CSSProperties => {
     let ox = 0, oy = 0;
-    // Fix: When rotation is 90, the object should grow to the right of its X coordinate, not spill left.
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
