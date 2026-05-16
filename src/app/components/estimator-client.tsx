@@ -173,7 +173,6 @@ export default function EstimatorClient() {
     }
 
     try {
-      // Calculate bounding box of selected objects in pixel coordinates
       let minPX = Infinity, minPY = Infinity, maxPX = -Infinity, maxPY = -Infinity;
       
       selectedObjects.forEach(obj => {
@@ -185,7 +184,6 @@ export default function EstimatorClient() {
         const left = (obj.x + ox) * zoom + CANVAS_OFFSET;
         const top = (obj.y + oy) * zoom + CANVAS_OFFSET;
         
-        // Simplified bounds - good enough for orthogonal rotations
         const w = (obj.rotation % 180 === 0 ? obj.w : obj.h) * zoom;
         const h = (obj.rotation % 180 === 0 ? obj.h : obj.w) * zoom;
 
@@ -195,7 +193,6 @@ export default function EstimatorClient() {
         maxPY = Math.max(maxPY, top + h);
       });
 
-      // Add padding (20px)
       const padding = 20;
       const captureX = minPX - padding;
       const captureY = minPY - padding;
@@ -215,8 +212,6 @@ export default function EstimatorClient() {
           const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
           if (clonedCanvas) {
             clonedCanvas.style.backgroundImage = 'none';
-            clonedCanvas.style.width = '10000px'; 
-            clonedCanvas.style.height = '10000px';
           }
           const allDesignElements = clonedDoc.querySelectorAll('.design-object-container');
           allDesignElements.forEach(el => {
@@ -275,9 +270,9 @@ export default function EstimatorClient() {
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
-      if (obj?.isJoined) {
-          // If locked, prevent manual input updates too
-          if (interactionMode === 'none' && !updates.isJoined) return prev;
+      // BUG FIX: If the object is locked (isJoined), only allow the update if it's changing the isJoined status itself
+      if (obj?.isJoined && updates.isJoined === undefined) {
+          return prev;
       }
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
@@ -784,3 +779,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-24 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
+    
