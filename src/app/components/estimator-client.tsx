@@ -166,6 +166,11 @@ export default function EstimatorClient() {
     const canvas = document.getElementById('canvas-workspace-inner');
     if (!canvas) return;
 
+    if (selectedObjectIds.length === 0) {
+      toast({ variant: "destructive", title: "সিলেক্ট করুন", description: "ইমেজ কপি করার জন্য অন্তত একটি অবজেক্ট সিলেক্ট করুন।" });
+      return;
+    }
+
     try {
       // Temporarily hide UI elements for clean capture
       const handles = document.querySelectorAll('.rotation-handle');
@@ -175,6 +180,27 @@ export default function EstimatorClient() {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
+        logging: false,
+        onclone: (clonedDoc) => {
+          // In the clone, hide all objects NOT selected
+          const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
+          if (clonedCanvas) {
+            // Remove the grid for a clean "one page" look
+            clonedCanvas.style.backgroundImage = 'none';
+          }
+          const allDesignElements = clonedDoc.querySelectorAll('.design-object-container');
+          allDesignElements.forEach(el => {
+             const id = el.getAttribute('data-id');
+             if (id && !selectedObjectIds.includes(id)) {
+               (el as HTMLElement).style.display = 'none';
+             }
+          });
+          // Hide rulers and other UI in the clone
+          clonedDoc.querySelectorAll('.ruler-container').forEach(r => (r as HTMLElement).style.display = 'none');
+          clonedDoc.querySelectorAll('.dimension-label').forEach(d => {
+            if (!showDimensions) (d as HTMLElement).style.display = 'none';
+          });
+        }
       });
 
       capture.toBlob(async (blob) => {
@@ -183,7 +209,7 @@ export default function EstimatorClient() {
             await navigator.clipboard.write([
               new ClipboardItem({ 'image/png': blob })
             ]);
-            toast({ title: "ইমেজ কপি সফল", description: "এখন Word বা Excel ফাইলে Ctrl+V চেপে পেস্ট করুন।" });
+            toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অবজেক্টগুলো এক পাতায় ইমেজ হিসেবে কপি হয়েছে। Word ফাইলে Ctrl+V চেপে পেস্ট করুন।" });
           } catch (err) {
             toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ কপি করা যায়নি।" });
           }
@@ -457,7 +483,7 @@ export default function EstimatorClient() {
       for (let i = 0; i < sorted.length - 1; i++) {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
-        if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center" style={{ left: c1x * zoom + CANVAS_OFFSET, top: (c1y - 1.2) * zoom + CANVAS_OFFSET, width: dist * zoom }}>
+        if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * zoom + CANVAS_OFFSET, top: (c1y - 1.2) * zoom + CANVAS_OFFSET, width: dist * zoom }}>
           <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center">
             <div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
             <div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
@@ -473,7 +499,7 @@ export default function EstimatorClient() {
       for (let i = 0; i < sorted.length - 1; i++) {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
-        if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center" style={{ left: (c1x - 1.2) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom }}>
+        if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center dimension-label" style={{ left: (c1x - 1.2) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom }}>
           <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center">
             <div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
             <div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
@@ -486,7 +512,7 @@ export default function EstimatorClient() {
   };
 
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => (
-    <div className={cn("bg-slate-50 border-slate-200 overflow-hidden", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
+    <div className={cn("bg-slate-50 border-slate-200 overflow-hidden ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
       {Array.from({ length: 100 }).map((_, t) => (
         <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: t * 4 * zoom + CANVAS_OFFSET, top: 0 } : { top: t * 4 * zoom + CANVAS_OFFSET, left: 0 }}>
           <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
@@ -579,6 +605,7 @@ export default function EstimatorClient() {
 
   const getObjectStyle = (obj: DesignObject): React.CSSProperties => {
     let ox = 0, oy = 0;
+    // Fix: When rotation is 90, the object should grow to the right of its X coordinate, not spill left.
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
@@ -654,15 +681,15 @@ export default function EstimatorClient() {
               <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
-                  <div key={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} className={cn("absolute", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
+                  <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
                     {renderObjectContent(obj)}
                     {selectedObjectIds.includes(obj.id) && !obj.isJoined && !is3DMode && (
                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60] rotation-handle" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
                     )}
                     {showDimensions && !is3DMode && (
                       <>
-                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50]"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
-                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50]"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
+                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
+                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
                       </>
                     )}
                   </div>
