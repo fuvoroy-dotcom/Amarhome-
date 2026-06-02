@@ -270,7 +270,6 @@ export default function EstimatorClient() {
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
-      // BUG FIX: If the object is locked (isJoined), only allow the update if it's changing the isJoined status itself
       if (obj?.isJoined && updates.isJoined === undefined) {
           return prev;
       }
@@ -424,7 +423,7 @@ export default function EstimatorClient() {
             const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
         }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
-        else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
+        else if (selectedtool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
         else if (selectedTool.startsWith('door')) addObjectAt('opening', selectedTool, 'Door', snappedX, snappedY);
         else if (selectedTool === 'sliding-door') addObjectAt('opening', 'sliding-door', 'Sliding Door', snappedX, snappedY);
         else if (selectedTool === 'double-door') addObjectAt('opening', 'double-door', 'Double Door', snappedX, snappedY);
@@ -537,7 +536,7 @@ export default function EstimatorClient() {
   };
 
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => (
-    <div className={cn("bg-slate-50 border-slate-200 overflow-hidden ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
+    <div className={cn("bg-slate-50 border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
       {Array.from({ length: 100 }).map((_, t) => (
         <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: t * 4 * zoom + CANVAS_OFFSET, top: 0 } : { top: t * 4 * zoom + CANVAS_OFFSET, left: 0 }}>
           <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
@@ -656,41 +655,43 @@ export default function EstimatorClient() {
   return (
     <div className="w-full h-screen bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
-        <div className="flex items-center gap-6"><Building className="w-5 h-5 text-blue-400" /><span className="font-bold text-xs uppercase tracking-tighter">Architectural Pro Studio</span></div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-slate-700 px-3 py-1 rounded-md">
-            <span className="text-[10px] font-bold uppercase">3D View</span>
-            <Switch checked={is3DMode} onCheckedChange={setIs3DMode} className="scale-75" />
+        <div className="flex items-center gap-2 md:gap-6"><Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" /><span className="font-bold text-[10px] md:text-xs uppercase tracking-tighter">Architectural Pro Studio</span></div>
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-1 md:gap-2 bg-slate-700 px-2 md:px-3 py-1 rounded-md">
+            <span className="text-[8px] md:text-[10px] font-bold uppercase">3D View</span>
+            <Switch checked={is3DMode} onCheckedChange={setIs3DMode} className="scale-50 md:scale-75" />
           </div>
-          <Button variant="ghost" size="sm" onClick={saveToFirestore}><Save className="w-4 h-4 mr-2"/> SAVE</Button>
-          <User className="w-5 h-5 text-slate-400" />
+          <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2"/> SAVE</Button>
+          <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
         </div>
       </div>
-      <div className="h-16 bg-white border-b flex items-center px-4 gap-1 shrink-0 shadow-sm z-40 overflow-x-auto">
+      <div className="h-14 md:h-16 bg-white border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
         <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} /><RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
-        <div className="w-px h-8 bg-slate-200 mx-2" />
+        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
-        <RibbonButton icon={<ImageIcon />} label="Copy as Image" onClick={copyAsImage} />
+        <RibbonButton icon={<ImageIcon />} label="As Image" onClick={copyAsImage} />
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
-        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
-        <div className="w-px h-8 bg-slate-200 mx-2" /><RibbonButton icon={<Pencil />} label="Wall" active={selectedTool === 'wall'} onClick={() => setSelectedTool('wall')} />
-        <RibbonButton icon={<Square />} label="Room" active={selectedTool === 'room'} onClick={() => setSelectedTool('room')} />
-        <RibbonButton icon={<PillarIcon />} label="Pillar" active={selectedTool === 'pillar'} onClick={() => setSelectedTool('pillar')} />
-        <RibbonButton icon={<Rows />} label="Stair" active={selectedTool === 'stair'} onClick={() => setSelectedTool('stair')} />
-        <RibbonButton icon={<TypeIcon />} label="Label" active={selectedTool === 'label'} onClick={() => setSelectedTool('label')} />
-        <div className="w-px h-8 bg-slate-200 mx-2" /><Button variant="outline" size="sm" className="text-destructive" onClick={deleteSelected}><Trash2 className="w-4 h-4" /> Delete</Button>
+        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" /><RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
+        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
+        <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2" onClick={deleteSelected}><Trash2 className="w-4 h-4" /><span className="text-[8px] uppercase font-bold mt-1">Delete</span></Button>
       </div>
-      <div className="flex-1 flex overflow-hidden relative">
-        <div className="w-[200px] bg-slate-50 border-r z-30 shrink-0 flex flex-col shadow-inner">
-          <div className="p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
-          <ScrollArea className="flex-1 p-3">
-            <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
-            <div className="pt-4 border-t space-y-2 mt-4"><Label className="text-[10px] font-bold text-slate-400 uppercase">Openings</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="Swing TL" onClick={() => setSelectedTool('door-1')} />
-                <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="Swing TR" onClick={() => setSelectedTool('door-2')} />
-                <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="Swing BL" onClick={() => setSelectedTool('door-3')} />
-                <SymbolButton active={selectedTool === 'door-4'} icon={<DoorOpen />} label="Swing BR" onClick={() => setSelectedTool('door-4')} />
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner">
+          <div className="hidden md:block p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
+          <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
+            <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
+              <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
+              <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} />
+              <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} />
+              <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} />
+              <SymbolButton active={selectedTool === 'stair'} icon={<Rows />} label="Stair" onClick={() => setSelectedTool('stair')} />
+              <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} />
+              <div className="w-px h-8 bg-slate-200 mx-1 md:hidden" />
+              <div className="flex md:flex-col gap-2 items-center md:items-stretch">
+                <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="Door 1" onClick={() => setSelectedTool('door-1')} />
+                <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="Door 2" onClick={() => setSelectedTool('door-2')} />
+                <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="Door 3" onClick={() => setSelectedTool('door-3')} />
+                <SymbolButton active={selectedTool === 'door-4'} icon={<DoorOpen />} label="Door 4" onClick={() => setSelectedTool('door-4')} />
                 <SymbolButton active={selectedTool === 'double-door'} icon={<LayoutGrid />} label="Double" onClick={() => setSelectedTool('double-door')} />
                 <SymbolButton active={selectedTool === 'sliding-door'} icon={<RectangleHorizontal />} label="Sliding" onClick={() => setSelectedTool('sliding-door')} />
                 <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="Window" onClick={() => setSelectedTool('window')} />
@@ -728,39 +729,39 @@ export default function EstimatorClient() {
             </div>
           </div>
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 5))} />
-              <Slider value={[zoom]} max={250} min={10} step={1} className="w-32" onValueChange={(val) => setZoom(val[0])} />
+              <Slider value={[zoom]} max={250} min={10} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
-              <span className="text-[9px] font-bold text-slate-400 uppercase ml-2">{Math.round(zoom)}%</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase ml-1 md:ml-2">{Math.round(zoom)}%</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-500">Show Dimensions</span>
-              <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} />
+            <div className="flex items-center gap-1 md:gap-2">
+              <span className="text-[8px] md:text-[10px] font-bold text-slate-500">Dimensions</span>
+              <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" />
             </div>
           </div>
-          <div className="h-14 bg-white border-t flex items-center px-4 gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
+          <div className="h-14 bg-white border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
-              <div className="flex items-center gap-6 min-w-max">
-                <div className="flex items-center gap-2 pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75" /><span className="text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত (Lock)</span></div>
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4 md:gap-6 min-w-max">
+                <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-50 md:scale-75" /><span className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত</span></div>
+                <div className="flex items-center gap-2 md:gap-3">
                   <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
-                  <PropField label="W (দৈর্ঘ্য)" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
-                  <PropField label="H (প্রস্থ)" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
-                  <PropField label="কোণ (°)" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} disabled={firstSelectedObject.isJoined} />
+                  <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
+                  <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
+                  <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} disabled={firstSelectedObject.isJoined} />
                   {firstSelectedObject.subType === 'stair' && (
-                    <PropField label="ধাপের সংখ্যা" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} disabled={firstSelectedObject.isJoined} />
+                    <PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} disabled={firstSelectedObject.isJoined} />
                   )}
                   {firstSelectedObject.type === 'text' && (
-                    <PropField label="লেবেল টেক্সট" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} disabled={firstSelectedObject.isJoined} />
+                    <PropField label="টেক্সট" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} disabled={firstSelectedObject.isJoined} />
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 border-l pl-4">
-                  {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
+                <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
+                  {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-4 h-4 md:w-5 md:h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
                 </div>
               </div>
-            ) : <div className="flex items-center justify-center w-full text-slate-300 italic text-[10px] uppercase tracking-widest font-medium">অবজেক্ট সিলেক্ট করুন</div>}
+            ) : <div className="flex items-center justify-center w-full text-slate-300 italic text-[9px] md:text-[10px] uppercase tracking-widest font-medium">অবজেক্ট সিলেক্ট করুন</div>}
           </div>
         </div>
       </div>
@@ -769,14 +770,13 @@ export default function EstimatorClient() {
 }
 
 function RibbonButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
-  return <Button variant="ghost" className={cn("h-14 flex flex-col gap-1 px-3", active && "bg-slate-100 text-blue-600")} onClick={onClick}>{React.cloneElement(icon as React.ReactElement, { className: "w-4.5 h-4.5" })}<span className="text-[9px] uppercase font-bold tracking-tight">{label}</span></Button>;
+  return <Button variant="ghost" className={cn("h-12 md:h-14 flex flex-col gap-0.5 md:gap-1 px-2 md:px-3", active && "bg-slate-100 text-blue-600")} onClick={onClick}>{React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-4.5 md:h-4.5" })}<span className="text-[8px] md:text-[9px] uppercase font-bold tracking-tight">{label}</span></Button>;
 }
 
 function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
-  return <div onClick={onClick} className={cn("flex items-center gap-2 p-2 rounded-md cursor-pointer border transition-all", active ? "bg-blue-600 text-white border-blue-600 shadow-md" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50")}><div className="shrink-0">{icon}</div><span className="text-[10px] font-bold uppercase">{label}</span></div>;
+  return <div onClick={onClick} className={cn("flex items-center gap-2 p-1.5 md:p-2 rounded-md cursor-pointer border transition-all", active ? "bg-blue-600 text-white border-blue-600 shadow-md" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50")}><div className="shrink-0 scale-75 md:scale-100">{icon}</div><span className="text-[8px] md:text-[10px] font-bold uppercase whitespace-nowrap">{label}</span></div>;
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-300 uppercase min-w-[50px]">{label}</span><Input className="h-7 w-24 text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
+  return <div className="flex items-center gap-1"><span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[15px] md:min-w-[50px]">{label}</span><Input className="h-6 md:h-7 w-16 md:w-24 text-[9px] md:text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
-    
