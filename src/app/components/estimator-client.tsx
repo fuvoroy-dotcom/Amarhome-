@@ -207,30 +207,22 @@ export default function EstimatorClient() {
         height: captureH,
         onclone: (clonedDoc) => {
           const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
-          if (clonedCanvas) {
-            clonedCanvas.style.backgroundImage = 'none';
-          }
+          if (clonedCanvas) clonedCanvas.style.backgroundImage = 'none';
           const allDesignElements = clonedDoc.querySelectorAll('.design-object-container');
           allDesignElements.forEach(el => {
              const id = el.getAttribute('data-id');
-             if (id && !selectedObjectIds.includes(id)) {
-               (el as HTMLElement).style.display = 'none';
-             }
+             if (id && !selectedObjectIds.includes(id)) (el as HTMLElement).style.display = 'none';
           });
           clonedDoc.querySelectorAll('.ruler-container').forEach(r => (r as HTMLElement).style.display = 'none');
           clonedDoc.querySelectorAll('.rotation-handle').forEach(h => (h as HTMLElement).style.display = 'none');
-          if (!showDimensions) {
-            clonedDoc.querySelectorAll('.dimension-label').forEach(d => (d as HTMLElement).style.display = 'none');
-          }
+          if (!showDimensions) clonedDoc.querySelectorAll('.dimension-label').forEach(d => (d as HTMLElement).style.display = 'none');
         }
       });
 
       capture.toBlob(async (blob) => {
         if (blob) {
           try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ]);
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
             toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অংশটি এক পাতায় ইমেজ হিসেবে কপি হয়েছে। Word-এ Ctrl+V দিয়ে পেস্ট করুন।" });
           } catch (err) {
             toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ কপি করা যায়নি।" });
@@ -267,9 +259,13 @@ export default function EstimatorClient() {
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
-      if (obj?.isJoined && updates.isJoined === undefined) {
-          return prev;
-      }
+      if (!obj) return prev;
+      
+      // Allow rotation, text, and step updates even if joined for precision
+      const isPropUpdate = updates.rotation !== undefined || updates.textContent !== undefined || updates.stepCount !== undefined || updates.isJoined !== undefined;
+      
+      if (obj.isJoined && !isPropUpdate) return prev;
+      
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
       return next;
@@ -362,7 +358,7 @@ export default function EstimatorClient() {
       }
     };
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => { container.removeEventListener('wheel', handleNativeWheel); };
+    return () => container.removeEventListener('wheel', handleNativeWheel);
   }, []);
 
   useEffect(() => {
@@ -384,7 +380,7 @@ export default function EstimatorClient() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => { window.removeEventListener('keydown', handleKeyDown); };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deleteSelected, undo, redo, copySelected, enterPasteMode, saveToFirestore, moveSelectedWithArrows, selectAll]);
 
   const getCoords = (e: React.MouseEvent | React.TouchEvent) => {
@@ -395,17 +391,12 @@ export default function EstimatorClient() {
     let clientX, clientY;
     if ('touches' in e) {
       if (e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
+        clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
       } else if ('changedTouches' in e && e.changedTouches.length > 0) {
-        clientX = e.changedTouches[0].clientX;
-        clientY = e.changedTouches[0].clientY;
-      } else {
-        return null;
-      }
+        clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY;
+      } else return null;
     } else {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
+      clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY;
     }
 
     const curX = (clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
@@ -510,7 +501,7 @@ export default function EstimatorClient() {
       const yMin = Math.min(selectionBox.y1, selectionBox.y2), yMax = Math.max(selectionBox.y1, selectionBox.y2);
       const inBox = designObjects.filter(obj => obj.x >= xMin && obj.x <= xMax && obj.y >= yMin && obj.y <= yMax).map(o => o.id);
       setSelectedObjectIds(inBox); setSelectionBox(null);
-    } else if (interactionMode !== 'none' && interactionMode !== 'pasting') { saveToHistory(designObjects); }
+    } else if (interactionMode !== 'none' && interactionMode !== 'pasting') saveToHistory(designObjects);
     if (interactionMode !== 'pasting') setInteractionMode('none');
   };
 
@@ -531,22 +522,6 @@ export default function EstimatorClient() {
             <div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
             <div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
             <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4">{formatFeetInches(dist)}</div>
-          </div>
-        </div>);
-      }
-    });
-    const xGroups: { x: number, items: DesignObject[] }[] = [];
-    pillars.forEach(p => { let g = xGroups.find(gr => Math.abs(gr.x - p.x) < TOL); if (g) g.items.push(p); else xGroups.push({ x: p.x, items: [p] }); });
-    xGroups.forEach(g => {
-      const sorted = [...g.items].sort((a, b) => a.y - b.y);
-      for (let i = 0; i < sorted.length - 1; i++) {
-        const p1 = sorted[i], p2 = sorted[i+1];
-        const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
-        if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center dimension-label" style={{ left: (c1x - 1.2) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom }}>
-          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center">
-            <div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
-            <div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
-            <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-x-10 rotate-90">{formatFeetInches(dist)}</div>
           </div>
         </div>);
       }
@@ -658,16 +633,10 @@ export default function EstimatorClient() {
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : 'move', zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
       transition: 'transform 0.3s ease'
     };
-
     if (is3DMode) {
       const height3D = (obj.subType === 'wall' || obj.subType === 'pillar') ? 100 : 5;
-      return {
-        ...baseStyle,
-        transform: `perspective(1000px) rotateX(45deg) rotateZ(-20deg) translateZ(${height3D}px)`,
-        boxShadow: `5px 5px 15px rgba(0,0,0,0.3)`
-      };
+      return { ...baseStyle, transform: `perspective(1000px) rotateX(45deg) rotateZ(-20deg) translateZ(${height3D}px)`, boxShadow: `5px 5px 15px rgba(0,0,0,0.3)` };
     }
-    
     return baseStyle;
   };
 
@@ -720,10 +689,11 @@ export default function EstimatorClient() {
         </div>
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
-          <div className="flex-1 flex overflow-hidden"><Ruler orientation="vertical" />
+          <div className="flex-1 flex overflow-hidden">
+            <Ruler orientation="vertical" />
             <div 
               id="canvas-workspace-inner" 
-              className="flex-1 relative bg-white overflow-auto cursor-crosshair touch-none" 
+              className="flex-1 relative bg-white overflow-auto cursor-crosshair" 
               onMouseDown={(e) => handleMouseDown(e, null)} 
               onMouseMove={handleMouseMove} 
               onMouseUp={handleMouseUp}
@@ -731,7 +701,7 @@ export default function EstimatorClient() {
               onTouchMove={handleMouseMove}
               onTouchEnd={handleMouseUp}
             >
-              <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
+              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
                   <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onTouchStart={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
@@ -777,12 +747,12 @@ export default function EstimatorClient() {
                   <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
-                  <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} disabled={firstSelectedObject.isJoined} />
+                  <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
                   {firstSelectedObject.subType === 'stair' && (
-                    <PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} disabled={firstSelectedObject.isJoined} />
+                    <PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />
                   )}
                   {firstSelectedObject.type === 'text' && (
-                    <PropField label="টেক্সট" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} disabled={firstSelectedObject.isJoined} />
+                    <PropField label="টেক্সট" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />
                   )}
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
