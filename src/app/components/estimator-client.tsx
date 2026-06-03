@@ -3,18 +3,15 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { 
-  Building, Plus, LayoutGrid, 
-  RectangleHorizontal, RefreshCw, Trash2, 
-  Download, Clipboard as ClipboardIcon, Copy as CopyIcon, Scissors, Undo2, Redo2,
-  Settings2, Move, Pencil, ZoomIn, ZoomOut, Maximize2,
-  ChevronDown, PaintBucket, Layers, FlipHorizontal, FlipVertical,
-  BringToFront, SendToBack, GripHorizontal, Menu as MenuIcon,
-  Paintbrush, Star, RotateCw, Folder, FilePlus, FolderOpen, Save, Printer, Settings, User,
-  Grid, Briefcase, Database, Sparkles, Search, PenLine, Box, Type as TypeIcon,
-  Ruler as RulerIcon, Info, Circle, Triangle, Diamond, ArrowRight, Hexagon, Octagon,
-  Bold, MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
-  Link, Link2, Unlink, ArrowUpRight, SplitSquareVertical, Image as ImageIcon,
-  Eye, EyeOff, RotateCcw, Rows
+  Building, LayoutGrid, 
+  RectangleHorizontal, Trash2, 
+  Clipboard as ClipboardIcon, Copy as CopyIcon, Undo2, Redo2,
+  Pencil, ZoomIn, ZoomOut,
+  RotateCw, Save, User,
+  Type as TypeIcon,
+  MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
+  Image as ImageIcon,
+  Rows
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -390,12 +387,36 @@ export default function EstimatorClient() {
     return () => { window.removeEventListener('keydown', handleKeyDown); };
   }, [deleteSelected, undo, redo, copySelected, enterPasteMode, saveToFirestore, moveSelectedWithArrows, selectAll]);
 
-  const handleMouseDown = (e: React.MouseEvent, id: string | null) => {
+  const getCoords = (e: React.MouseEvent | React.TouchEvent) => {
     const container = document.getElementById('canvas-workspace-inner');
     const rect = container?.getBoundingClientRect();
-    if (!rect || !container) return;
-    const curX = (e.clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
-    const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
+    if (!rect || !container) return null;
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+      if (e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else {
+        return null;
+      }
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
+    const curX = (clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
+    const curY = (clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
+    return { x: curX, y: curY };
+  };
+
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, id: string | null) => {
+    const coords = getCoords(e);
+    if (!coords) return;
+    const { x: curX, y: curY } = coords;
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
 
@@ -423,7 +444,7 @@ export default function EstimatorClient() {
             const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
         }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
-        else if (selectedtool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
+        else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
         else if (selectedTool.startsWith('door')) addObjectAt('opening', selectedTool, 'Door', snappedX, snappedY);
         else if (selectedTool === 'sliding-door') addObjectAt('opening', 'sliding-door', 'Sliding Door', snappedX, snappedY);
         else if (selectedTool === 'double-door') addObjectAt('opening', 'double-door', 'Double Door', snappedX, snappedY);
@@ -434,10 +455,10 @@ export default function EstimatorClient() {
     }
 
     if (id) {
-      e.stopPropagation();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
       const obj = designObjects.find(o => o.id === id);
       if (!obj) return;
-      let newSelection = (e.ctrlKey || e.metaKey) ? (selectedObjectIds.includes(id) ? selectedObjectIds.filter(sid => sid !== id) : [...selectedObjectIds, id]) : [id];
+      let newSelection = (e.ctrlKey || (e as any).metaKey) ? (selectedObjectIds.includes(id) ? selectedObjectIds.filter(sid => sid !== id) : [...selectedObjectIds, id]) : [id];
       setSelectedObjectIds(newSelection);
       if (obj.isJoined) return;
       setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
@@ -447,12 +468,10 @@ export default function EstimatorClient() {
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const container = document.getElementById('canvas-workspace-inner');
-    const rect = container?.getBoundingClientRect();
-    if (!rect || !container) return;
-    const curX = (e.clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
-    const curY = (e.clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
+  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const coords = getCoords(e);
+    if (!coords) return;
+    const { x: curX, y: curY } = coords;
 
     if (interactionMode === 'drawing' && drawStart) {
       let endX = curX, endY = curY;
@@ -702,14 +721,23 @@ export default function EstimatorClient() {
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
           <div className="flex-1 flex overflow-hidden"><Ruler orientation="vertical" />
-            <div id="canvas-workspace-inner" className="flex-1 relative bg-white overflow-auto cursor-crosshair" onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+            <div 
+              id="canvas-workspace-inner" 
+              className="flex-1 relative bg-white overflow-auto cursor-crosshair touch-none" 
+              onMouseDown={(e) => handleMouseDown(e, null)} 
+              onMouseMove={handleMouseMove} 
+              onMouseUp={handleMouseUp}
+              onTouchStart={(e) => handleMouseDown(e, null)}
+              onTouchMove={handleMouseMove}
+              onTouchEnd={handleMouseUp}
+            >
               <div className="absolute inset-0" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
-                  <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
+                  <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onTouchStart={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
                     {renderObjectContent(obj)}
                     {selectedObjectIds.includes(obj.id) && !obj.isJoined && !is3DMode && (
-                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60] rotation-handle" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
+                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60] rotation-handle" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }} onTouchStart={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
                     )}
                     {showDimensions && !is3DMode && (
                       <>
