@@ -445,9 +445,6 @@ export default function EstimatorClient() {
         const scale = dist / startDist;
         const newZoom = Math.min(250, Math.max(10, startZoom * scale));
         setZoom(newZoom);
-      } else if (e.touches.length === 1 && interactionMode === 'none') {
-        // Disable single-finger canvas panning/scrolling by default
-        // e.preventDefault(); // Removed to allow scrolling through buttons
       }
     };
 
@@ -460,7 +457,7 @@ export default function EstimatorClient() {
       container.removeEventListener('touchstart', handleTouchStartGlobal);
       container.removeEventListener('touchmove', handleTouchMoveGlobal);
     };
-  }, [zoom, interactionMode]);
+  }, [zoom]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -583,7 +580,7 @@ export default function EstimatorClient() {
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
       updateObject(firstSelectedObject.id, { rotation: Math.round(angle / 1) * 1 });
     } else if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
-      if (e.cancelable) e.preventDefault(); // Prevents canvas scroll while dragging object
+      if (e.cancelable) e.preventDefault();
       const mainId = selectedObjectIds[0];
       const mainObj = designObjects.find(o => o.id === mainId);
       if (!mainObj || mainObj.isJoined) return;
@@ -617,6 +614,8 @@ export default function EstimatorClient() {
     if (pillars.length < 2) return null;
     const dims: React.ReactNode[] = [];
     const TOL = 1.0;
+
+    // Horizontal distances (Grouped by Y)
     const yGroups: { y: number, items: DesignObject[] }[] = [];
     pillars.forEach(p => { let g = yGroups.find(gr => Math.abs(gr.y - p.y) < TOL); if (g) g.items.push(p); else yGroups.push({ y: p.y, items: [p] }); });
     yGroups.forEach(g => {
@@ -633,6 +632,25 @@ export default function EstimatorClient() {
         </div>);
       }
     });
+
+    // Vertical distances (Grouped by X)
+    const xGroups: { x: number, items: DesignObject[] }[] = [];
+    pillars.forEach(p => { let g = xGroups.find(gr => Math.abs(gr.x - p.x) < TOL); if (g) g.items.push(p); else xGroups.push({ x: p.x, items: [p] }); });
+    xGroups.forEach(g => {
+      const sorted = [...g.items].sort((a, b) => a.y - b.y);
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const p1 = sorted[i], p2 = sorted[i+1];
+        const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
+        if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center justify-center dimension-label" style={{ left: (c1x + 0.8) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom, width: 20 }}>
+          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center">
+            <div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
+            <div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
+            <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4">{formatFeetInches(dist)}</div>
+          </div>
+        </div>);
+      }
+    });
+
     return dims;
   };
 
