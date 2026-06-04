@@ -445,7 +445,7 @@ export default function EstimatorClient() {
         );
         
         const deltaDist = dist - startDist;
-        const zoomChange = Math.floor(deltaDist / 20) * 10; 
+        const zoomChange = Math.floor(deltaDist / 20) * 10; // Controlled 10 unit steps
         
         if (zoomChange !== 0) {
             setZoom(Math.min(250, Math.max(10, startZoom + zoomChange)));
@@ -579,8 +579,10 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'panning' && lastPanPos && canvasRef.current) {
       if (e.cancelable) e.preventDefault();
-      const dx = rawX - lastPanPos.x;
-      const dy = rawY - lastPanPos.y;
+      // Added sensitivity multiplier for faster panning
+      const sensitivity = 1.5;
+      const dx = (rawX - lastPanPos.x) * sensitivity;
+      const dy = (rawY - lastPanPos.y) * sensitivity;
       canvasRef.current.scrollLeft -= dx;
       canvasRef.current.scrollTop -= dy;
       setLastPanPos({ x: rawX, y: rawY });
@@ -870,7 +872,7 @@ export default function EstimatorClient() {
             <div 
               ref={canvasRef}
               id="canvas-workspace-inner" 
-              className="flex-1 relative bg-white overflow-hidden cursor-crosshair scroll-smooth" 
+              className="flex-1 relative bg-white overflow-hidden cursor-crosshair" 
               onMouseDown={(e) => handleMouseDown(e, null)} 
               onMouseMove={handleMouseMove} 
               onMouseUp={handleMouseUp}
