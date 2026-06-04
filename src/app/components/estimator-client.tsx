@@ -261,9 +261,7 @@ export default function EstimatorClient() {
       const obj = prev.find(o => o.id === id);
       if (!obj) return prev;
       
-      // Allow rotation, text, and step updates even if joined for precision
       const isPropUpdate = updates.rotation !== undefined || updates.textContent !== undefined || updates.stepCount !== undefined || updates.isJoined !== undefined;
-      
       if (obj.isJoined && !isPropUpdate) return prev;
       
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
@@ -641,7 +639,7 @@ export default function EstimatorClient() {
   };
 
   return (
-    <div className="w-full h-screen bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
+    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6"><Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" /><span className="font-bold text-[10px] md:text-xs uppercase tracking-tighter">Architectural Pro Studio</span></div>
         <div className="flex items-center gap-2 md:gap-4">
@@ -664,7 +662,7 @@ export default function EstimatorClient() {
         <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2" onClick={deleteSelected}><Trash2 className="w-4 h-4" /><span className="text-[8px] uppercase font-bold mt-1">Delete</span></Button>
       </div>
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner">
+        <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <div className="hidden md:block p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
           <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
             <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
