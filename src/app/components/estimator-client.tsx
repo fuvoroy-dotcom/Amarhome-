@@ -421,7 +421,7 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -10 : 10; // 10 units step
+        const delta = e.deltaY > 0 ? -10 : 10; 
         setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
       }
     };
@@ -444,7 +444,6 @@ export default function EstimatorClient() {
           e.touches[0].clientY - e.touches[1].clientY
         );
         
-        // Calculate discrete step based zoom
         const deltaDist = dist - startDist;
         const zoomChange = Math.floor(deltaDist / 20) * 10; 
         
@@ -513,9 +512,11 @@ export default function EstimatorClient() {
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
 
-    if (selectedTool === 'move' && !id) {
+    // Move tool should always pan, even over objects
+    if (selectedTool === 'move') {
       setInteractionMode('panning');
       setLastPanPos({ x: rawX, y: rawY });
+      if (e.cancelable) e.preventDefault();
       return;
     }
 
@@ -778,7 +779,7 @@ export default function EstimatorClient() {
     const baseStyle: React.CSSProperties = { 
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
-      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : 'move', zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
+      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
       transition: 'transform 0.3s ease',
       touchAction: 'none'
     };
