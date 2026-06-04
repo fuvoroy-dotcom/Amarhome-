@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { 
   Building, LayoutGrid, 
   RectangleHorizontal, Trash2, 
@@ -66,6 +66,7 @@ const CANVAS_OFFSET = 40;
 
 export default function EstimatorClient() {
   const { toast } = useToast();
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<DesignObject[]>([]);
@@ -81,6 +82,10 @@ export default function EstimatorClient() {
   const [showDimensions, setShowDimensions] = useState(true);
   const [is3DMode, setIs3DMode] = useState(false);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
+
+  // Touch Zoom Persistence
+  const touchStartDistRef = useRef<number | null>(null);
+  const touchStartZoomRef = useRef<number>(zoom);
 
   // Persistence States
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
@@ -277,7 +282,6 @@ export default function EstimatorClient() {
   }, [designObjects, projectName, currentDesignId, toast]);
 
   const handleNewPage = () => {
-    // Optional: Auto-save current before reset
     if (designObjects.length > 0) {
       saveToFirestore();
     }
@@ -401,9 +405,11 @@ export default function EstimatorClient() {
     saveToHistory(next);
   }, [designObjects, currentWallThickness, saveToHistory]);
 
+  // Touch Zoom and Prevention
   useEffect(() => {
-    const container = document.getElementById('canvas-workspace-inner');
+    const container = canvasRef.current;
     if (!container) return;
+
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -411,9 +417,48 @@ export default function EstimatorClient() {
         setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
       }
     };
+
+    const handleTouchStartGlobal = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault(); // Stop native pinch zoom
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        touchStartDistRef.current = dist;
+        touchStartZoomRef.current = zoom;
+      }
+    };
+
+    const handleTouchMoveGlobal = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touchStartDistRef.current !== null) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const scale = dist / touchStartDistRef.current;
+        const newZoom = Math.min(250, Math.max(10, touchStartZoomRef.current * scale));
+        setZoom(newZoom);
+      }
+    };
+
+    const handleTouchEndGlobal = () => {
+      touchStartDistRef.current = null;
+    };
+
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleNativeWheel);
-  }, []);
+    container.addEventListener('touchstart', handleTouchStartGlobal, { passive: false });
+    container.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
+    container.addEventListener('touchend', handleTouchEndGlobal);
+
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel);
+      container.removeEventListener('touchstart', handleTouchStartGlobal);
+      container.removeEventListener('touchmove', handleTouchMoveGlobal);
+      container.removeEventListener('touchend', handleTouchEndGlobal);
+    };
+  }, [zoom]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -438,16 +483,14 @@ export default function EstimatorClient() {
   }, [deleteSelected, undo, redo, copySelected, enterPasteMode, saveToFirestore, moveSelectedWithArrows, selectAll]);
 
   const getCoords = (e: React.MouseEvent | React.TouchEvent) => {
-    const container = document.getElementById('canvas-workspace-inner');
+    const container = canvasRef.current;
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return null;
     
     let clientX, clientY;
     if ('touches' in e) {
-      if (e.touches.length > 0) {
+      if (e.touches.length === 1) {
         clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
-      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
-        clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY;
       } else return null;
     } else {
       clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY;
@@ -695,7 +738,8 @@ export default function EstimatorClient() {
   };
 
   return (
-    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
+    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none">
+      {/* Header Bar - Fixed Height */}
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
@@ -717,6 +761,8 @@ export default function EstimatorClient() {
           <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
         </div>
       </div>
+
+      {/* Ribbon Bar - Fixed Height */}
       <div className="h-14 md:h-16 bg-white border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
         <RibbonButton icon={<FilePlus className="text-blue-500" />} label="New" onClick={handleNewPage} />
         <RibbonButton icon={<FolderOpen className="text-amber-500" />} label="Open" onClick={fetchSavedDesigns} />
@@ -736,7 +782,9 @@ export default function EstimatorClient() {
         </Button>
       </div>
 
+      {/* Main Content Area - Flex-1 and Overflow Hidden */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        {/* Sidebar/Toolbox - Mobile: Horizontal Scroll Row, PC: Vertical Column */}
         <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
             <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
@@ -760,13 +808,15 @@ export default function EstimatorClient() {
           </ScrollArea>
         </div>
 
+        {/* Canvas Area Container - Overflow Hidden to prevent main scroll */}
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
           <div className="flex-1 flex overflow-hidden">
             <Ruler orientation="vertical" />
             <div 
+              ref={canvasRef}
               id="canvas-workspace-inner" 
-              className="flex-1 relative bg-white overflow-auto cursor-crosshair" 
+              className="flex-1 relative bg-white overflow-auto cursor-crosshair touch-none scroll-smooth" 
               onMouseDown={(e) => handleMouseDown(e, null)} 
               onMouseMove={handleMouseMove} 
               onMouseUp={handleMouseUp}
@@ -800,6 +850,7 @@ export default function EstimatorClient() {
             </div>
           </div>
 
+          {/* Bottom Controls Bar - Fixed Height */}
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 5))} />
@@ -813,6 +864,7 @@ export default function EstimatorClient() {
             </div>
           </div>
 
+          {/* Property Editor Bar - Fixed Height */}
           <div className="h-14 bg-white border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
               <div className="flex items-center gap-4 md:gap-6 min-w-max">
