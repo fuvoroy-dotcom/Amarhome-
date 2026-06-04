@@ -558,18 +558,22 @@ export default function EstimatorClient() {
     const { x: curX, y: curY } = coords;
 
     if (interactionMode === 'drawing' && drawStart) {
+      if (e.cancelable) e.preventDefault();
       let endX = curX, endY = curY;
       if (e.shiftKey || e.ctrlKey) { if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) endY = drawStart.y; else endX = drawStart.x; }
       setTempDrawEnd({ x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
     } else if (interactionMode === 'selecting' && selectionBox) {
+      if (e.cancelable) e.preventDefault();
       setSelectionBox(prev => prev ? { ...prev, x2: curX, y2: curY } : null);
     } else if (interactionMode === 'rotating' && firstSelectedObject) {
+      if (e.cancelable) e.preventDefault();
       if (firstSelectedObject.isJoined) return;
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
       updateObject(firstSelectedObject.id, { rotation: Math.round(angle / 1) * 1 });
     } else if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
+      if (e.cancelable) e.preventDefault();
       const mainId = selectedObjectIds[0];
       const mainObj = designObjects.find(o => o.id === mainId);
       if (!mainObj || mainObj.isJoined) return;
@@ -724,7 +728,8 @@ export default function EstimatorClient() {
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : 'move', zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
-      transition: 'transform 0.3s ease'
+      transition: 'transform 0.3s ease',
+      touchAction: 'none'
     };
     if (is3DMode) {
       const height3D = (obj.subType === 'wall' || obj.subType === 'pillar') ? 100 : 5;
@@ -734,8 +739,8 @@ export default function EstimatorClient() {
   };
 
   return (
-    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none">
-      {/* Header Bar - Fixed Height */}
+    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
+      {/* Header Bar - Fixed */}
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
@@ -758,7 +763,7 @@ export default function EstimatorClient() {
         </div>
       </div>
 
-      {/* Ribbon Bar - Fixed Height */}
+      {/* Ribbon Bar - Fixed */}
       <div className="h-14 md:h-16 bg-white border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
         <RibbonButton icon={<FilePlus className="text-blue-500" />} label="New" onClick={handleNewPage} />
         <RibbonButton icon={<FolderOpen className="text-amber-500" />} label="Open" onClick={fetchSavedDesigns} />
@@ -778,9 +783,9 @@ export default function EstimatorClient() {
         </Button>
       </div>
 
-      {/* Main Content Area - Flex-1 and Overflow Hidden */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        {/* Sidebar/Toolbox - Mobile: Horizontal Scroll Row, PC: Vertical Column */}
+        {/* Sidebar/Toolbox */}
         <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
             <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
@@ -804,10 +809,10 @@ export default function EstimatorClient() {
           </ScrollArea>
         </div>
 
-        {/* Canvas Area Container - Overflow Hidden to prevent main scroll */}
+        {/* Canvas Area Container */}
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex overflow-hidden relative">
             <Ruler orientation="vertical" />
             <div 
               ref={canvasRef}
@@ -846,7 +851,7 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Bottom Controls Bar - Fixed Height */}
+          {/* Bottom Controls Bar - Fixed */}
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 5))} />
@@ -860,7 +865,7 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Property Editor Bar - Fixed Height */}
+          {/* Property Editor Bar - Fixed */}
           <div className="h-14 bg-white border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
               <div className="flex items-center gap-4 md:gap-6 min-w-max">
