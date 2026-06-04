@@ -12,7 +12,8 @@ import {
   MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Image as ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  Hand
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -71,11 +72,12 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<DesignObject[]>([]);
-  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting' | 'pasting'>('none');
+  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting' | 'pasting' | 'panning'>('none');
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
+  const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
   const [zoom, setZoom] = useState(40);
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); // 5 inches
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -408,7 +410,7 @@ export default function EstimatorClient() {
     }
   };
 
-  // Touch Zoom and Prevention
+  // Touch Zoom and Panning Control
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
@@ -419,14 +421,13 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -4 : 4;
+        const delta = e.deltaY > 0 ? -10 : 10; // 10 units step
         setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
       }
     };
 
     const handleTouchStartGlobal = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        // Only allow multi-touch for zoom
         startDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
@@ -442,9 +443,14 @@ export default function EstimatorClient() {
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
-        const scale = dist / startDist;
-        const newZoom = Math.min(250, Math.max(10, startZoom * scale));
-        setZoom(newZoom);
+        
+        // Calculate discrete step based zoom
+        const deltaDist = dist - startDist;
+        const zoomChange = Math.floor(deltaDist / 20) * 10; 
+        
+        if (zoomChange !== 0) {
+            setZoom(Math.min(250, Math.max(10, startZoom + zoomChange)));
+        }
       }
     };
 
@@ -497,15 +503,21 @@ export default function EstimatorClient() {
 
     const curX = (clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
     const curY = (clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
-    return { x: curX, y: curY };
+    return { x: curX, y: curY, rawX: clientX, rawY: clientY };
   };
 
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, id: string | null) => {
     const coords = getCoords(e);
     if (!coords) return;
-    const { x: curX, y: curY } = coords;
+    const { x: curX, y: curY, rawX, rawY } = coords;
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
+
+    if (selectedTool === 'move' && !id) {
+      setInteractionMode('panning');
+      setLastPanPos({ x: rawX, y: rawY });
+      return;
+    }
 
     if (interactionMode === 'pasting' && clipboard.length > 0) {
       const minX = Math.min(...clipboard.map(obj => obj.x));
@@ -526,7 +538,7 @@ export default function EstimatorClient() {
       return;
     }
 
-    if (selectedTool !== 'select' && !id) {
+    if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
         if (selectedTool === 'wall') {
             const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
         }
@@ -562,7 +574,17 @@ export default function EstimatorClient() {
   const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
     const coords = getCoords(e);
     if (!coords) return;
-    const { x: curX, y: curY } = coords;
+    const { x: curX, y: curY, rawX, rawY } = coords;
+
+    if (interactionMode === 'panning' && lastPanPos && canvasRef.current) {
+      if (e.cancelable) e.preventDefault();
+      const dx = rawX - lastPanPos.x;
+      const dy = rawY - lastPanPos.y;
+      canvasRef.current.scrollLeft -= dx;
+      canvasRef.current.scrollTop -= dy;
+      setLastPanPos({ x: rawX, y: rawY });
+      return;
+    }
 
     if (interactionMode === 'drawing' && drawStart) {
       if (e.cancelable) e.preventDefault();
@@ -607,6 +629,7 @@ export default function EstimatorClient() {
       setSelectedObjectIds(inBox); setSelectionBox(null);
     } else if (interactionMode !== 'none' && interactionMode !== 'pasting') saveToHistory(designObjects);
     if (interactionMode !== 'pasting') setInteractionMode('none');
+    setLastPanPos(null);
   };
 
   const renderPillarDistances = () => {
@@ -818,6 +841,7 @@ export default function EstimatorClient() {
           <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
             <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
+              <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} />
               <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} />
               <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} />
@@ -892,9 +916,9 @@ export default function EstimatorClient() {
           {/* Bottom Controls Bar - Fixed */}
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
-              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 5))} />
-              <Slider value={[zoom]} max={250} min={10} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
-              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 10))} />
+              <Slider value={[zoom]} max={250} min={10} step={10} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 10))} />
               <span className="text-[9px] font-bold text-slate-400 uppercase ml-1 md:ml-2">{Math.round(zoom)}%</span>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
