@@ -11,7 +11,8 @@ import {
   Type as TypeIcon,
   MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Image as ImageIcon,
-  Rows, FilePlus, FolderOpen, Search, Check
+  Rows, FilePlus, FolderOpen, Search, Check,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -401,6 +402,12 @@ export default function EstimatorClient() {
     saveToHistory(next);
   }, [designObjects, currentWallThickness, saveToHistory]);
 
+  const scrollCanvas = (dx: number, dy: number) => {
+    if (canvasRef.current) {
+      canvasRef.current.scrollBy({ left: dx, top: dy, behavior: 'smooth' });
+    }
+  };
+
   // Touch Zoom and Prevention
   useEffect(() => {
     const container = canvasRef.current;
@@ -419,7 +426,7 @@ export default function EstimatorClient() {
 
     const handleTouchStartGlobal = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        e.preventDefault(); 
+        // Only allow multi-touch for zoom
         startDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
@@ -438,6 +445,9 @@ export default function EstimatorClient() {
         const scale = dist / startDist;
         const newZoom = Math.min(250, Math.max(10, startZoom * scale));
         setZoom(newZoom);
+      } else if (e.touches.length === 1 && interactionMode === 'none') {
+        // Disable single-finger canvas panning/scrolling by default
+        // e.preventDefault(); // Removed to allow scrolling through buttons
       }
     };
 
@@ -450,7 +460,7 @@ export default function EstimatorClient() {
       container.removeEventListener('touchstart', handleTouchStartGlobal);
       container.removeEventListener('touchmove', handleTouchMoveGlobal);
     };
-  }, [zoom]);
+  }, [zoom, interactionMode]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -573,7 +583,7 @@ export default function EstimatorClient() {
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
       updateObject(firstSelectedObject.id, { rotation: Math.round(angle / 1) * 1 });
     } else if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
-      if (e.cancelable) e.preventDefault();
+      if (e.cancelable) e.preventDefault(); // Prevents canvas scroll while dragging object
       const mainId = selectedObjectIds[0];
       const mainObj = designObjects.find(o => o.id === mainId);
       if (!mainObj || mainObj.isJoined) return;
@@ -817,7 +827,7 @@ export default function EstimatorClient() {
             <div 
               ref={canvasRef}
               id="canvas-workspace-inner" 
-              className="flex-1 relative bg-white overflow-auto cursor-crosshair scroll-smooth" 
+              className="flex-1 relative bg-white overflow-hidden cursor-crosshair scroll-smooth" 
               onMouseDown={(e) => handleMouseDown(e, null)} 
               onMouseMove={handleMouseMove} 
               onMouseUp={handleMouseUp}
@@ -847,6 +857,16 @@ export default function EstimatorClient() {
                 {interactionMode === 'selecting' && selectionBox && (
                   <div className="absolute border-2 border-blue-500 bg-blue-500/10 z-[70]" style={{ left: Math.min(selectionBox.x1, selectionBox.x2) * zoom + CANVAS_OFFSET, top: Math.min(selectionBox.y1, selectionBox.y2) * zoom + CANVAS_OFFSET, width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom, height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom }} />
                 )}
+              </div>
+            </div>
+
+            {/* Canvas Panning Buttons - Floating on Canvas */}
+            <div className="absolute bottom-4 right-4 flex flex-col items-center gap-1 z-[60] bg-white/50 p-2 rounded-xl backdrop-blur-sm border border-slate-200">
+              <Button variant="outline" size="icon" className="h-8 w-8 bg-white shadow-md" onClick={() => scrollCanvas(0, -100)}><ChevronUp className="w-5 h-5" /></Button>
+              <div className="flex gap-1">
+                <Button variant="outline" size="icon" className="h-8 w-8 bg-white shadow-md" onClick={() => scrollCanvas(-100, 0)}><ChevronLeft className="w-5 h-5" /></Button>
+                <Button variant="outline" size="icon" className="h-8 w-8 bg-white shadow-md" onClick={() => scrollCanvas(0, 100)}><ChevronDown className="w-5 h-5" /></Button>
+                <Button variant="outline" size="icon" className="h-8 w-8 bg-white shadow-md" onClick={() => scrollCanvas(100, 0)}><ChevronRight className="w-5 h-5" /></Button>
               </div>
             </div>
           </div>
