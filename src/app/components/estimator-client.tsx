@@ -11,7 +11,7 @@ import {
   Type as TypeIcon,
   MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Image as ImageIcon,
-  Rows
+  Rows, FilePlus, FolderOpen, Search, Check
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog";
+import { doc, setDoc, getDoc, getDocs, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -46,6 +54,12 @@ type DesignObject = {
   stepCount?: number;
 };
 
+type SavedDesignRef = {
+  id: string;
+  name: string;
+  updatedAt: any;
+};
+
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 const ARCH_SNAP = 1/48; // 0.25 inches
 const CANVAS_OFFSET = 40; 
@@ -67,6 +81,12 @@ export default function EstimatorClient() {
   const [showDimensions, setShowDimensions] = useState(true);
   const [is3DMode, setIs3DMode] = useState(false);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
+
+  // Persistence States
+  const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
+  const [currentDesignId, setCurrentDesignId] = useState(Math.random().toString(36).substr(2, 9));
+  const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
+  const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
 
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
@@ -246,15 +266,69 @@ export default function EstimatorClient() {
 
   const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
-    const docRef = doc(firestore, 'designs', 'current-layout');
-    const data = { objects: designObjects, updatedAt: serverTimestamp() };
+    const docRef = doc(firestore, 'designs', currentDesignId);
+    const data = { objects: designObjects, name: projectName, updatedAt: serverTimestamp() };
     setDoc(docRef, data, { merge: true }).then(() => {
-      toast({ title: "সফল", description: "ডিজাইনটি সেভ করা হয়েছে।" });
+      toast({ title: "সফল", description: `"${projectName}" ডিজাইনটি সেভ করা হয়েছে।` });
     }).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
       errorEmitter.emit('permission-error', permissionError);
     });
-  }, [designObjects, toast]);
+  }, [designObjects, projectName, currentDesignId, toast]);
+
+  const handleNewPage = () => {
+    // Optional: Auto-save current before reset
+    if (designObjects.length > 0) {
+      saveToFirestore();
+    }
+    setDesignObjects([]);
+    setProjectName("নতুন প্রজেক্ট");
+    setCurrentDesignId(Math.random().toString(36).substr(2, 9));
+    setHistory([[]]);
+    setHistoryIndex(0);
+    setSelectedObjectIds([]);
+    toast({ title: "নতুন পেজ", description: "ক্যানভাস পরিষ্কার করা হয়েছে।" });
+  };
+
+  const fetchSavedDesigns = async () => {
+    try {
+      const { firestore } = initializeFirebase();
+      const designsCol = collection(firestore, 'designs');
+      const q = query(designsCol, orderBy('updatedAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const designs = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || "নামহীন ডিজাইন",
+        updatedAt: doc.data().updatedAt
+      }));
+      setSavedDesigns(designs);
+      setIsOpenDialogOpen(true);
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "সেভ করা ডিজাইনগুলো লোড করা যায়নি।" });
+    }
+  };
+
+  const loadDesign = async (id: string) => {
+    try {
+      const { firestore } = initializeFirebase();
+      const docRef = doc(firestore, 'designs', id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        setDesignObjects(data.objects || []);
+        setProjectName(data.name || "নামহীন ডিজাইন");
+        setCurrentDesignId(id);
+        setHistory([data.objects || []]);
+        setHistoryIndex(0);
+        setIsOpenDialogOpen(false);
+        toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "ডিজাইন লোড করা যায়নি।" });
+    }
+  };
 
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
@@ -326,24 +400,6 @@ export default function EstimatorClient() {
     setSelectedObjectIds(roomWalls.map(w => w.id));
     saveToHistory(next);
   }, [designObjects, currentWallThickness, saveToHistory]);
-
-  const loadFromFirestore = useCallback(async () => {
-    try {
-      const { firestore } = initializeFirebase();
-      const docRef = doc(firestore, 'designs', 'current-layout');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.objects) {
-          setDesignObjects(data.objects);
-          setHistory([data.objects]);
-          setHistoryIndex(0);
-        }
-      }
-    } catch (e: any) { console.error(e); }
-  }, []);
-
-  useEffect(() => { loadFromFirestore(); }, [loadFromFirestore]);
 
   useEffect(() => {
     const container = document.getElementById('canvas-workspace-inner');
@@ -641,29 +697,47 @@ export default function EstimatorClient() {
   return (
     <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900">
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
-        <div className="flex items-center gap-2 md:gap-6"><Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" /><span className="font-bold text-[10px] md:text-xs uppercase tracking-tighter">Architectural Pro Studio</span></div>
+        <div className="flex items-center gap-2 md:gap-6">
+          <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
+          <div className="flex items-center gap-2">
+            <Input 
+              value={projectName} 
+              onChange={(e) => setProjectName(e.target.value)} 
+              className="h-6 w-32 md:w-48 bg-slate-700 border-none text-[10px] md:text-xs text-white focus:ring-1 focus:ring-blue-500"
+              placeholder="প্রজেক্টের নাম..."
+            />
+          </div>
+        </div>
         <div className="flex items-center gap-2 md:gap-4">
           <div className="flex items-center gap-1 md:gap-2 bg-slate-700 px-2 md:px-3 py-1 rounded-md">
             <span className="text-[8px] md:text-[10px] font-bold uppercase">3D View</span>
             <Switch checked={is3DMode} onCheckedChange={setIs3DMode} className="scale-50 md:scale-75" />
           </div>
-          <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2"/> SAVE</Button>
+          <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm hover:bg-slate-700" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
           <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
         </div>
       </div>
       <div className="h-14 md:h-16 bg-white border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
-        <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} /><RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
+        <RibbonButton icon={<FilePlus className="text-blue-500" />} label="New" onClick={handleNewPage} />
+        <RibbonButton icon={<FolderOpen className="text-amber-500" />} label="Open" onClick={fetchSavedDesigns} />
+        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
+        <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} />
+        <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
         <RibbonButton icon={<ImageIcon />} label="As Image" onClick={copyAsImage} />
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
-        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" /><RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2" onClick={deleteSelected}><Trash2 className="w-4 h-4" /><span className="text-[8px] uppercase font-bold mt-1">Delete</span></Button>
+        <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
+        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
+        <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2" onClick={deleteSelected}>
+          <Trash2 className="w-4 h-4" />
+          <span className="text-[8px] uppercase font-bold mt-1">Delete</span>
+        </Button>
       </div>
+
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
-          <div className="hidden md:block p-2 border-b bg-slate-100 font-bold text-[10px] uppercase tracking-widest text-slate-500">Toolbox</div>
           <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
             <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
@@ -685,6 +759,7 @@ export default function EstimatorClient() {
             </div>
           </ScrollArea>
         </div>
+
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
           <div className="flex-1 flex overflow-hidden">
@@ -724,6 +799,7 @@ export default function EstimatorClient() {
               </div>
             </div>
           </div>
+
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 5))} />
@@ -736,6 +812,7 @@ export default function EstimatorClient() {
               <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" />
             </div>
           </div>
+
           <div className="h-14 bg-white border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
               <div className="flex items-center gap-4 md:gap-6 min-w-max">
@@ -750,7 +827,7 @@ export default function EstimatorClient() {
                     <PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />
                   )}
                   {firstSelectedObject.type === 'text' && (
-                    <PropField label="টেক্সট" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />
+                    <PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />
                   )}
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
@@ -761,6 +838,48 @@ export default function EstimatorClient() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
+        <DialogContent className="max-w-md bg-white p-0 overflow-hidden rounded-xl border shadow-2xl">
+          <DialogHeader className="p-6 bg-slate-50 border-b">
+            <DialogTitle className="flex items-center gap-2 text-slate-800">
+              <FolderOpen className="w-5 h-5 text-amber-500" />
+              সেভ করা ডিজাইনগুলো
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] p-4">
+            <div className="grid gap-2">
+              {savedDesigns.length > 0 ? (
+                savedDesigns.map((design) => (
+                  <div 
+                    key={design.id} 
+                    onClick={() => loadDesign(design.id)}
+                    className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span>
+                      <span className="text-[10px] text-slate-400">
+                        {design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button>
+                      {design.id === currentDesignId && <Check className="w-4 h-4 text-green-500" />}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-slate-400 italic">কোন ডিজাইন সেভ করা নেই।</div>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="p-4 border-t bg-slate-50 flex justify-end">
+             <DialogClose asChild>
+               <Button variant="outline" size="sm">বন্ধ করুন</Button>
+             </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

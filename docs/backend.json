@@ -3,9 +3,13 @@
   "entities": {
     "Design": {
       "title": "Design",
-      "description": "Architectural design layout including walls, pillars, and openings.",
+      "description": "Architectural design layout including walls, pillars, openings, and name.",
       "type": "object",
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the project"
+        },
         "objects": {
           "type": "array",
           "description": "List of design objects on the canvas"
