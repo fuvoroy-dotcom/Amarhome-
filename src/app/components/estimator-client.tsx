@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -82,10 +82,6 @@ export default function EstimatorClient() {
   const [showDimensions, setShowDimensions] = useState(true);
   const [is3DMode, setIs3DMode] = useState(false);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
-
-  // Touch Zoom Persistence
-  const touchStartDistRef = useRef<number | null>(null);
-  const touchStartZoomRef = useRef<number>(zoom);
 
   // Persistence States
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
@@ -410,6 +406,9 @@ export default function EstimatorClient() {
     const container = canvasRef.current;
     if (!container) return;
 
+    let startDist = 0;
+    let startZoom = zoom;
+
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -420,43 +419,36 @@ export default function EstimatorClient() {
 
     const handleTouchStartGlobal = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        e.preventDefault(); // Stop native pinch zoom
-        const dist = Math.hypot(
+        e.preventDefault(); 
+        startDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
-        touchStartDistRef.current = dist;
-        touchStartZoomRef.current = zoom;
+        startZoom = zoom;
       }
     };
 
     const handleTouchMoveGlobal = (e: TouchEvent) => {
-      if (e.touches.length === 2 && touchStartDistRef.current !== null) {
+      if (e.touches.length === 2) {
         e.preventDefault();
         const dist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
-        const scale = dist / touchStartDistRef.current;
-        const newZoom = Math.min(250, Math.max(10, touchStartZoomRef.current * scale));
+        const scale = dist / startDist;
+        const newZoom = Math.min(250, Math.max(10, startZoom * scale));
         setZoom(newZoom);
       }
-    };
-
-    const handleTouchEndGlobal = () => {
-      touchStartDistRef.current = null;
     };
 
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
     container.addEventListener('touchstart', handleTouchStartGlobal, { passive: false });
     container.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
-    container.addEventListener('touchend', handleTouchEndGlobal);
 
     return () => {
       container.removeEventListener('wheel', handleNativeWheel);
       container.removeEventListener('touchstart', handleTouchStartGlobal);
       container.removeEventListener('touchmove', handleTouchMoveGlobal);
-      container.removeEventListener('touchend', handleTouchEndGlobal);
     };
   }, [zoom]);
 
@@ -552,7 +544,11 @@ export default function EstimatorClient() {
       setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
       setInteractionMode('dragging');
     } else {
-      if (selectedTool === 'select') { setSelectedObjectIds([]); setInteractionMode('selecting'); setSelectionBox({ x1: curX, y1: curY, x2: curX, y2: curY }); }
+      if (selectedTool === 'select') { 
+        setSelectedObjectIds([]); 
+        setInteractionMode('selecting'); 
+        setSelectionBox({ x1: curX, y1: curY, x2: curX, y2: curY }); 
+      }
     }
   };
 
@@ -816,7 +812,7 @@ export default function EstimatorClient() {
             <div 
               ref={canvasRef}
               id="canvas-workspace-inner" 
-              className="flex-1 relative bg-white overflow-auto cursor-crosshair touch-none scroll-smooth" 
+              className="flex-1 relative bg-white overflow-auto cursor-crosshair scroll-smooth" 
               onMouseDown={(e) => handleMouseDown(e, null)} 
               onMouseMove={handleMouseMove} 
               onMouseUp={handleMouseUp}
@@ -924,6 +920,7 @@ export default function EstimatorClient() {
                 <div className="p-8 text-center text-slate-400 italic">কোন ডিজাইন সেভ করা নেই।</div>
               )}
             </div>
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
           <div className="p-4 border-t bg-slate-50 flex justify-end">
              <DialogClose asChild>
