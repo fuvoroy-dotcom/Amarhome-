@@ -198,34 +198,34 @@ export default function EstimatorClient() {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       
       selectedObjects.forEach(obj => {
-        // Simple rotated bounding box approximation
-        const isRotated = obj.rotation % 180 !== 0;
-        const w = isRotated ? obj.h : obj.w;
-        const h = isRotated ? obj.w : obj.h;
-        
-        // Find top-left and bottom-right corners considering rotation offsets
-        let ox = 0, oy = 0;
-        if (obj.rotation === 90) ox = obj.h; 
-        else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
-        else if (obj.rotation === 270) oy = obj.w;
+        // Rotation bounding box logic
+        const rad = (obj.rotation * Math.PI) / 180;
+        const corners = [
+          { x: 0, y: 0 },
+          { x: obj.w, y: 0 },
+          { x: obj.w, y: obj.h },
+          { x: 0, y: obj.h }
+        ];
 
-        const left = obj.x + ox;
-        const top = obj.y + oy;
-        const right = left + w;
-        const bottom = top + h;
-
-        minX = Math.min(minX, left);
-        minY = Math.min(minY, top);
-        maxX = Math.max(maxX, right);
-        maxY = Math.max(maxY, bottom);
+        corners.forEach(c => {
+          const rx = c.x * Math.cos(rad) - c.y * Math.sin(rad);
+          const ry = c.x * Math.sin(rad) + c.y * Math.cos(rad);
+          minX = Math.min(minX, obj.x + rx);
+          minY = Math.min(minY, obj.y + ry);
+          maxX = Math.max(maxX, obj.x + rx);
+          maxY = Math.max(maxY, obj.y + ry);
+        });
       });
 
-      // Convert to pixel space
-      const paddingPixels = 20;
-      const capX = minX * zoom + CANVAS_OFFSET - paddingPixels;
-      const capY = minY * zoom + CANVAS_OFFSET - paddingPixels;
-      const capW = (maxX - minX) * zoom + paddingPixels * 2;
-      const capH = (maxY - minY) * zoom + paddingPixels * 2;
+      // Dimension labels and padding
+      const padding = 1.0; // 1 foot padding
+      minX -= padding; minY -= padding; maxX += padding; maxY += padding;
+
+      // Translate to pixel space relative to the workspace element (10000x10000)
+      const capX = minX * zoom + CANVAS_OFFSET;
+      const capY = minY * zoom + CANVAS_OFFSET;
+      const capW = (maxX - minX) * zoom;
+      const capH = (maxY - minY) * zoom;
 
       const capture = await html2canvas(workspace, {
         backgroundColor: '#ffffff',
@@ -236,15 +236,25 @@ export default function EstimatorClient() {
         y: capY,
         width: capW,
         height: capH,
+        scrollX: -window.scrollX,
+        scrollY: -window.scrollY,
         onclone: (clonedDoc) => {
           const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
-          if (clonedCanvas) clonedCanvas.style.backgroundImage = 'none';
+          if (clonedCanvas) {
+            clonedCanvas.style.backgroundImage = 'none';
+            clonedCanvas.style.width = '10000px';
+            clonedCanvas.style.height = '10000px';
+            clonedCanvas.style.transform = 'none';
+          }
           
           const allElements = clonedDoc.querySelectorAll('.design-object-container');
           allElements.forEach(el => {
             const id = el.getAttribute('data-id');
             if (id && !selectedObjectIds.includes(id)) {
               (el as HTMLElement).style.display = 'none';
+            } else {
+              (el as HTMLElement).style.display = 'block';
+              (el as HTMLElement).style.opacity = '1';
             }
           });
           
@@ -260,7 +270,7 @@ export default function EstimatorClient() {
         if (blob) {
           try {
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-            toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অংশটি পূর্ণাঙ্গ ইমেজ হিসেবে কপি হয়েছে। Word-এ Ctrl+V দিয়ে পেস্ট করুন।" });
+            toast({ title: "ইমেজ কপি সফল", description: "পুরো ডিজাইনটি নিখুঁতভাবে কপি হয়েছে। Word-এ পেস্ট করুন।" });
           } catch (err) {
             toast({ variant: "destructive", title: "ত্রুটি", description: "ক্লিপবোর্ডে ইমেজ রাইট করার অনুমতি নেই।" });
           }
