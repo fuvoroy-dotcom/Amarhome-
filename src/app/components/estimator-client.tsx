@@ -194,52 +194,65 @@ export default function EstimatorClient() {
     }
 
     try {
-      let minPX = Infinity, minPY = Infinity, maxPX = -Infinity, maxPY = -Infinity;
+      // Calculate global bounding box of selection in design units
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       
       selectedObjects.forEach(obj => {
+        // Simple rotated bounding box approximation
+        const isRotated = obj.rotation % 180 !== 0;
+        const w = isRotated ? obj.h : obj.w;
+        const h = isRotated ? obj.w : obj.h;
+        
+        // Find top-left and bottom-right corners considering rotation offsets
         let ox = 0, oy = 0;
         if (obj.rotation === 90) ox = obj.h; 
         else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
         else if (obj.rotation === 270) oy = obj.w;
 
-        const left = (obj.x + ox) * zoom + CANVAS_OFFSET;
-        const top = (obj.y + oy) * zoom + CANVAS_OFFSET;
-        
-        const w = (obj.rotation % 180 === 0 ? obj.w : obj.h) * zoom;
-        const h = (obj.rotation % 180 === 0 ? obj.h : obj.w) * zoom;
+        const left = obj.x + ox;
+        const top = obj.y + oy;
+        const right = left + w;
+        const bottom = top + h;
 
-        minPX = Math.min(minPX, left);
-        minPY = Math.min(minPY, top);
-        maxPX = Math.max(maxPX, left + w);
-        maxPY = Math.max(maxPY, top + h);
+        minX = Math.min(minX, left);
+        minY = Math.min(minY, top);
+        maxX = Math.max(maxX, right);
+        maxY = Math.max(maxY, bottom);
       });
 
-      const padding = 20;
-      const captureX = minPX - padding;
-      const captureY = minPY - padding;
-      const captureW = (maxPX - minPX) + padding * 2;
-      const captureH = (maxPY - minPY) + padding * 2;
+      // Convert to pixel space
+      const paddingPixels = 20;
+      const capX = minX * zoom + CANVAS_OFFSET - paddingPixels;
+      const capY = minY * zoom + CANVAS_OFFSET - paddingPixels;
+      const capW = (maxX - minX) * zoom + paddingPixels * 2;
+      const capH = (maxY - minY) * zoom + paddingPixels * 2;
 
       const capture = await html2canvas(workspace, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
         logging: false,
-        x: captureX,
-        y: captureY,
-        width: captureW,
-        height: captureH,
+        x: capX,
+        y: capY,
+        width: capW,
+        height: capH,
         onclone: (clonedDoc) => {
           const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
           if (clonedCanvas) clonedCanvas.style.backgroundImage = 'none';
-          const allDesignElements = clonedDoc.querySelectorAll('.design-object-container');
-          allDesignElements.forEach(el => {
-             const id = el.getAttribute('data-id');
-             if (id && !selectedObjectIds.includes(id)) (el as HTMLElement).style.display = 'none';
+          
+          const allElements = clonedDoc.querySelectorAll('.design-object-container');
+          allElements.forEach(el => {
+            const id = el.getAttribute('data-id');
+            if (id && !selectedObjectIds.includes(id)) {
+              (el as HTMLElement).style.display = 'none';
+            }
           });
+          
           clonedDoc.querySelectorAll('.ruler-container').forEach(r => (r as HTMLElement).style.display = 'none');
           clonedDoc.querySelectorAll('.rotation-handle').forEach(h => (h as HTMLElement).style.display = 'none');
-          if (!showDimensions) clonedDoc.querySelectorAll('.dimension-label').forEach(d => (d as HTMLElement).style.display = 'none');
+          if (!showDimensions) {
+            clonedDoc.querySelectorAll('.dimension-label').forEach(d => (d as HTMLElement).style.display = 'none');
+          }
         }
       });
 
@@ -247,9 +260,9 @@ export default function EstimatorClient() {
         if (blob) {
           try {
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-            toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অংশটি এক পাতায় ইমেজ হিসেবে কপি হয়েছে। Word-এ Ctrl+V দিয়ে পেস্ট করুন।" });
+            toast({ title: "ইমেজ কপি সফল", description: "সিলেক্ট করা অংশটি পূর্ণাঙ্গ ইমেজ হিসেবে কপি হয়েছে। Word-এ Ctrl+V দিয়ে পেস্ট করুন।" });
           } catch (err) {
-            toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ কপি করা যায়নি।" });
+            toast({ variant: "destructive", title: "ত্রুটি", description: "ক্লিপবোর্ডে ইমেজ রাইট করার অনুমতি নেই।" });
           }
         }
       });
@@ -410,7 +423,6 @@ export default function EstimatorClient() {
     }
   };
 
-  // Touch Zoom and Panning Control
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
@@ -445,7 +457,7 @@ export default function EstimatorClient() {
         );
         
         const deltaDist = dist - startDist;
-        const zoomChange = Math.floor(deltaDist / 20) * 10; // Controlled 10 unit steps
+        const zoomChange = Math.floor(deltaDist / 20) * 10;
         
         if (zoomChange !== 0) {
             setZoom(Math.min(250, Math.max(10, startZoom + zoomChange)));
@@ -512,7 +524,6 @@ export default function EstimatorClient() {
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
 
-    // Move tool should always pan, even over objects
     if (selectedTool === 'move') {
       setInteractionMode('panning');
       setLastPanPos({ x: rawX, y: rawY });
@@ -579,7 +590,6 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'panning' && lastPanPos && canvasRef.current) {
       if (e.cancelable) e.preventDefault();
-      // Added sensitivity multiplier for faster panning
       const sensitivity = 1.5;
       const dx = (rawX - lastPanPos.x) * sensitivity;
       const dy = (rawY - lastPanPos.y) * sensitivity;
@@ -641,7 +651,6 @@ export default function EstimatorClient() {
     const dims: React.ReactNode[] = [];
     const TOL = 1.0;
 
-    // Horizontal distances (Grouped by Y)
     const yGroups: { y: number, items: DesignObject[] }[] = [];
     pillars.forEach(p => { let g = yGroups.find(gr => Math.abs(gr.y - p.y) < TOL); if (g) g.items.push(p); else yGroups.push({ y: p.y, items: [p] }); });
     yGroups.forEach(g => {
@@ -659,7 +668,6 @@ export default function EstimatorClient() {
       }
     });
 
-    // Vertical distances (Grouped by X)
     const xGroups: { x: number, items: DesignObject[] }[] = [];
     pillars.forEach(p => { let g = xGroups.find(gr => Math.abs(gr.x - p.x) < TOL); if (g) g.items.push(p); else xGroups.push({ x: p.x, items: [p] }); });
     xGroups.forEach(g => {
@@ -794,7 +802,6 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
-      {/* Header Bar - Fixed */}
       <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
@@ -817,7 +824,6 @@ export default function EstimatorClient() {
         </div>
       </div>
 
-      {/* Ribbon Bar - Fixed */}
       <div className="h-14 md:h-16 bg-white border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
         <RibbonButton icon={<FilePlus className="text-blue-500" />} label="New" onClick={handleNewPage} />
         <RibbonButton icon={<FolderOpen className="text-amber-500" />} label="Open" onClick={fetchSavedDesigns} />
@@ -837,12 +843,10 @@ export default function EstimatorClient() {
         </Button>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        {/* Sidebar/Toolbox */}
         <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
-          <ScrollArea orientation="horizontal" className="p-2 md:p-3 md:flex-1">
-            <div className="flex md:flex-col gap-2 items-center md:items-stretch min-w-max md:min-w-0">
+          <ScrollArea orientation="both" className="h-full w-full">
+            <div className="flex md:flex-col gap-2 p-2 md:p-3 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
               <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} />
@@ -861,10 +865,11 @@ export default function EstimatorClient() {
                 <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="Window" onClick={() => setSelectedTool('window')} />
               </div>
             </div>
+            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
         </div>
 
-        {/* Canvas Area Container */}
         <div className="flex-1 relative flex flex-col bg-slate-200 overflow-hidden">
           <Ruler orientation="horizontal" />
           <div className="flex-1 flex overflow-hidden relative">
@@ -905,7 +910,6 @@ export default function EstimatorClient() {
               </div>
             </div>
 
-            {/* Canvas Panning Buttons - Floating on Canvas */}
             <div className="absolute bottom-4 right-4 flex flex-col items-center gap-1 z-[60] bg-white/50 p-2 rounded-xl backdrop-blur-sm border border-slate-200">
               <Button variant="outline" size="icon" className="h-8 w-8 bg-white shadow-md" onClick={() => scrollCanvas(0, -100)}><ChevronUp className="w-5 h-5" /></Button>
               <div className="flex gap-1">
@@ -916,7 +920,6 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Bottom Controls Bar - Fixed */}
           <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 10))} />
@@ -930,7 +933,6 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          {/* Property Editor Bar - Fixed */}
           <div className="h-14 bg-white border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
               <div className="flex items-center gap-4 md:gap-6 min-w-max">
