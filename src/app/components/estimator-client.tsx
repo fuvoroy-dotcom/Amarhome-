@@ -83,7 +83,6 @@ export default function EstimatorClient() {
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(true);
-  const [is3DMode, setIs3DMode] = useState(false);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
 
   // Persistence States
@@ -194,11 +193,9 @@ export default function EstimatorClient() {
     }
 
     try {
-      // Calculate global bounding box of selection in design units
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       
       selectedObjects.forEach(obj => {
-        // Rotation bounding box logic
         const rad = (obj.rotation * Math.PI) / 180;
         const corners = [
           { x: 0, y: 0 },
@@ -217,11 +214,9 @@ export default function EstimatorClient() {
         });
       });
 
-      // Dimension labels and padding
-      const padding = 1.0; // 1 foot padding
+      const padding = 1.0; 
       minX -= padding; minY -= padding; maxX += padding; maxY += padding;
 
-      // Translate to pixel space relative to the workspace element (10000x10000)
       const capX = minX * zoom + CANVAS_OFFSET;
       const capY = minY * zoom + CANVAS_OFFSET;
       const capW = (maxX - minX) * zoom;
@@ -360,10 +355,8 @@ export default function EstimatorClient() {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
       if (!obj) return prev;
-      
       const isPropUpdate = updates.rotation !== undefined || updates.textContent !== undefined || updates.stepCount !== undefined || updates.isJoined !== undefined;
       if (obj.isJoined && !isPropUpdate) return prev;
-      
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
       return next;
@@ -436,7 +429,6 @@ export default function EstimatorClient() {
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
-
     let startDist = 0;
     let startZoom = zoom;
 
@@ -450,10 +442,7 @@ export default function EstimatorClient() {
 
     const handleTouchStartGlobal = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        startDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
+        startDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         startZoom = zoom;
       }
     };
@@ -461,24 +450,16 @@ export default function EstimatorClient() {
     const handleTouchMoveGlobal = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
-        const dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         const deltaDist = dist - startDist;
         const zoomChange = Math.floor(deltaDist / 20) * 10;
-        
-        if (zoomChange !== 0) {
-            setZoom(Math.min(250, Math.max(10, startZoom + zoomChange)));
-        }
+        if (zoomChange !== 0) setZoom(Math.min(250, Math.max(10, startZoom + zoomChange)));
       }
     };
 
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
     container.addEventListener('touchstart', handleTouchStartGlobal, { passive: false });
     container.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
-
     return () => {
       container.removeEventListener('wheel', handleNativeWheel);
       container.removeEventListener('touchstart', handleTouchStartGlobal);
@@ -488,10 +469,7 @@ export default function EstimatorClient() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        return;
-      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
       else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); moveSelectedWithArrows(e.key); }
       else if (e.ctrlKey || e.metaKey) {
@@ -512,16 +490,11 @@ export default function EstimatorClient() {
     const container = canvasRef.current;
     const rect = container?.getBoundingClientRect();
     if (!rect || !container) return null;
-    
     let clientX, clientY;
     if ('touches' in e) {
-      if (e.touches.length === 1) {
-        clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
-      } else return null;
-    } else {
-      clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY;
-    }
-
+      if (e.touches.length === 1) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+      else return null;
+    } else { clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY; }
     const curX = (clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
     const curY = (clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
     return { x: curX, y: curY, rawX: clientX, rawY: clientY };
@@ -545,25 +518,19 @@ export default function EstimatorClient() {
       const minX = Math.min(...clipboard.map(obj => obj.x));
       const minY = Math.min(...clipboard.map(obj => obj.y));
       const pasted = clipboard.map(obj => ({
-        ...obj,
-        id: Math.random().toString(36).substr(2, 9),
+        ...obj, id: Math.random().toString(36).substr(2, 9),
         x: Math.round((snappedX + (obj.x - minX)) / ARCH_SNAP) * ARCH_SNAP,
         y: Math.round((snappedY + (obj.y - minY)) / ARCH_SNAP) * ARCH_SNAP,
         isJoined: false
       }));
       const next = [...designObjects, ...pasted];
-      setDesignObjects(next);
-      setSelectedObjectIds(pasted.map(p => p.id));
-      saveToHistory(next);
-      setInteractionMode('none');
-      toast({ title: "পেস্ট সফল", description: `${pasted.length}টি অবজেক্ট পেস্ট করা হয়েছে।` });
+      setDesignObjects(next); setSelectedObjectIds(pasted.map(p => p.id));
+      saveToHistory(next); setInteractionMode('none');
       return;
     }
 
     if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
-        if (selectedTool === 'wall') {
-            const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return;
-        }
+        if (selectedTool === 'wall') { const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return; }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
         else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
         else if (selectedTool.startsWith('door')) addObjectAt('opening', selectedTool, 'Door', snappedX, snappedY);
@@ -584,6 +551,7 @@ export default function EstimatorClient() {
       if (obj.isJoined) return;
       setDragOffsets({ [id]: { x: curX - obj.x, y: curY - obj.y } });
       setInteractionMode('dragging');
+      if (e.cancelable) e.preventDefault();
     } else {
       if (selectedTool === 'select') { 
         setSelectedObjectIds([]); 
@@ -600,9 +568,8 @@ export default function EstimatorClient() {
 
     if (interactionMode === 'panning' && lastPanPos && canvasRef.current) {
       if (e.cancelable) e.preventDefault();
-      const sensitivity = 1.5;
-      const dx = (rawX - lastPanPos.x) * sensitivity;
-      const dy = (rawY - lastPanPos.y) * sensitivity;
+      const dx = (rawX - lastPanPos.x) * 1.5;
+      const dy = (rawY - lastPanPos.y) * 1.5;
       canvasRef.current.scrollLeft -= dx;
       canvasRef.current.scrollTop -= dy;
       setLastPanPos({ x: rawX, y: rawY });
@@ -660,7 +627,6 @@ export default function EstimatorClient() {
     if (pillars.length < 2) return null;
     const dims: React.ReactNode[] = [];
     const TOL = 1.0;
-
     const yGroups: { y: number, items: DesignObject[] }[] = [];
     pillars.forEach(p => { let g = yGroups.find(gr => Math.abs(gr.y - p.y) < TOL); if (g) g.items.push(p); else yGroups.push({ y: p.y, items: [p] }); });
     yGroups.forEach(g => {
@@ -669,15 +635,10 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
         if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * zoom + CANVAS_OFFSET, top: (c1y - 1.2) * zoom + CANVAS_OFFSET, width: dist * zoom }}>
-          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center">
-            <div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
-            <div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" />
-            <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4">{formatFeetInches(dist)}</div>
-          </div>
+          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4">{formatFeetInches(dist)}</div></div>
         </div>);
       }
     });
-
     const xGroups: { x: number, items: DesignObject[] }[] = [];
     pillars.forEach(p => { let g = xGroups.find(gr => Math.abs(gr.x - p.x) < TOL); if (g) g.items.push(p); else xGroups.push({ x: p.x, items: [p] }); });
     xGroups.forEach(g => {
@@ -686,20 +647,15 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
         if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center justify-center dimension-label" style={{ left: (c1x + 0.8) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom, width: 20 }}>
-          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center">
-            <div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
-            <div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" />
-            <div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4">{formatFeetInches(dist)}</div>
-          </div>
+          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4">{formatFeetInches(dist)}</div></div>
         </div>);
       }
     });
-
     return dims;
   };
 
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => (
-    <div className={cn("bg-slate-50 border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
+    <div className={cn("bg-white/40 backdrop-blur-md border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
       {Array.from({ length: 100 }).map((_, t) => (
         <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: t * 4 * zoom + CANVAS_OFFSET, top: 0 } : { top: t * 4 * zoom + CANVAS_OFFSET, left: 0 }}>
           <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
@@ -716,73 +672,35 @@ export default function EstimatorClient() {
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke="none" />
           {obj.subType === 'window' && (
-            <g>
-              <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 3} />
-              <line x1="0" y1={obj.h * 0.25} x2={obj.w} y2={obj.h * 0.25} stroke={obj.color} strokeWidth={sw * 1.5} />
-              <line x1="0" y1={obj.h * 0.75} x2={obj.w} y2={obj.h * 0.75} stroke={obj.color} strokeWidth={sw * 1.5} />
-            </g>
+            <g><rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 3} /><line x1="0" y1={obj.h * 0.25} x2={obj.w} y2={obj.h * 0.25} stroke={obj.color} strokeWidth={sw * 1.5} /><line x1="0" y1={obj.h * 0.75} x2={obj.w} y2={obj.h * 0.75} stroke={obj.color} strokeWidth={sw * 1.5} /></g>
           )}
           {obj.subType === 'door-1' && (
-            <g>
-              <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} />
-              <path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-            </g>
+            <g><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-2' && (
-            <g>
-              <line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} />
-              <path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-            </g>
+            <g><line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-3' && (
-            <g>
-              <line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} />
-              <path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-            </g>
+            <g><line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-4' && (
-            <g>
-              <line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} />
-              <path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-            </g>
+            <g><line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'double-door' && (
-            <g>
-              <line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} />
-              <path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-              <line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} />
-              <path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} />
-            </g>
+            <g><line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'sliding-door' && (
-            <g>
-              <rect x="0" y={obj.h*0.25} width={obj.w} height={obj.h*0.5} fill="none" stroke={obj.color} strokeWidth={sw * 2} />
-              <line x1={obj.w * 0.4} y1={obj.h*0.25} x2={obj.w * 0.4} y2={obj.h*0.75} stroke={obj.color} strokeWidth={sw * 2} />
-              <line x1={obj.w * 0.4} y1={obj.h*0.5} x2={obj.w * 0.9} y2={obj.h*0.5} stroke={obj.color} strokeWidth={sw * 4} />
-            </g>
+            <g><rect x="0" y={obj.h*0.25} width={obj.w} height={obj.h*0.5} fill="none" stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w * 0.4} y1={obj.h*0.25} x2={obj.w * 0.4} y2={obj.h*0.75} stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w * 0.4} y1={obj.h*0.5} x2={obj.w * 0.9} y2={obj.h*0.5} stroke={obj.color} strokeWidth={sw * 4} /></g>
           )}
         </svg>
       );
     }
     if (obj.subType === 'stair') {
-      const steps = obj.stepCount || 10;
-      const landingH = obj.h * 0.2;
-      const flightW = obj.w * 0.45;
-      const gapW = obj.w * 0.1;
-      const stepH = (obj.h - landingH * 2) / (steps / 2);
+      const steps = obj.stepCount || 10; const landingH = obj.h * 0.2; const flightW = obj.w * 0.45; const gapW = obj.w * 0.1; const stepH = (obj.h - landingH * 2) / (steps / 2);
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1="0" y1={obj.h - landingH} x2={obj.w} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={flightW + gapW} y1={landingH} x2={flightW + gapW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {Array.from({ length: Math.ceil(steps / 2) }).map((_, i) => (
-            <React.Fragment key={i}>
-              <line x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
-              <line x1={flightW + gapW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
-            </React.Fragment>
-          ))}
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} /><line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1="0" y1={obj.h - landingH} x2={obj.w} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW} y1={landingH} x2={flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW + gapW} y1={landingH} x2={flightW + gapW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {Array.from({ length: Math.ceil(steps / 2) }).map((_, i) => (<React.Fragment key={i}><line x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} /><line x1={flightW + gapW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} /></React.Fragment>))}
         </svg>
       );
     }
@@ -796,45 +714,30 @@ export default function EstimatorClient() {
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
     
-    const baseStyle: React.CSSProperties = { 
+    return { 
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: (obj.subType === 'wall' || obj.subType === 'pillar') ? obj.color : 'transparent',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
-      transition: 'transform 0.3s ease',
       touchAction: 'none'
     };
-    if (is3DMode) {
-      const height3D = (obj.subType === 'wall' || obj.subType === 'pillar') ? 100 : 5;
-      return { ...baseStyle, transform: `perspective(1000px) rotateX(45deg) rotateZ(-20deg) translateZ(${height3D}px)`, boxShadow: `5px 5px 15px rgba(0,0,0,0.3)` };
-    }
-    return baseStyle;
   };
 
   return (
     <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
-      <div className="h-10 bg-slate-800 border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
+      <div className="h-10 bg-slate-800/90 backdrop-blur-md border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
           <div className="flex items-center gap-2">
-            <Input 
-              value={projectName} 
-              onChange={(e) => setProjectName(e.target.value)} 
-              className="h-6 w-32 md:w-48 bg-slate-700 border-none text-[10px] md:text-xs text-white focus:ring-1 focus:ring-blue-500"
-              placeholder="প্রজেক্টের নাম..."
-            />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-6 w-32 md:w-48 bg-slate-700 border-none text-[10px] md:text-xs text-white focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="flex items-center gap-1 md:gap-2 bg-slate-700 px-2 md:px-3 py-1 rounded-md">
-            <span className="text-[8px] md:text-[10px] font-bold uppercase">3D View</span>
-            <Switch checked={is3DMode} onCheckedChange={setIs3DMode} className="scale-50 md:scale-75" />
-          </div>
           <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm hover:bg-slate-700" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
           <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
         </div>
       </div>
 
-      <div className="h-14 md:h-16 bg-white border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
+      <div className="h-14 md:h-16 bg-white/70 backdrop-blur-lg border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
         <RibbonButton icon={<FilePlus className="text-blue-500" />} label="New" onClick={handleNewPage} />
         <RibbonButton icon={<FolderOpen className="text-amber-500" />} label="Open" onClick={fetchSavedDesigns} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
@@ -846,15 +749,14 @@ export default function EstimatorClient() {
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
-        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2" onClick={deleteSelected}>
+        <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2 ml-auto" onClick={deleteSelected}>
           <Trash2 className="w-4 h-4" />
           <span className="text-[8px] uppercase font-bold mt-1">Delete</span>
         </Button>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[200px] bg-slate-50 border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[200px] bg-slate-50/80 backdrop-blur-md border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-2 p-2 md:p-3 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
@@ -875,8 +777,6 @@ export default function EstimatorClient() {
                 <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="Window" onClick={() => setSelectedTool('window')} />
               </div>
             </div>
-            <ScrollBar orientation="horizontal" />
-            <ScrollBar orientation="vertical" />
           </ScrollArea>
         </div>
 
@@ -885,25 +785,19 @@ export default function EstimatorClient() {
           <div className="flex-1 flex overflow-hidden relative">
             <Ruler orientation="vertical" />
             <div 
-              ref={canvasRef}
-              id="canvas-workspace-inner" 
+              ref={canvasRef} id="canvas-workspace-inner" 
               className="flex-1 relative bg-white overflow-hidden cursor-crosshair" 
-              onMouseDown={(e) => handleMouseDown(e, null)} 
-              onMouseMove={handleMouseMove} 
-              onMouseUp={handleMouseUp}
-              onTouchStart={(e) => handleMouseDown(e, null)}
-              onTouchMove={handleMouseMove}
-              onTouchEnd={handleMouseUp}
+              onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchStart={(e) => handleMouseDown(e, null)} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
             >
               <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
                   <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onTouchStart={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
                     {renderObjectContent(obj)}
-                    {selectedObjectIds.includes(obj.id) && !obj.isJoined && !is3DMode && (
+                    {selectedObjectIds.includes(obj.id) && !obj.isJoined && (
                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60] rotation-handle" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }} onTouchStart={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
                     )}
-                    {showDimensions && !is3DMode && (
+                    {showDimensions && (
                       <>
                         <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
                         <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
@@ -930,7 +824,7 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          <div className="h-8 bg-white border-t flex items-center px-4 justify-between shrink-0 z-40">
+          <div className="h-8 bg-white/80 backdrop-blur-md border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 10))} />
               <Slider value={[zoom]} max={250} min={10} step={10} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
@@ -943,7 +837,7 @@ export default function EstimatorClient() {
             </div>
           </div>
 
-          <div className="h-14 bg-white border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
+          <div className="h-14 bg-white/90 backdrop-blur-md border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
               <div className="flex items-center gap-4 md:gap-6 min-w-max">
                 <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-50 md:scale-75" /><span className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase">সংযুক্ত</span></div>
@@ -953,12 +847,8 @@ export default function EstimatorClient() {
                   <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
-                  {firstSelectedObject.subType === 'stair' && (
-                    <PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />
-                  )}
-                  {firstSelectedObject.type === 'text' && (
-                    <PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />
-                  )}
+                  {firstSelectedObject.subType === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
+                  {firstSelectedObject.type === 'text' && (<PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />)}
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
                   {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-4 h-4 md:w-5 md:h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
@@ -972,43 +862,21 @@ export default function EstimatorClient() {
       <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
         <DialogContent className="max-w-md bg-white p-0 overflow-hidden rounded-xl border shadow-2xl">
           <DialogHeader className="p-6 bg-slate-50 border-b">
-            <DialogTitle className="flex items-center gap-2 text-slate-800">
-              <FolderOpen className="w-5 h-5 text-amber-500" />
-              সেভ করা ডিজাইনগুলো
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-slate-800"><FolderOpen className="w-5 h-5 text-amber-500" />সেভ করা ডিজাইনগুলো</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] p-4">
             <div className="grid gap-2">
               {savedDesigns.length > 0 ? (
                 savedDesigns.map((design) => (
-                  <div 
-                    key={design.id} 
-                    onClick={() => loadDesign(design.id)}
-                    className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group"
-                  >
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button>
-                      {design.id === currentDesignId && <Check className="w-4 h-4 text-green-500" />}
-                    </div>
+                  <div key={design.id} onClick={() => loadDesign(design.id)} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group">
+                    <div className="flex flex-col gap-0.5"><span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span><span className="text-[10px] text-slate-400">{design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}</span></div>
+                    <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button>{design.id === currentDesignId && <Check className="w-4 h-4 text-green-500" />}</div>
                   </div>
                 ))
-              ) : (
-                <div className="p-8 text-center text-slate-400 italic">কোন ডিজাইন সেভ করা নেই।</div>
-              )}
+              ) : (<div className="p-8 text-center text-slate-400 italic">কোন ডিজাইন সেভ করা নেই।</div>)}
             </div>
-            <ScrollBar orientation="vertical" />
           </ScrollArea>
-          <div className="p-4 border-t bg-slate-50 flex justify-end">
-             <DialogClose asChild>
-               <Button variant="outline" size="sm">বন্ধ করুন</Button>
-             </DialogClose>
-          </div>
+          <div className="p-4 border-t bg-slate-50 flex justify-end"><DialogClose asChild><Button variant="outline" size="sm">বন্ধ করুন</Button></DialogClose></div>
         </DialogContent>
       </Dialog>
     </div>
