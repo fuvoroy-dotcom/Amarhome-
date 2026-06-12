@@ -106,10 +106,11 @@ export default function EstimatorClient() {
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
   const [zoom, setZoom] = useState(40);
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); // 5 inches
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(true);
+  const [showPillarDistances, setShowPillarDistances] = useState(true);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
   const [viewMode, setViewMode] = useState<'design' | 'estimate'>('design');
 
@@ -540,6 +541,7 @@ export default function EstimatorClient() {
   };
 
   const renderPillarDistances = () => {
+    if (!showPillarDistances) return null;
     const pillars = designObjects.filter(obj => obj.subType === 'pillar');
     if (pillars.length < 2) return null;
     const dims: React.ReactNode[] = [];
@@ -760,9 +762,15 @@ export default function EstimatorClient() {
                 <span className="text-[9px] font-bold text-slate-400 uppercase">%</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 md:gap-2">
-              <span className="text-[8px] md:text-[10px] font-bold text-slate-500">Dimensions</span>
-              <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" />
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="flex items-center gap-1 md:gap-2">
+                <span className="text-[8px] md:text-[10px] font-bold text-slate-500">Pillar Line</span>
+                <Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75" />
+              </div>
+              <div className="flex items-center gap-1 md:gap-2">
+                <span className="text-[8px] md:text-[10px] font-bold text-slate-500">Dimensions</span>
+                <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" />
+              </div>
             </div>
           </div>
           <div className="h-14 bg-white/90 backdrop-blur-md border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
@@ -820,9 +828,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     beamLen: 0, beamHeight: 0, beamWid: 0, beamRods: 0, beamRodFactor: 0.48, beamRingRodFactor: 0.12, beamRingGap: 0,
     slabLen: 0, slabWid: 0, slabThick: 0, slabRodGap: 0, slabRodFactor: 0.30,
     wallLength: 0, wallHeight: 0, wallThick: 5,
-    plasterArea: 0, plasterThick: 0, plasterSide: 1,
-    floorArea: 0, floorTileLen: 0, floorTileWid: 0, floorTileWastage: 0,
-    wallTileArea: 0, wallTileLen: 0, wallTileWid: 0, wallTileWastage: 0
+    plasterLen: 0, plasterHeight: 0, plasterThick: 0.5, plasterSide: 1,
+    floorLen: 0, floorWid: 0, floorTileLen: 0, floorTileWid: 0, floorTileWastage: 0,
+    wallTileLen: 0, wallTileHeight: 0, wallTileLenT: 0, wallTileWidT: 0, wallTileWastage: 0
   });
 
   const handleInputChange = (field: string, val: string) => {
@@ -874,23 +882,26 @@ function EstimationView({ onBack }: { onBack: () => void }) {
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     } else if (name === 'plaster') {
-      const vol = (formData.plasterArea * (formData.plasterThick / 12)) * formData.plasterSide;
+      const area = formData.plasterLen * formData.plasterHeight;
+      const vol = (area * (formData.plasterThick / 12)) * formData.plasterSide;
       if (vol > 0) {
         const dry = vol * 1.54;
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     } else if (name === 'floorTiles') {
-      if (formData.floorArea > 0 && formData.floorTileLen > 0 && formData.floorTileWid > 0) {
+      const area = formData.floorLen * formData.floorWid;
+      if (area > 0 && formData.floorTileLen > 0 && formData.floorTileWid > 0) {
         const tileArea = (formData.floorTileLen / 12) * (formData.floorTileWid / 12);
-        tiles = Math.ceil((formData.floorArea / tileArea) * (1 + formData.floorTileWastage / 100));
-        const dry = formData.floorArea * (1/12) * 1.54;
+        tiles = Math.ceil((area / tileArea) * (1 + formData.floorTileWastage / 100));
+        const dry = area * (1/12) * 1.54;
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     } else if (name === 'wallTiles') {
-      if (formData.wallTileArea > 0 && formData.wallTileLen > 0 && formData.wallTileWid > 0) {
-        const tileArea = (formData.wallTileLen / 12) * (formData.wallTileWid / 12);
-        tiles = Math.ceil((formData.wallTileArea / tileArea) * (1 + formData.wallTileWastage / 100));
-        const dry = formData.wallTileArea * (0.5/12) * 1.54;
+      const area = formData.wallTileLen * formData.wallTileHeight;
+      if (area > 0 && formData.wallTileLenT > 0 && formData.wallTileWidT > 0) {
+        const tileArea = (formData.wallTileLenT / 12) * (formData.wallTileWidT / 12);
+        tiles = Math.ceil((area / tileArea) * (1 + formData.wallTileWastage / 100));
+        const dry = area * (0.5/12) * 1.54;
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     }
@@ -941,7 +952,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
-                <TabsList className="flex w-full h-auto p-1 mb-6 bg-slate-100 overflow-x-auto no-scrollbar gap-1 justify-start">
+                <TabsList className="flex h-auto p-1 mb-6 bg-slate-100 overflow-x-auto no-scrollbar gap-1 justify-start">
                   <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফাউন্ডেশন</TabsTrigger>
                   <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">বিম</TabsTrigger>
@@ -1021,7 +1032,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
                 <TabsContent value="plaster" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="প্লাষ্টার এরিয়া (স্কয়ার ফুট)" value={formData.plasterArea} onChange={v => handleInputChange('plasterArea', v)} />
+                    <InputField label="প্লাষ্টার দৈর্ঘ্য (ফুট)" value={formData.plasterLen} onChange={v => handleInputChange('plasterLen', v)} />
+                    <InputField label="প্লাষ্টার উচ্চতা (ফুট)" value={formData.plasterHeight} onChange={v => handleInputChange('plasterHeight', v)} />
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.plasterThick} onChange={v => handleInputChange('plasterThick', v)} />
                     <div className="col-span-2 space-y-2">
                       <Label className="text-xs font-bold text-slate-600">পাশ</Label>
@@ -1036,7 +1048,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
                 <TabsContent value="floorTiles" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="ফ্লোর এরিয়া (স্কয়ার ফুট)" value={formData.floorArea} onChange={v => handleInputChange('floorArea', v)} />
+                    <InputField label="ফ্লোর দৈর্ঘ্য (ফুট)" value={formData.floorLen} onChange={v => handleInputChange('floorLen', v)} />
+                    <InputField label="ফ্লোর প্রস্থ (ফুট)" value={formData.floorWid} onChange={v => handleInputChange('floorWid', v)} />
                     <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.floorTileLen} onChange={v => handleInputChange('floorTileLen', v)} />
                     <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.floorTileWid} onChange={v => handleInputChange('floorTileWid', v)} />
                     <InputField label="অপচয় (%)" value={formData.floorTileWastage} onChange={v => handleInputChange('floorTileWastage', v)} />
@@ -1046,9 +1059,10 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
                 <TabsContent value="wallTiles" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="দেয়ালের ক্ষেত্রফল (স্কয়ার ফুট)" value={formData.wallTileArea} onChange={v => handleInputChange('wallTileArea', v)} />
-                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.wallTileLen} onChange={v => handleInputChange('wallTileLen', v)} />
-                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.wallTileWid} onChange={v => handleInputChange('wallTileWid', v)} />
+                    <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={formData.wallTileLen} onChange={v => handleInputChange('wallTileLen', v)} />
+                    <InputField label="দেয়ালের উচ্চতা (ফুট)" value={formData.wallTileHeight} onChange={v => handleInputChange('wallTileHeight', v)} />
+                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.wallTileLenT} onChange={v => handleInputChange('wallTileLenT', v)} />
+                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.wallTileWidT} onChange={v => handleInputChange('wallTileWidT', v)} />
                     <InputField label="অপচয় (%)" value={formData.wallTileWastage} onChange={v => handleInputChange('wallTileWastage', v)} />
                   </div>
                   <SectionResult res={currentRes} />
