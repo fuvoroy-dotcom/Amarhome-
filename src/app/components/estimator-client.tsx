@@ -13,7 +13,8 @@ import {
   Image as ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Hand, Calculator, ArrowLeft, Send, Loader2
+  Hand, Calculator, ArrowLeft, Send, Loader2,
+  Layers, Boxes
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ type SavedDesignRef = {
 };
 
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
-const ARCH_SNAP = 1/48; // 0.25 inches
+const ARCH_SNAP = 1/48; 
 const CANVAS_OFFSET = 40; 
 
 const ROD_OPTIONS = [
@@ -112,7 +113,6 @@ export default function EstimatorClient() {
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
   const [viewMode, setViewMode] = useState<'design' | 'estimate'>('design');
 
-  // Persistence States
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
   const [currentDesignId, setCurrentDesignId] = useState(Math.random().toString(36).substr(2, 9));
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
@@ -212,94 +212,19 @@ export default function EstimatorClient() {
   const copyAsImage = async () => {
     const workspace = document.getElementById('canvas-workspace-inner');
     if (!workspace) return;
-
-    const selectedObjects = designObjects.filter(obj => selectedObjectIds.includes(obj.id));
-    if (selectedObjects.length === 0) {
-      toast({ variant: "destructive", title: "সিলেক্ট করুন", description: "ইমেজ কপি করার জন্য অন্তত একটি অবজেক্ট সিলেক্ট করুন।" });
-      return;
-    }
-
     try {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      
-      selectedObjects.forEach(obj => {
-        const rad = (obj.rotation * Math.PI) / 180;
-        const corners = [
-          { x: 0, y: 0 },
-          { x: obj.w, y: 0 },
-          { x: obj.w, y: obj.h },
-          { x: 0, y: obj.h }
-        ];
-
-        corners.forEach(c => {
-          const rx = c.x * Math.cos(rad) - c.y * Math.sin(rad);
-          const ry = c.x * Math.sin(rad) + c.y * Math.cos(rad);
-          minX = Math.min(minX, obj.x + rx);
-          minY = Math.min(minY, obj.y + ry);
-          maxX = Math.max(maxX, obj.x + rx);
-          maxY = Math.max(maxY, obj.y + ry);
-        });
-      });
-
-      const padding = 1.0; 
-      minX -= padding; minY -= padding; maxX += padding; maxY += padding;
-
-      const capX = minX * zoom + CANVAS_OFFSET;
-      const capY = minY * zoom + CANVAS_OFFSET;
-      const capW = (maxX - minX) * zoom;
-      const capH = (maxY - minY) * zoom;
-
-      const capture = await html2canvas(workspace, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        x: capX,
-        y: capY,
-        width: capW,
-        height: capH,
-        scrollX: -window.scrollX,
-        scrollY: -window.scrollY,
-        onclone: (clonedDoc) => {
-          const clonedCanvas = clonedDoc.getElementById('canvas-workspace-inner');
-          if (clonedCanvas) {
-            clonedCanvas.style.backgroundImage = 'none';
-            clonedCanvas.style.width = '10000px';
-            clonedCanvas.style.height = '10000px';
-            clonedCanvas.style.transform = 'none';
-          }
-          
-          const allElements = clonedDoc.querySelectorAll('.design-object-container');
-          allElements.forEach(el => {
-            const id = el.getAttribute('data-id');
-            if (id && !selectedObjectIds.includes(id)) {
-              (el as HTMLElement).style.display = 'none';
-            } else {
-              (el as HTMLElement).style.display = 'block';
-              (el as HTMLElement).style.opacity = '1';
-            }
-          });
-          
-          clonedDoc.querySelectorAll('.ruler-container').forEach(r => (r as HTMLElement).style.display = 'none');
-          clonedDoc.querySelectorAll('.rotation-handle').forEach(h => (h as HTMLElement).style.display = 'none');
-          if (!showDimensions) {
-            clonedDoc.querySelectorAll('.dimension-label').forEach(d => (d as HTMLElement).style.display = 'none');
-          }
-        }
-      });
-
+      const capture = await html2canvas(workspace, { backgroundColor: '#ffffff', scale: 2 });
       capture.toBlob(async (blob) => {
         if (blob) {
           try {
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-            toast({ title: "ইমেজ কপি সফল", description: "পুরো ডিজাইনটি নিখুঁতভাবে কপি হয়েছে। Word-এ পেস্ট করুন।" });
+            toast({ title: "ইমেজ কপি সফল", description: "ডিজাইনটি ইমেজ হিসেবে ক্লিপবোর্ডে কপি হয়েছে।" });
           } catch (err) {
             toast({ variant: "destructive", title: "ত্রুটি", description: "ক্লিপবোর্ডে ইমেজ রাইট করার অনুমতি নেই।" });
           }
         }
       });
     } catch (e) {
-      console.error(e);
       toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ তৈরি করতে সমস্যা হয়েছে।" });
     }
   };
@@ -326,9 +251,6 @@ export default function EstimatorClient() {
   }, [designObjects, projectName, currentDesignId, toast]);
 
   const handleNewPage = () => {
-    if (designObjects.length > 0) {
-      saveToFirestore();
-    }
     setDesignObjects([]);
     setProjectName("নতুন প্রজেক্ট");
     setCurrentDesignId(Math.random().toString(36).substr(2, 9));
@@ -352,7 +274,6 @@ export default function EstimatorClient() {
       setSavedDesigns(designs);
       setIsOpenDialogOpen(true);
     } catch (e) {
-      console.error(e);
       toast({ variant: "destructive", title: "ত্রুটি", description: "সেভ করা ডিজাইনগুলো লোড করা যায়নি।" });
     }
   };
@@ -373,7 +294,6 @@ export default function EstimatorClient() {
         toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
       }
     } catch (e) {
-      console.error(e);
       toast({ variant: "destructive", title: "ত্রুটি", description: "ডিজাইন লোড করা যায়নি।" });
     }
   };
@@ -382,8 +302,6 @@ export default function EstimatorClient() {
     setDesignObjects(prev => {
       const obj = prev.find(o => o.id === id);
       if (!obj) return prev;
-      const isPropUpdate = updates.rotation !== undefined || updates.textContent !== undefined || updates.stepCount !== undefined || updates.isJoined !== undefined;
-      if (obj.isJoined && !isPropUpdate) return prev;
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       if (save) saveToHistory(next);
       return next;
@@ -456,9 +374,6 @@ export default function EstimatorClient() {
   useEffect(() => {
     const container = canvasRef.current;
     if (!container) return;
-    let startDist = 0;
-    let startZoom = zoom;
-
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -466,32 +381,8 @@ export default function EstimatorClient() {
         setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
       }
     };
-
-    const handleTouchStartGlobal = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        startDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        startZoom = zoom;
-      }
-    };
-
-    const handleTouchMoveGlobal = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        const deltaDist = dist - startDist;
-        const zoomChange = Math.floor(deltaDist / 20) * 10;
-        if (zoomChange !== 0) setZoom(Math.min(250, Math.max(10, startZoom + zoomChange)));
-      }
-    };
-
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
-    container.addEventListener('touchstart', handleTouchStartGlobal, { passive: false });
-    container.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
-    return () => {
-      container.removeEventListener('wheel', handleNativeWheel);
-      container.removeEventListener('touchstart', handleTouchStartGlobal);
-      container.removeEventListener('touchmove', handleTouchMoveGlobal);
-    };
+    return () => container.removeEventListener('wheel', handleNativeWheel);
   }, [zoom]);
 
   useEffect(() => {
@@ -613,7 +504,6 @@ export default function EstimatorClient() {
       setSelectionBox(prev => prev ? { ...prev, x2: curX, y2: curY } : null);
     } else if (interactionMode === 'rotating' && firstSelectedObject) {
       if (e.cancelable) e.preventDefault();
-      if (firstSelectedObject.isJoined) return;
       const centerX = firstSelectedObject.x + firstSelectedObject.w / 2;
       const centerY = firstSelectedObject.y + firstSelectedObject.h / 2;
       const angle = Math.atan2(curY - centerY, curX - centerX) * (180 / Math.PI);
@@ -846,7 +736,6 @@ export default function EstimatorClient() {
                 )}
               </div>
             </div>
-
             <div className="absolute bottom-4 right-4 flex flex-col items-center gap-1 z-[60] bg-white/50 p-2 rounded-xl backdrop-blur-sm border border-slate-200">
               <Button variant="outline" size="icon" className="h-8 w-8 bg-white shadow-md" onClick={() => scrollCanvas(0, -100)}><ChevronUp className="w-5 h-5" /></Button>
               <div className="flex gap-1">
@@ -856,7 +745,6 @@ export default function EstimatorClient() {
               </div>
             </div>
           </div>
-
           <div className="h-8 bg-white/80 backdrop-blur-md border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 10))} />
@@ -869,7 +757,6 @@ export default function EstimatorClient() {
               <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" />
             </div>
           </div>
-
           <div className="h-14 bg-white/90 backdrop-blur-md border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
               <div className="flex items-center gap-4 md:gap-6 min-w-max">
@@ -891,7 +778,6 @@ export default function EstimatorClient() {
           </div>
         </div>
       </div>
-
       <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
         <DialogContent className="max-w-md bg-white p-0 overflow-hidden rounded-xl border shadow-2xl">
           <DialogHeader className="p-6 bg-slate-50 border-b">
@@ -903,13 +789,12 @@ export default function EstimatorClient() {
                 savedDesigns.map((design) => (
                   <div key={design.id} onClick={() => loadDesign(design.id)} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group">
                     <div className="flex flex-col gap-0.5"><span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span><span className="text-[10px] text-slate-400">{design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}</span></div>
-                    <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button>{design.id === currentDesignId && <Check className="w-4 h-4 text-green-500" />}</div>
+                    <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button></div>
                   </div>
                 ))
               ) : (<div className="p-8 text-center text-slate-400 italic">কোন ডিজাইন সেভ করা নেই।</div>)}
             </div>
           </ScrollArea>
-          <div className="p-4 border-t bg-slate-50 flex justify-end"><DialogClose asChild><Button variant="outline" size="sm">বন্ধ করুন</Button></DialogClose></div>
         </DialogContent>
       </Dialog>
     </div>
@@ -921,119 +806,108 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
   
-  // Form State with separate rod factors
   const [formData, setFormData] = useState({
-    // Foundation
-    baseCount: 6, baseLength: 5, baseWidth: 5, baseThick: 12,
-    baseRodLong: 8, baseRodWidth: 8,
-    baseRodFactor: 0.48, // Default 16mm
-
-    // Column
-    columnCount: 6, colLen: 10, colWid: 10, colHeight: 10, colRods: 6,
-    colRodFactor: 0.48, // Default 16mm
-    colRingRodFactor: 0.12, // Default 8mm
-    colRingGap: 7,
-
-    // Beam
-    beamWid: 10, beamHeight: 12, beamLen: 60, beamRods: 4,
-    beamRodFactor: 0.48, // Default 16mm
-    beamRingRodFactor: 0.12, // Default 8mm
-    beamRingGap: 7,
-
-    // Slab
-    slabLen: 30, slabWid: 20, slabThick: 5, slabRodGap: 5,
-    slabRodFactor: 0.30, // Default 12mm
-
-    // Brick & Plaster
-    wallLength: 100, wallHeight: 10, wallThick: 5,
-    plasterArea: 1000, plasterThick: 0.5, plasterSide: 2,
-
-    // Septic Tank (Optional in UI tabs but kept in data)
-    tankLen: 10, tankWid: 8, tankDepth: 6
+    baseCount: 0, baseLength: 0, baseWidth: 0, baseThick: 0, baseRodLong: 0, baseRodWidth: 0, baseRodFactor: 0.48,
+    columnCount: 0, colLen: 0, colWid: 0, colHeight: 0, colRods: 0, colRodFactor: 0.48, colRingRodFactor: 0.12, colRingGap: 0,
+    beamLen: 0, beamHeight: 0, beamWid: 0, beamRods: 0, beamRodFactor: 0.48, beamRingRodFactor: 0.12, beamRingGap: 0,
+    slabLen: 0, slabWid: 0, slabThick: 0, slabRodGap: 0, slabRodFactor: 0.30,
+    wallLength: 0, wallHeight: 0, wallThick: 5,
+    plasterArea: 0, plasterThick: 0, plasterSide: 1,
+    floorArea: 0, tileLen: 0, tileWid: 0, tileWastage: 10
   });
 
   const handleInputChange = (field: string, val: string) => {
     setFormData(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
   };
 
-  const calculateEstimation = () => {
-    // Concrete Volumes (CFT)
-    const baseVol = (formData.baseLength * formData.baseWidth * (formData.baseThick / 12)) * formData.baseCount;
-    const colVol = (formData.colLen / 12 * formData.colWid / 12 * formData.colHeight) * formData.columnCount;
-    const beamVol = (formData.beamLen * formData.beamWid / 12 * formData.beamHeight / 12);
-    const slabVol = (formData.slabLen * formData.slabWid * (formData.slabThick / 12));
-    const plasterVol = (formData.plasterArea * (formData.plasterThick / 12)) * formData.plasterSide;
-    
-    const totalConcreteVol = baseVol + colVol + beamVol + slabVol;
-    const dryConcreteVol = totalConcreteVol * 1.54;
-    const dryPlasterVol = plasterVol * 1.54;
+  const calcSection = (name: string) => {
+    let cement = 0, sand = 0, stone = 0, rod = 0, bricks = 0, tiles = 0;
 
-    // Cement, Sand, Stone (Ratio 1:1.5:3 for concrete, 1:4 for plaster)
-    const cementFromConcrete = (dryConcreteVol / 5.5) / 1.25;
-    const sandFromConcrete = (dryConcreteVol / 5.5) * 1.5;
-    const stoneFromConcrete = (dryConcreteVol / 5.5) * 3;
+    if (name === 'foundation') {
+      const vol = (formData.baseLength * formData.baseWidth * (formData.baseThick / 12)) * formData.baseCount;
+      if (vol > 0) {
+        const dry = vol * 1.54;
+        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
+        rod = ((formData.baseRodLong * formData.baseLength + formData.baseRodWidth * formData.baseWidth) * formData.baseCount) * formData.baseRodFactor;
+      }
+    } else if (name === 'column') {
+      const vol = (formData.colLen / 12 * formData.colWid / 12 * formData.colHeight) * formData.columnCount;
+      if (vol > 0) {
+        const dry = vol * 1.54;
+        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
+        const mainRod = (formData.colHeight * formData.colRods * formData.columnCount) * formData.colRodFactor;
+        const ringCount = (formData.colHeight / (formData.colRingGap/12 || 1)) * formData.columnCount;
+        const ringRod = (ringCount * (formData.colLen + formData.colWid) * 2 / 12) * formData.colRingRodFactor;
+        rod = mainRod + ringRod;
+      }
+    } else if (name === 'beam') {
+      const vol = (formData.beamLen * formData.beamWid / 12 * formData.beamHeight / 12);
+      if (vol > 0) {
+        const dry = vol * 1.54;
+        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
+        const mainRod = (formData.beamLen * formData.beamRods) * formData.beamRodFactor;
+        const ringCount = (formData.beamLen / (formData.beamRingGap/12 || 1));
+        const ringRod = (ringCount * (formData.beamHeight + formData.beamWid) * 2 / 12) * formData.beamRingRodFactor;
+        rod = mainRod + ringRod;
+      }
+    } else if (name === 'slab') {
+      const vol = (formData.slabLen * formData.slabWid * (formData.slabThick / 12));
+      if (vol > 0) {
+        const dry = vol * 1.54;
+        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
+        rod = ((formData.slabLen / (formData.slabRodGap/12 || 1)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12 || 1)) * formData.slabLen) * formData.slabRodFactor;
+      }
+    } else if (name === 'brickwork') {
+      bricks = Math.ceil(formData.wallLength * formData.wallHeight * (formData.wallThick === 5 ? 5 : 10));
+      const vol = (formData.wallLength * formData.wallHeight * (formData.wallThick / 12));
+      if (vol > 0) {
+        const dry = vol * 0.35; // Mortar volume approx 35%
+        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
+      }
+    } else if (name === 'plaster') {
+      const vol = (formData.plasterArea * (formData.plasterThick / 12)) * formData.plasterSide;
+      if (vol > 0) {
+        const dry = vol * 1.54;
+        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
+      }
+    } else if (name === 'tiles') {
+      if (formData.floorArea > 0 && formData.tileLen > 0 && formData.tileWid > 0) {
+        const tileArea = (formData.tileLen / 12) * (formData.tileWid / 12);
+        tiles = Math.ceil((formData.floorArea / tileArea) * (1 + formData.tileWastage / 100));
+        // Cement/Sand for 1 inch bedding
+        const dry = formData.floorArea * (1/12) * 1.54;
+        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
+      }
+    }
 
-    const cementFromPlaster = (dryPlasterVol / 5) / 1.25;
-    const sandFromPlaster = (dryPlasterVol / 5) * 4;
-
-    // Bricks
-    const brickCount = Math.ceil(formData.wallLength * formData.wallHeight * (formData.wallThick === 5 ? 5 : 10));
-
-    // Rod Weights (KG) - Using separate factors
-    const baseRodWeight = ((formData.baseRodLong * formData.baseLength + formData.baseRodWidth * formData.baseWidth) * formData.baseCount) * formData.baseRodFactor;
-    
-    const colMainWeight = (formData.colHeight * formData.colRods * formData.columnCount) * formData.colRodFactor;
-    const colRingLength = (formData.colLen + formData.colWid) * 2 / 12;
-    const colRingCount = (formData.colHeight / (formData.colRingGap/12)) * formData.columnCount;
-    const colRingWeight = (colRingCount * colRingLength) * formData.colRingRodFactor;
-
-    const beamMainWeight = (formData.beamLen * formData.beamRods) * formData.beamRodFactor;
-    const beamRingLength = (formData.beamHeight + formData.beamWid) * 2 / 12;
-    const beamRingCount = (formData.beamLen / (formData.beamRingGap/12));
-    const beamRingWeight = (beamRingCount * beamRingLength) * formData.beamRingRodFactor;
-
-    const slabMainWeight = ((formData.slabLen / (formData.slabRodGap/12)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12)) * formData.slabLen) * formData.slabRodFactor;
-    
-    return { 
-      cementBags: Math.ceil(cementFromConcrete + cementFromPlaster), 
-      sandCft: Math.ceil(sandFromConcrete + sandFromPlaster), 
-      stoneCft: Math.ceil(stoneFromConcrete), 
-      totalRodKg: Math.ceil(baseRodWeight + colMainWeight + colRingWeight + beamMainWeight + beamRingWeight + slabMainWeight),
-      brickCount
-    };
+    return { cement, sand, stone, rod, bricks, tiles };
   };
-
-  const results = calculateEstimation();
 
   const getAdvice = async () => {
     setLoadingAdvice(true);
-    // Use the most representative main rod factor for the generic prompt input
     const result = await getConstructionAdvice({
       ...formData,
-      baseLengthFt: formData.baseLength,
-      baseWidthFt: formData.baseWidth,
-      baseThicknessIn: formData.baseThick,
-      columnLengthIn: formData.colLen,
-      columnWidthIn: formData.colWid,
-      columnHeightFt: formData.colHeight,
-      columnRodCount: formData.colRods,
-      beamHeightIn: formData.beamHeight,
-      beamWidthIn: formData.beamWid,
-      beamLengthFt: formData.beamLen,
-      beamRodCount: formData.beamRods,
-      slabLengthFt: formData.slabLen,
-      slabWidthFt: formData.slabWid,
-      slabThicknessIn: formData.slabThick,
-      slabRodGapIn: formData.slabRodGap,
-      baseRodLongitudinalCount: formData.baseRodLong,
-      baseRodWidthCount: formData.baseRodWidth,
-      ringGapIn: formData.colRingGap, // Use column ring gap as representative
-      mainRodFactor: formData.colRodFactor, // Use column rod as representative
-      ringRodFactor: formData.colRingRodFactor,
+      baseLengthFt: formData.baseLength, baseWidthFt: formData.baseWidth, baseThicknessIn: formData.baseThick,
+      columnLengthIn: formData.colLen, columnWidthIn: formData.colWid, columnHeightFt: formData.colHeight,
+      columnRodCount: formData.colRods, beamHeightIn: formData.beamHeight, beamWidthIn: formData.beamWid,
+      beamLengthFt: formData.beamLen, beamRodCount: formData.beamRods, slabLengthFt: formData.slabLen,
+      slabWidthFt: formData.slabWid, slabThicknessIn: formData.slabThick, slabRodGapIn: formData.slabRodGap,
+      baseRodLongitudinalCount: formData.baseRodLong, baseRodWidthCount: formData.baseRodWidth,
+      ringGapIn: formData.colRingGap || formData.beamRingGap, mainRodFactor: formData.colRodFactor, ringRodFactor: formData.colRingRodFactor
     } as any);
     if (result && 'advice' in result) setAdvice(result.advice);
     setLoadingAdvice(false);
   };
+
+  const sections = ['foundation', 'column', 'beam', 'slab', 'brickwork', 'plaster', 'tiles'];
+  const results = sections.reduce((acc, s) => {
+    const res = calcSection(s);
+    acc.cement += res.cement; acc.sand += res.sand; acc.stone += res.stone; 
+    acc.rod += res.rod; acc.bricks += res.bricks; acc.tiles += res.tiles;
+    return acc;
+  }, { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 });
+
+  const currentRes = calcSection(activeTab);
 
   return (
     <div className="flex flex-col h-[100svh] w-full bg-slate-50 overflow-hidden">
@@ -1043,7 +917,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
           <h2 className="text-sm md:text-lg font-bold text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> নির্মাণ হিসাব ক্যালকুলেটর</h2>
         </div>
         <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 md:h-9 text-[10px] md:text-xs">
-          {loadingAdvice ? "অপেক্ষা করুন..." : <><Send className="w-3 h-3 md:w-4 md:h-4" /> এআই পরামর্শ</>}
+          {loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} এআই পরামর্শ
         </Button>
       </div>
 
@@ -1054,11 +928,13 @@ function EstimationView({ onBack }: { onBack: () => void }) {
               <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
                 <TabsList className="flex w-full h-auto p-1 mb-6 bg-slate-100 overflow-x-auto no-scrollbar gap-1">
                   <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফাউন্ডেশন</TabsTrigger>
-                  <TabsTrigger value="pillar" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
+                  <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">বিম</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ছাদ</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">গাথনী</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
+                  <TabsTrigger value="tiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">টাইলস</TabsTrigger>
+                  <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-bold">মোট মালামাল</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="foundation" className="space-y-6 m-0">
@@ -1069,51 +945,36 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.baseThick} onChange={v => handleInputChange('baseThick', v)} />
                     <InputField label="রড সংখ্যা (দৈর্ঘ্য বরাবর)" value={formData.baseRodLong} onChange={v => handleInputChange('baseRodLong', v)} />
                     <InputField label="রড সংখ্যা (প্রস্থ বরাবর)" value={formData.baseRodWidth} onChange={v => handleInputChange('baseRodWidth', v)} />
-                    
-                    <div className="col-span-2 space-y-2 pt-2 border-t border-slate-100">
-                      <Label className="text-xs font-bold text-slate-600">বেসের রডের ধরন</Label>
-                      <RodSelect value={formData.baseRodFactor} onChange={v => handleInputChange('baseRodFactor', v)} />
-                    </div>
+                    <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={formData.baseRodFactor} onChange={v => handleInputChange('baseRodFactor', v)} /></div>
                   </div>
+                  <SectionResult res={currentRes} />
                 </TabsContent>
 
-                <TabsContent value="pillar" className="space-y-6 m-0">
+                <TabsContent value="column" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="কলাম সংখ্যা" value={formData.columnCount} onChange={v => handleInputChange('columnCount', v)} />
                     <InputField label="দৈর্ঘ্য (ইঞ্চি)" value={formData.colLen} onChange={v => handleInputChange('colLen', v)} />
                     <InputField label="প্রস্থ (ইঞ্চি)" value={formData.colWid} onChange={v => handleInputChange('colWid', v)} />
                     <InputField label="উচ্চতা (ফুট)" value={formData.colHeight} onChange={v => handleInputChange('colHeight', v)} />
-                    <InputField label="মেইন রড সংখ্যা (প্রতি কলাম)" value={formData.colRods} onChange={v => handleInputChange('colRods', v)} />
+                    <InputField label="মেইন রড সংখ্যা" value={formData.colRods} onChange={v => handleInputChange('colRods', v)} />
                     <InputField label="রিং গ্যাপ (ইঞ্চি)" value={formData.colRingGap} onChange={v => handleInputChange('colRingGap', v)} />
-                    
-                    <div className="col-span-1 space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">মেইন রডের ধরন</Label>
-                      <RodSelect value={formData.colRodFactor} onChange={v => handleInputChange('colRodFactor', v)} />
-                    </div>
-                    <div className="col-span-1 space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">রিং রডের ধরন</Label>
-                      <RodSelect value={formData.colRingRodFactor} onChange={v => handleInputChange('colRingRodFactor', v)} limit={3} />
-                    </div>
+                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={formData.colRodFactor} onChange={v => handleInputChange('colRodFactor', v)} /></div>
+                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={formData.colRingRodFactor} onChange={v => handleInputChange('colRingRodFactor', v)} limit={3} /></div>
                   </div>
+                  <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="beam" className="space-y-6 m-0">
-                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="মোট বিম দৈর্ঘ্য (ফুট)" value={formData.beamLen} onChange={v => handleInputChange('beamLen', v)} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="বিমের মোট দৈর্ঘ্য (ফুট)" value={formData.beamLen} onChange={v => handleInputChange('beamLen', v)} />
                     <InputField label="বিম উচ্চতা (ইঞ্চি)" value={formData.beamHeight} onChange={v => handleInputChange('beamHeight', v)} />
                     <InputField label="বিম প্রস্থ (ইঞ্চি)" value={formData.beamWid} onChange={v => handleInputChange('beamWid', v)} />
                     <InputField label="মেইন রড সংখ্যা" value={formData.beamRods} onChange={v => handleInputChange('beamRods', v)} />
                     <InputField label="রিং গ্যাপ (ইঞ্চি)" value={formData.beamRingGap} onChange={v => handleInputChange('beamRingGap', v)} />
-                    
-                    <div className="col-span-1 space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">মেইন রডের ধরন</Label>
-                      <RodSelect value={formData.beamRodFactor} onChange={v => handleInputChange('beamRodFactor', v)} />
-                    </div>
-                    <div className="col-span-1 space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">রিং রডের ধরন</Label>
-                      <RodSelect value={formData.beamRingRodFactor} onChange={v => handleInputChange('beamRingRodFactor', v)} limit={3} />
-                    </div>
+                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={formData.beamRodFactor} onChange={v => handleInputChange('beamRodFactor', v)} /></div>
+                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={formData.beamRingRodFactor} onChange={v => handleInputChange('beamRingRodFactor', v)} limit={3} /></div>
                   </div>
+                  <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="slab" className="space-y-6 m-0">
@@ -1122,45 +983,68 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     <InputField label="ছাদের প্রস্থ (ফুট)" value={formData.slabWid} onChange={v => handleInputChange('slabWid', v)} />
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.slabThick} onChange={v => handleInputChange('slabThick', v)} />
                     <InputField label="রড গ্যাপ (ইঞ্চি)" value={formData.slabRodGap} onChange={v => handleInputChange('slabRodGap', v)} />
-                    
-                    <div className="col-span-2 space-y-2 pt-2 border-t border-slate-100">
-                      <Label className="text-xs font-bold text-slate-600">ছাদের রডের ধরন</Label>
-                      <RodSelect value={formData.slabRodFactor} onChange={v => handleInputChange('slabRodFactor', v)} />
-                    </div>
+                    <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={formData.slabRodFactor} onChange={v => handleInputChange('slabRodFactor', v)} /></div>
                   </div>
+                  <SectionResult res={currentRes} />
                 </TabsContent>
 
-                <TabsContent value="brickwork" className="space-y-4 m-0">
+                <TabsContent value="brickwork" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="দেয়ালের মোট দৈর্ঘ্য (ফুট)" value={formData.wallLength} onChange={v => handleInputChange('wallLength', v)} />
+                    <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={formData.wallLength} onChange={v => handleInputChange('wallLength', v)} />
                     <InputField label="দেয়ালের উচ্চতা (ফুট)" value={formData.wallHeight} onChange={v => handleInputChange('wallHeight', v)} />
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-bold text-slate-600">দেয়ালের পুরুত্ব</Label>
-                      <Select value={formData.wallThick.toString()} onValueChange={(v) => handleInputChange('wallThick', v)}>
-                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue placeholder="নির্বাচন করুন" /></SelectTrigger>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">দেয়ালের পুরুত্ব</Label>
+                      <Select value={formData.wallThick.toString()} onValueChange={v => handleInputChange('wallThick', v)}>
+                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent><SelectItem value="5">৫ ইঞ্চি দেয়াল</SelectItem><SelectItem value="10">১০ ইঞ্চি দেয়াল</SelectItem></SelectContent>
                       </Select>
                     </div>
                   </div>
+                  <SectionResult res={currentRes} />
                 </TabsContent>
 
-                <TabsContent value="plaster" className="space-y-4 m-0">
+                <TabsContent value="plaster" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="মোট প্লাষ্টার এরিয়া (স্কয়ার ফুট)" value={formData.plasterArea} onChange={v => handleInputChange('plasterArea', v)} />
+                    <InputField label="প্লাষ্টার এরিয়া (স্কয়ার ফুট)" value={formData.plasterArea} onChange={v => handleInputChange('plasterArea', v)} />
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.plasterThick} onChange={v => handleInputChange('plasterThick', v)} />
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-bold text-slate-600">পাশ সংখ্যা</Label>
-                      <Select value={formData.plasterSide.toString()} onValueChange={(v) => handleInputChange('plasterSide', v)}>
-                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue placeholder="নির্বাচন করুন" /></SelectTrigger>
-                        <SelectContent><SelectItem value="1">এক পাশ (Inside)</SelectItem><SelectItem value="2">দুই পাশ (Inside/Outside)</SelectItem></SelectContent>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">পাশ</Label>
+                      <Select value={formData.plasterSide.toString()} onValueChange={v => handleInputChange('plasterSide', v)}>
+                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="1">এক পাশ</SelectItem><SelectItem value="2">দুই পাশ</SelectItem></SelectContent>
                       </Select>
+                    </div>
+                  </div>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="tiles" className="space-y-6 m-0">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="ফ্লোর এরিয়া (স্কয়ার ফুট)" value={formData.floorArea} onChange={v => handleInputChange('floorArea', v)} />
+                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.tileLen} onChange={v => handleInputChange('tileLen', v)} />
+                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.tileWid} onChange={v => handleInputChange('tileWid', v)} />
+                    <InputField label="অপচয় (%)" value={formData.tileWastage} onChange={v => handleInputChange('tileWastage', v)} />
+                  </div>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="total" className="space-y-6 m-0">
+                  <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-4">
+                    <h3 className="font-bold text-emerald-800 flex items-center gap-2"><Boxes className="w-5 h-5" /> মোট সমন্বিত মালামাল</h3>
+                    <div className="grid gap-3">
+                      <ResultRow label="সিমেন্ট" value={results.cement} unit="ব্যাগ" dark />
+                      <ResultRow label="বালু" value={results.sand} unit="সিএফটি" dark />
+                      <ResultRow label="পাথর/খোয়া" value={results.stone} unit="সিএফটি" dark />
+                      <ResultRow label="রড" value={results.rod} unit="কেজি" dark />
+                      <ResultRow label="ইট" value={results.bricks} unit="টি" dark />
+                      <ResultRow label="টাইলস" value={results.tiles} unit="টি" dark />
                     </div>
                   </div>
                 </TabsContent>
               </Tabs>
 
               {advice && (
-                <div className="bg-white p-5 rounded-xl border shadow-sm prose prose-slate max-w-none">
+                <div className="bg-white p-5 rounded-xl border shadow-sm">
                   <h3 className="text-md font-bold text-emerald-700 mb-3 flex items-center gap-2">⭐ এআই বিশেষজ্ঞ পরামর্শ</h3>
                   <div className="text-[12px] md:text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div>
                 </div>
@@ -1168,14 +1052,13 @@ function EstimationView({ onBack }: { onBack: () => void }) {
             </div>
 
             <div className="space-y-6">
-              <div className="bg-emerald-600 text-white p-5 rounded-xl shadow-lg sticky top-6">
-                <h3 className="text-md font-bold mb-4 flex items-center gap-2 border-b border-white/20 pb-2"><Calculator className="w-4 h-4" /> আনুমানিক মালামাল</h3>
-                <div className="grid gap-3">
-                  <ResultRow label="সিমেন্ট" value={results.cementBags} unit="ব্যাগ" />
-                  <ResultRow label="বালু (সিলেট/লোকাল)" value={results.sandCft} unit="সিএফটি" />
-                  <ResultRow label="পাথর/খোয়া" value={results.stoneCft} unit="সিএফটি" />
-                  <ResultRow label="মোট রড" value={results.totalRodKg} unit="কেজি" />
-                  <ResultRow label="মোট ইট" value={results.brickCount} unit="টি" />
+              <div className="bg-slate-800 text-white p-5 rounded-xl shadow-lg sticky top-6">
+                <h3 className="text-md font-bold mb-4 border-b border-white/20 pb-2 flex items-center gap-2"><Calculator className="w-4 h-4" /> ইনস্ট্যান্ট সামারি</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">সিমেন্ট:</span><span className="font-bold">{Math.ceil(results.cement)} ব্যাগ</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(results.sand)} CFT</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(results.rod)} KG</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{results.bricks} টি</span></div>
                 </div>
               </div>
             </div>
@@ -1186,20 +1069,43 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   );
 }
 
+function SectionResult({ res }: { res: any }) {
+  const hasValues = res.cement > 0 || res.rod > 0 || res.bricks > 0 || res.tiles > 0;
+  if (!hasValues) return <div className="p-4 bg-slate-50 border border-dashed rounded-lg text-center text-[10px] text-slate-400">এই সেকশনে কোন ইনপুট দেওয়া হয়নি</div>;
+  return (
+    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-2">
+      <h4 className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">সেকশন রেজাল্ট</h4>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {res.cement > 0 && <ResultRow label="সিমেন্ট" value={res.cement} unit="ব্যাগ" small />}
+        {res.sand > 0 && <ResultRow label="বালু" value={res.sand} unit="সিএফটি" small />}
+        {res.stone > 0 && <ResultRow label="পাথর" value={res.stone} unit="সিএফটি" small />}
+        {res.rod > 0 && <ResultRow label="রড" value={res.rod} unit="কেজি" small />}
+        {res.bricks > 0 && <ResultRow label="ইট" value={res.bricks} unit="টি" small />}
+        {res.tiles > 0 && <ResultRow label="টাইলস" value={res.tiles} unit="টি" small />}
+      </div>
+    </div>
+  );
+}
+
+function ResultRow({ label, value, unit, small, dark }: { label: string, value: number, unit: string, small?: boolean, dark?: boolean }) {
+  return (
+    <div className={cn(
+      "flex justify-between items-center rounded-lg border",
+      small ? "p-2 bg-white" : "p-3 bg-white/10",
+      dark ? "bg-white border-emerald-100" : "border-slate-100"
+    )}>
+      <span className={cn("font-medium", small ? "text-[9px]" : "text-[11px]", dark ? "text-emerald-900" : "text-slate-600")}>{label}</span>
+      <span className={cn("font-black", small ? "text-[10px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
+    </div>
+  );
+}
+
 function RodSelect({ value, onChange, limit }: { value: number, onChange: (v: string) => void, limit?: number }) {
   const options = limit ? ROD_OPTIONS.slice(0, limit) : ROD_OPTIONS;
   return (
     <Select value={value.toString()} onValueChange={onChange}>
-      <SelectTrigger className="bg-slate-50 h-9 text-xs">
-        <SelectValue placeholder="রডের মাপ" />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map(opt => (
-          <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">
-            {opt.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
+      <SelectTrigger className="bg-slate-50 h-9 text-xs"><SelectValue /></SelectTrigger>
+      <SelectContent>{options.map(opt => <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">{opt.label}</SelectItem>)}</SelectContent>
     </Select>
   );
 }
@@ -1208,22 +1114,13 @@ function InputField({ label, value, onChange }: { label: string, value: number, 
   return (
     <div className="space-y-1.5">
       <Label className="text-[11px] font-bold text-slate-600">{label}</Label>
-      <Input type="number" value={value} onChange={e => onChange(e.target.value)} className="h-9 bg-slate-50 border-slate-200 focus:ring-emerald-500 text-xs" />
-    </div>
-  );
-}
-
-function ResultRow({ label, value, unit }: { label: string, value: number, unit: string }) {
-  return (
-    <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-lg backdrop-blur-sm border border-white/10">
-      <span className="text-[11px] font-medium opacity-90">{label}</span>
-      <span className="text-[12px] font-black">{Math.ceil(value)} {unit}</span>
+      <Input type="number" value={value === 0 ? "" : value} onChange={e => onChange(e.target.value)} placeholder="0" className="h-9 bg-slate-50 border-slate-200 text-xs" />
     </div>
   );
 }
 
 function RibbonButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
-  return <Button variant="ghost" className={cn("h-12 md:h-14 flex flex-col gap-0.5 md:gap-1 px-2 md:px-3", active && "bg-slate-100 text-blue-600")} onClick={onClick}>{React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-4.5 md:h-4.5" })}<span className="text-[8px] md:text-[9px] uppercase font-bold tracking-tight">{label}</span></Button>;
+  return <Button variant="ghost" className={cn("h-12 md:h-14 flex flex-col gap-0.5 md:gap-1 px-2 md:px-3", active && "bg-slate-100 text-blue-600")} onClick={onClick}>{React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}<span className="text-[8px] md:text-[9px] uppercase font-bold tracking-tight">{label}</span></Button>;
 }
 
 function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
