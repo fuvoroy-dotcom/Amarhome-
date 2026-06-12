@@ -979,30 +979,33 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       slabThicknessIn: formData.slabThick,
       slabRodGapIn: formData.slabRodGap,
       baseRodLongitudinalCount: formData.baseRodLong,
-      baseRodWidthCount: formData.baseRodWidth
+      baseRodWidthCount: formData.baseRodWidth,
+      ringGapIn: formData.ringGap,
     });
-    if ('advice' in result) setAdvice(result.advice);
+    if (result && 'advice' in result) setAdvice(result.advice);
     setLoadingAdvice(false);
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
-      <div className="h-14 bg-white border-b flex items-center px-4 justify-between shadow-sm">
+    <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden">
+      {/* Fixed Header */}
+      <div className="h-14 bg-white border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="w-5 h-5" /></Button>
-          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2"><Calculator className="w-5 h-5 text-emerald-500" /> নির্মাণ হিসাব ক্যালকুলেটর</h2>
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
+          <h2 className="text-sm md:text-lg font-bold text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> নির্মাণ হিসাব ক্যালকুলেটর</h2>
         </div>
-        <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-9">
-          {loadingAdvice ? "অপেক্ষা করুন..." : <><Send className="w-4 h-4" /> এআই পরামর্শ</>}
+        <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 md:h-9 text-[10px] md:text-xs">
+          {loadingAdvice ? "অপেক্ষা করুন..." : <><Send className="w-3 h-3 md:w-4 md:h-4" /> এআই পরামর্শ</>}
         </Button>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <ScrollArea className="w-full h-full p-4">
-          <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="max-w-5xl mx-auto p-4 md:p-6 pb-24">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-6 rounded-xl border shadow-sm">
-                <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto p-1 mb-6 bg-slate-100">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
+                <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto p-1 mb-6 bg-slate-100 overflow-x-auto no-scrollbar">
                   <TabsTrigger value="foundation" className="text-[10px] md:text-xs">ফাউন্ডেশন</TabsTrigger>
                   <TabsTrigger value="pillar" className="text-[10px] md:text-xs">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs">বিম</TabsTrigger>
@@ -1052,7 +1055,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
                 <TabsContent value="materials" className="space-y-6">
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                    <p className="text-sm text-blue-800 italic">এখানে আপনার ব্যবহৃত রডের মাপ নির্বাচন করুন। এটি আপনার পুরো প্রজেক্টের রডের ওজনের ওপর প্রভাব ফেলবে।</p>
+                    <p className="text-xs text-blue-800 italic">এখানে আপনার ব্যবহৃত রডের মাপ নির্বাচন করুন। এটি আপনার পুরো প্রজেক্টের রডের ওজনের ওপর প্রভাব ফেলবে।</p>
                   </div>
                   <div className="grid gap-6">
                     <div className="space-y-2">
@@ -1061,12 +1064,12 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         value={formData.mainRodFactor.toString()} 
                         onValueChange={(v) => handleInputChange('mainRodFactor', v)}
                       >
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger className="bg-white h-9 text-xs">
                           <SelectValue placeholder="রডের মাপ নির্বাচন করুন" />
                         </SelectTrigger>
                         <SelectContent>
                           {ROD_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value.toString()}>
+                            <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">
                               {opt.label}
                             </SelectItem>
                           ))}
@@ -1080,12 +1083,12 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         value={formData.ringRodFactor.toString()} 
                         onValueChange={(v) => handleInputChange('ringRodFactor', v)}
                       >
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger className="bg-white h-9 text-xs">
                           <SelectValue placeholder="রিং রডের মাপ নির্বাচন করুন" />
                         </SelectTrigger>
                         <SelectContent>
                           {ROD_OPTIONS.slice(0, 3).map(opt => (
-                            <SelectItem key={opt.value} value={opt.value.toString()}>
+                            <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">
                               {opt.label}
                             </SelectItem>
                           ))}
@@ -1107,17 +1110,17 @@ function EstimationView({ onBack }: { onBack: () => void }) {
               </Tabs>
 
               {advice && (
-                <div className="bg-white p-6 rounded-xl border shadow-sm prose prose-slate max-w-none">
-                  <h3 className="text-lg font-bold text-emerald-700 mb-4 flex items-center gap-2">⭐ এআই বিশেষজ্ঞ পরামর্শ</h3>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div>
+                <div className="bg-white p-5 rounded-xl border shadow-sm prose prose-slate max-w-none">
+                  <h3 className="text-md font-bold text-emerald-700 mb-3 flex items-center gap-2">⭐ এআই বিশেষজ্ঞ পরামর্শ</h3>
+                  <div className="text-[12px] md:text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div>
                 </div>
               )}
             </div>
 
             <div className="space-y-6">
-              <div className="bg-emerald-600 text-white p-6 rounded-xl shadow-lg">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b border-white/20 pb-2"><Calculator className="w-5 h-5" /> আনুমানিক মালামাল</h3>
-                <div className="grid gap-4">
+              <div className="bg-emerald-600 text-white p-5 rounded-xl shadow-lg">
+                <h3 className="text-md font-bold mb-4 flex items-center gap-2 border-b border-white/20 pb-2"><Calculator className="w-4 h-4" /> আনুমানিক মালামাল</h3>
+                <div className="grid gap-3">
                   <ResultRow label="সিমেন্ট" value={results.cementBags} unit="ব্যাগ" />
                   <ResultRow label="বালু (সিলেট/লোকাল)" value={results.sandCft} unit="সিএফটি" />
                   <ResultRow label="পাথর/খোয়া" value={results.stoneCft} unit="সিএফটি" />
@@ -1126,9 +1129,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl border shadow-sm">
-                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">নির্দেশিকা</h3>
-                <ul className="text-xs space-y-3 text-slate-500 list-disc pl-4">
+              <div className="bg-white p-5 rounded-xl border shadow-sm">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">নির্দেশিকা</h3>
+                <ul className="text-[11px] space-y-2 text-slate-500 list-disc pl-4">
                   <li>কংক্রিট মিক্স রেশিও ১:১.৫:৩ (সিমেন্ট:বালু:পাথর) হিসেবে গণনা করা হয়েছে।</li>
                   <li>রডের ওজন আপনার নির্বাচিত মাপ (যেমন: ১৬ মিমি বা ১০ মিমি) অনুযায়ী ধরা হয়েছে।</li>
                   <li>এটি একটি সম্ভাব্য হিসেব, সাইটের প্রকৃত কাজের জন্য ইঞ্জিনিয়ারের পরামর্শ নিন।</li>
@@ -1136,8 +1139,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           </div>
-          <div className="h-10" />
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
@@ -1146,17 +1148,17 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 function InputField({ label, value, onChange }: { label: string, value: number, onChange: (v: string) => void }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-bold text-slate-600">{label}</Label>
-      <Input type="number" value={value} onChange={e => onChange(e.target.value)} className="h-10 bg-slate-50 border-slate-200 focus:ring-emerald-500" />
+      <Label className="text-[11px] font-bold text-slate-600">{label}</Label>
+      <Input type="number" value={value} onChange={e => onChange(e.target.value)} className="h-9 bg-slate-50 border-slate-200 focus:ring-emerald-500 text-xs" />
     </div>
   );
 }
 
 function ResultRow({ label, value, unit }: { label: string, value: number, unit: string }) {
   return (
-    <div className="flex justify-between items-center bg-white/10 p-3 rounded-lg backdrop-blur-sm border border-white/10">
-      <span className="text-xs font-medium opacity-90">{label}</span>
-      <span className="text-sm font-black">{Math.ceil(value)} {unit}</span>
+    <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-lg backdrop-blur-sm border border-white/10">
+      <span className="text-[11px] font-medium opacity-90">{label}</span>
+      <span className="text-[12px] font-black">{Math.ceil(value)} {unit}</span>
     </div>
   );
 }
