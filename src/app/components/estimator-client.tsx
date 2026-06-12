@@ -13,7 +13,7 @@ import {
   Image as ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Hand, Calculator, ArrowLeft, Send, Sparkles, Loader2
+  Hand, Calculator, ArrowLeft, Send, Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,6 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
-import { generateHouseDesign } from "@/ai/flows/house-design-flow";
 
 type DesignObject = {
   id: string;
@@ -922,11 +921,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
   
-  // House Design AI State
-  const [designParams, setDesignParams] = useState({ style: "আধুনিক", floors: 1, surroundings: "গ্রামীন পরিবেশ" });
-  const [generatedImg, setGeneratedImg] = useState<string | null>(null);
-  const [generatingDesign, setGeneratingDesign] = useState(false);
-
   // Form State
   const [formData, setFormData] = useState({
     baseCount: 6, baseLength: 5, baseWidth: 5, baseThick: 12,
@@ -980,18 +974,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     };
   };
 
-  const handleGenerateDesign = async () => {
-    setGeneratingDesign(true);
-    try {
-      const res = await generateHouseDesign(designParams);
-      if (res && res.imageUrl) setGeneratedImg(res.imageUrl);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setGeneratingDesign(false);
-    }
-  };
-
   const results = calculateEstimation();
 
   const getAdvice = async () => {
@@ -1043,7 +1025,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <TabsTrigger value="pillar" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">বিম</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ছাদ</TabsTrigger>
-                  <TabsTrigger value="design_ai" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-blue-50 text-blue-600 border-blue-200">বাড়ির ডিজাইন</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">গাথনী</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
                   <TabsTrigger value="materials" className="text-[10px] md:text-xs px-3 py-2 shrink-0">অন্যান্য রড</TabsTrigger>
@@ -1105,35 +1086,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                       </Select>
                     </div>
                   </div>
-                </TabsContent>
-
-                <TabsContent value="design_ai" className="space-y-6 m-0">
-                  <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 space-y-4">
-                    <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2"><Sparkles className="w-4 h-4" /> এআই বাড়ির নকশা জেনারেটর</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-[11px] font-bold">বাড়ির স্টাইল</Label>
-                        <Input value={designParams.style} onChange={(e) => setDesignParams({...designParams, style: e.target.value})} className="h-9 text-xs" placeholder="আধুনিক, ডুপ্লেক্স, ইউরোপীয়..." />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[11px] font-bold">তলা সংখ্যা</Label>
-                        <Input type="number" value={designParams.floors} onChange={(e) => setDesignParams({...designParams, floors: parseInt(e.target.value) || 1})} className="h-9 text-xs" />
-                      </div>
-                      <div className="col-span-2 space-y-1.5">
-                        <Label className="text-[11px] font-bold">পরিবেশ</Label>
-                        <Input value={designParams.surroundings} onChange={(e) => setDesignParams({...designParams, surroundings: e.target.value})} className="h-9 text-xs" placeholder="গ্রামীন পরিবেশ, শহরের রাস্তা, বাগান..." />
-                      </div>
-                    </div>
-                    <Button onClick={handleGenerateDesign} disabled={generatingDesign} className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2 h-9 text-xs">
-                      {generatingDesign ? <><Loader2 className="w-4 h-4 animate-spin" /> নকশা তৈরি হচ্ছে...</> : <><ImageIcon className="w-4 h-4" /> নকশা দেখুন</>}
-                    </Button>
-                  </div>
-                  {generatedImg && (
-                    <div className="relative aspect-video w-full rounded-xl overflow-hidden border shadow-inner bg-slate-100">
-                      <img src={generatedImg} alt="Generated House Design" className="object-cover w-full h-full" />
-                      <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-blue-600 border border-blue-200 shadow-sm">AI জেনারেটেড ডিজাইন</div>
-                    </div>
-                  )}
                 </TabsContent>
 
                 <TabsContent value="brickwork" className="space-y-4 m-0">
