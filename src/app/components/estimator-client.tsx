@@ -813,7 +813,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     slabLen: 0, slabWid: 0, slabThick: 0, slabRodGap: 0, slabRodFactor: 0.30,
     wallLength: 0, wallHeight: 0, wallThick: 5,
     plasterArea: 0, plasterThick: 0, plasterSide: 1,
-    floorArea: 0, tileLen: 0, tileWid: 0, tileWastage: 10
+    floorArea: 0, floorTileLen: 0, floorTileWid: 0, floorTileWastage: 10,
+    wallTileArea: 0, wallTileLen: 0, wallTileWid: 0, wallTileWastage: 10
   });
 
   const handleInputChange = (field: string, val: string) => {
@@ -861,7 +862,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       bricks = Math.ceil(formData.wallLength * formData.wallHeight * (formData.wallThick === 5 ? 5 : 10));
       const vol = (formData.wallLength * formData.wallHeight * (formData.wallThick / 12));
       if (vol > 0) {
-        const dry = vol * 0.35; // Mortar volume approx 35%
+        const dry = vol * 0.35; 
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     } else if (name === 'plaster') {
@@ -870,12 +871,18 @@ function EstimationView({ onBack }: { onBack: () => void }) {
         const dry = vol * 1.54;
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
-    } else if (name === 'tiles') {
-      if (formData.floorArea > 0 && formData.tileLen > 0 && formData.tileWid > 0) {
-        const tileArea = (formData.tileLen / 12) * (formData.tileWid / 12);
-        tiles = Math.ceil((formData.floorArea / tileArea) * (1 + formData.tileWastage / 100));
-        // Cement/Sand for 1 inch bedding
+    } else if (name === 'floorTiles') {
+      if (formData.floorArea > 0 && formData.floorTileLen > 0 && formData.floorTileWid > 0) {
+        const tileArea = (formData.floorTileLen / 12) * (formData.floorTileWid / 12);
+        tiles = Math.ceil((formData.floorArea / tileArea) * (1 + formData.floorTileWastage / 100));
         const dry = formData.floorArea * (1/12) * 1.54;
+        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
+      }
+    } else if (name === 'wallTiles') {
+      if (formData.wallTileArea > 0 && formData.wallTileLen > 0 && formData.wallTileWid > 0) {
+        const tileArea = (formData.wallTileLen / 12) * (formData.wallTileWid / 12);
+        tiles = Math.ceil((formData.wallTileArea / tileArea) * (1 + formData.wallTileWastage / 100));
+        const dry = formData.wallTileArea * (0.5/12) * 1.54; // Assuming 0.5 inch mortar for walls
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     }
@@ -899,7 +906,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     setLoadingAdvice(false);
   };
 
-  const sections = ['foundation', 'column', 'beam', 'slab', 'brickwork', 'plaster', 'tiles'];
+  const sections = ['foundation', 'column', 'beam', 'slab', 'brickwork', 'plaster', 'floorTiles', 'wallTiles'];
   const results = sections.reduce((acc, s) => {
     const res = calcSection(s);
     acc.cement += res.cement; acc.sand += res.sand; acc.stone += res.stone; 
@@ -933,7 +940,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ছাদ</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">গাথনী</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
-                  <TabsTrigger value="tiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">টাইলস</TabsTrigger>
+                  <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফ্লোর টাইলস</TabsTrigger>
+                  <TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ওয়াল টাইলস</TabsTrigger>
                   <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-bold">মোট মালামাল</TabsTrigger>
                 </TabsList>
 
@@ -1018,12 +1026,22 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
-                <TabsContent value="tiles" className="space-y-6 m-0">
+                <TabsContent value="floorTiles" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="ফ্লোর এরিয়া (স্কয়ার ফুট)" value={formData.floorArea} onChange={v => handleInputChange('floorArea', v)} />
-                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.tileLen} onChange={v => handleInputChange('tileLen', v)} />
-                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.tileWid} onChange={v => handleInputChange('tileWid', v)} />
-                    <InputField label="অপচয় (%)" value={formData.tileWastage} onChange={v => handleInputChange('tileWastage', v)} />
+                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.floorTileLen} onChange={v => handleInputChange('floorTileLen', v)} />
+                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.floorTileWid} onChange={v => handleInputChange('floorTileWid', v)} />
+                    <InputField label="অপচয় (%)" value={formData.floorTileWastage} onChange={v => handleInputChange('floorTileWastage', v)} />
+                  </div>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="wallTiles" className="space-y-6 m-0">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="দেয়ালের ক্ষেত্রফল (স্কয়ার ফুট)" value={formData.wallTileArea} onChange={v => handleInputChange('wallTileArea', v)} />
+                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.wallTileLen} onChange={v => handleInputChange('wallTileLen', v)} />
+                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.wallTileWid} onChange={v => handleInputChange('wallTileWid', v)} />
+                    <InputField label="অপচয় (%)" value={formData.wallTileWastage} onChange={v => handleInputChange('wallTileWastage', v)} />
                   </div>
                   <SectionResult res={currentRes} />
                 </TabsContent>
@@ -1037,7 +1055,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                       <ResultRow label="পাথর/খোয়া" value={results.stone} unit="সিএফটি" dark />
                       <ResultRow label="রড" value={results.rod} unit="কেজি" dark />
                       <ResultRow label="ইট" value={results.bricks} unit="টি" dark />
-                      <ResultRow label="টাইলস" value={results.tiles} unit="টি" dark />
+                      <ResultRow label="টাইলস (মোট)" value={results.tiles} unit="টি" dark />
                     </div>
                   </div>
                 </TabsContent>
@@ -1059,6 +1077,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(results.sand)} CFT</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(results.rod)} KG</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{results.bricks} টি</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস:</span><span className="font-bold">{results.tiles} টি</span></div>
                 </div>
               </div>
             </div>
