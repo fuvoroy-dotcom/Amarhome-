@@ -13,7 +13,7 @@ import {
   Image as ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Hand, Calculator, ArrowLeft, Send
+  Hand, Calculator, ArrowLeft, Send, Sparkles, Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
+import { generateHouseDesign } from "@/ai/flows/house-design-flow";
 
 type DesignObject = {
   id: string;
@@ -920,6 +921,11 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
+  
+  // House Design AI State
+  const [designParams, setDesignParams] = useState({ style: "আধুনিক", floors: 1, surroundings: "গ্রামীন পরিবেশ" });
+  const [generatedImg, setGeneratedImg] = useState<string | null>(null);
+  const [generatingDesign, setGeneratingDesign] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -928,8 +934,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     beamWid: 10, beamHeight: 12, beamLen: 60, beamRods: 4,
     slabLen: 30, slabWid: 20, slabThick: 5, slabRodGap: 5,
     mainRodFactor: 0.48, ringRodFactor: 0.12, ringGap: 7,
+    slabRodFactor: 0.30, // Separate rod for slab
     baseRodLong: 8, baseRodWidth: 8,
-    // New fields for Brickwork and Plaster
     wallLength: 100, wallHeight: 10, wallThick: 5,
     plasterArea: 1000, plasterThick: 0.5, plasterSide: 2,
     tankLen: 10, tankWid: 8, tankDepth: 6
@@ -940,35 +946,29 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   };
 
   const calculateEstimation = () => {
-    // Concrete Volume Calculations (approx 1:1.5:3)
     const baseVol = (formData.baseLength * formData.baseWidth * (formData.baseThick / 12)) * formData.baseCount;
     const colVol = (formData.colLen / 12 * formData.colWid / 12 * formData.colHeight) * formData.columnCount;
     const beamVol = (formData.beamLen * formData.beamWid / 12 * formData.beamHeight / 12);
     const slabVol = (formData.slabLen * formData.slabWid * (formData.slabThick / 12));
-    
-    // Plaster Volume
     const plasterVol = (formData.plasterArea * (formData.plasterThick / 12)) * formData.plasterSide;
     
     const totalConcreteVol = baseVol + colVol + beamVol + slabVol;
     const dryConcreteVol = totalConcreteVol * 1.54;
     const dryPlasterVol = plasterVol * 1.54;
 
-    // Materials from Concrete
     const cementFromConcrete = (dryConcreteVol / 5.5) / 1.25;
     const sandFromConcrete = (dryConcreteVol / 5.5) * 1.5;
     const stoneFromConcrete = (dryConcreteVol / 5.5) * 3;
 
-    // Materials from Plaster (Ratio 1:4)
     const cementFromPlaster = (dryPlasterVol / 5) / 1.25;
     const sandFromPlaster = (dryPlasterVol / 5) * 4;
 
-    // Brickwork (Gaathni)
     const brickCount = Math.ceil(formData.wallLength * formData.wallHeight * (formData.wallThick === 5 ? 5 : 10));
 
-    // Rod weight calculations
     const colRodWeight = (formData.colHeight * formData.colRods * formData.columnCount) * formData.mainRodFactor;
     const beamRodWeight = (formData.beamLen * formData.beamRods) * formData.mainRodFactor;
-    const slabMainWeight = ((formData.slabLen / (formData.slabRodGap/12)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12)) * formData.slabLen) * formData.mainRodFactor;
+    // Use slab-specific rod factor
+    const slabMainWeight = ((formData.slabLen / (formData.slabRodGap/12)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12)) * formData.slabLen) * formData.slabRodFactor;
     const baseRodWeight = ((formData.baseRodLong * formData.baseLength + formData.baseRodWidth * formData.baseWidth) * formData.baseCount) * formData.mainRodFactor;
     
     return { 
@@ -978,6 +978,18 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       totalRodKg: Math.ceil(colRodWeight + beamRodWeight + slabMainWeight + baseRodWeight),
       brickCount
     };
+  };
+
+  const handleGenerateDesign = async () => {
+    setGeneratingDesign(true);
+    try {
+      const res = await generateHouseDesign(designParams);
+      if (res && res.imageUrl) setGeneratedImg(res.imageUrl);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGeneratingDesign(false);
+    }
   };
 
   const results = calculateEstimation();
@@ -1011,7 +1023,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex flex-col h-[100svh] w-full bg-slate-50 overflow-hidden">
-      {/* Fixed Header */}
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
@@ -1022,8 +1033,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
         </Button>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-4 md:p-6 pb-24">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -1033,10 +1043,10 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <TabsTrigger value="pillar" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">বিম</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ছাদ</TabsTrigger>
+                  <TabsTrigger value="design_ai" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-blue-50 text-blue-600 border-blue-200">বাড়ির ডিজাইন</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">গাথনী</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
-                  <TabsTrigger value="materials" className="text-[10px] md:text-xs px-3 py-2 shrink-0">রড</TabsTrigger>
-                  <TabsTrigger value="others" className="text-[10px] md:text-xs px-3 py-2 shrink-0">অন্যান্য</TabsTrigger>
+                  <TabsTrigger value="materials" className="text-[10px] md:text-xs px-3 py-2 shrink-0">অন্যান্য রড</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="foundation" className="space-y-4 m-0">
@@ -1069,13 +1079,61 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="slab" className="space-y-4 m-0">
+                <TabsContent value="slab" className="space-y-6 m-0">
                   <div className="grid grid-cols-2 gap-4">
                     <InputField label="ছাদের দৈর্ঘ্য (ফুট)" value={formData.slabLen} onChange={v => handleInputChange('slabLen', v)} />
                     <InputField label="ছাদের প্রস্থ (ফুট)" value={formData.slabWid} onChange={v => handleInputChange('slabWid', v)} />
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.slabThick} onChange={v => handleInputChange('slabThick', v)} />
                     <InputField label="রড গ্যাপ (ইঞ্চি)" value={formData.slabRodGap} onChange={v => handleInputChange('slabRodGap', v)} />
+                    
+                    <div className="col-span-2 space-y-2 pt-2 border-t border-slate-100">
+                      <Label className="text-xs font-bold text-slate-600">ছাদের রডের ধরন (Separate Rod Type for Slab)</Label>
+                      <Select 
+                        value={formData.slabRodFactor.toString()} 
+                        onValueChange={(v) => handleInputChange('slabRodFactor', v)}
+                      >
+                        <SelectTrigger className="bg-slate-50 h-9 text-xs">
+                          <SelectValue placeholder="রডের মাপ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROD_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="design_ai" className="space-y-6 m-0">
+                  <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 space-y-4">
+                    <h4 className="text-sm font-bold text-blue-800 flex items-center gap-2"><Sparkles className="w-4 h-4" /> এআই বাড়ির নকশা জেনারেটর</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-bold">বাড়ির স্টাইল</Label>
+                        <Input value={designParams.style} onChange={(e) => setDesignParams({...designParams, style: e.target.value})} className="h-9 text-xs" placeholder="আধুনিক, ডুপ্লেক্স, ইউরোপীয়..." />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-bold">তলা সংখ্যা</Label>
+                        <Input type="number" value={designParams.floors} onChange={(e) => setDesignParams({...designParams, floors: parseInt(e.target.value) || 1})} className="h-9 text-xs" />
+                      </div>
+                      <div className="col-span-2 space-y-1.5">
+                        <Label className="text-[11px] font-bold">পরিবেশ</Label>
+                        <Input value={designParams.surroundings} onChange={(e) => setDesignParams({...designParams, surroundings: e.target.value})} className="h-9 text-xs" placeholder="গ্রামীন পরিবেশ, শহরের রাস্তা, বাগান..." />
+                      </div>
+                    </div>
+                    <Button onClick={handleGenerateDesign} disabled={generatingDesign} className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2 h-9 text-xs">
+                      {generatingDesign ? <><Loader2 className="w-4 h-4 animate-spin" /> নকশা তৈরি হচ্ছে...</> : <><ImageIcon className="w-4 h-4" /> নকশা দেখুন</>}
+                    </Button>
+                  </div>
+                  {generatedImg && (
+                    <div className="relative aspect-video w-full rounded-xl overflow-hidden border shadow-inner bg-slate-100">
+                      <img src={generatedImg} alt="Generated House Design" className="object-cover w-full h-full" />
+                      <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-blue-600 border border-blue-200 shadow-sm">AI জেনারেটেড ডিজাইন</div>
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="brickwork" className="space-y-4 m-0">
@@ -1084,17 +1142,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     <InputField label="দেয়ালের উচ্চতা (ফুট)" value={formData.wallHeight} onChange={v => handleInputChange('wallHeight', v)} />
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-slate-600">দেয়ালের পুরুত্ব</Label>
-                      <Select 
-                        value={formData.wallThick.toString()} 
-                        onValueChange={(v) => handleInputChange('wallThick', v)}
-                      >
-                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs">
-                          <SelectValue placeholder="নির্বাচন করুন" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">৫ ইঞ্চি দেয়াল</SelectItem>
-                          <SelectItem value="10">১০ ইঞ্চি দেয়াল</SelectItem>
-                        </SelectContent>
+                      <Select value={formData.wallThick.toString()} onValueChange={(v) => handleInputChange('wallThick', v)}>
+                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue placeholder="নির্বাচন করুন" /></SelectTrigger>
+                        <SelectContent><SelectItem value="5">৫ ইঞ্চি দেয়াল</SelectItem><SelectItem value="10">১০ ইঞ্চি দেয়াল</SelectItem></SelectContent>
                       </Select>
                     </div>
                   </div>
@@ -1106,74 +1156,31 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.plasterThick} onChange={v => handleInputChange('plasterThick', v)} />
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-slate-600">পাশ সংখ্যা</Label>
-                      <Select 
-                        value={formData.plasterSide.toString()} 
-                        onValueChange={(v) => handleInputChange('plasterSide', v)}
-                      >
-                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs">
-                          <SelectValue placeholder="নির্বাচন করুন" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">এক পাশ (Inside)</SelectItem>
-                          <SelectItem value="2">দুই পাশ (Inside/Outside)</SelectItem>
-                        </SelectContent>
+                      <Select value={formData.plasterSide.toString()} onValueChange={(v) => handleInputChange('plasterSide', v)}>
+                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue placeholder="নির্বাচন করুন" /></SelectTrigger>
+                        <SelectContent><SelectItem value="1">এক পাশ (Inside)</SelectItem><SelectItem value="2">দুই পাশ (Inside/Outside)</SelectItem></SelectContent>
                       </Select>
                     </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="materials" className="space-y-6 m-0">
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                    <p className="text-xs text-blue-800 italic">এখানে আপনার ব্যবহৃত রডের মাপ নির্বাচন করুন। এটি আপনার পুরো প্রজেক্টের রডের ওজনের ওপর প্রভাব ফেলবে।</p>
-                  </div>
                   <div className="grid gap-6">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">মেইন রডের ধরন (Main Rod)</Label>
-                      <Select 
-                        value={formData.mainRodFactor.toString()} 
-                        onValueChange={(v) => handleInputChange('mainRodFactor', v)}
-                      >
-                        <SelectTrigger className="bg-white h-9 text-xs">
-                          <SelectValue placeholder="রডের মাপ নির্বাচন করুন" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROD_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                      <Label className="text-xs font-bold text-slate-600">অন্যান্য মেইন রডের ধরন (Other Structure Rod)</Label>
+                      <Select value={formData.mainRodFactor.toString()} onValueChange={(v) => handleInputChange('mainRodFactor', v)}>
+                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="রডের মাপ" /></SelectTrigger>
+                        <SelectContent>{ROD_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">{opt.label}</SelectItem>))}</SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-2">
                       <Label className="text-xs font-bold text-slate-600">রিং রডের ধরন (Ring Rod)</Label>
-                      <Select 
-                        value={formData.ringRodFactor.toString()} 
-                        onValueChange={(v) => handleInputChange('ringRodFactor', v)}
-                      >
-                        <SelectTrigger className="bg-white h-9 text-xs">
-                          <SelectValue placeholder="রিং রডের মাপ নির্বাচন করুন" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROD_OPTIONS.slice(0, 3).map(opt => (
-                            <SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                      <Select value={formData.ringRodFactor.toString()} onValueChange={(v) => handleInputChange('ringRodFactor', v)}>
+                        <SelectTrigger className="bg-white h-9 text-xs"><SelectValue placeholder="রিং রডের মাপ" /></SelectTrigger>
+                        <SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => (<SelectItem key={opt.value} value={opt.value.toString()} className="text-xs">{opt.label}</SelectItem>))}</SelectContent>
                       </Select>
                     </div>
-
                     <InputField label="রিং গ্যাপ (ইঞ্চি)" value={formData.ringGap} onChange={v => handleInputChange('ringGap', v)} />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="others" className="space-y-4 m-0">
-                   <div className="grid grid-cols-2 gap-4">
-                    <InputField label="ট্যাংক দৈর্ঘ্য (ফুট)" value={formData.tankLen} onChange={v => handleInputChange('tankLen', v)} />
-                    <InputField label="ট্যাংক প্রস্থ (ফুট)" value={formData.tankWid} onChange={v => handleInputChange('tankWid', v)} />
-                    <InputField label="ট্যাংক গভীরতা (ফুট)" value={formData.tankDepth} onChange={v => handleInputChange('tankDepth', v)} />
                   </div>
                 </TabsContent>
               </Tabs>
@@ -1196,15 +1203,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <ResultRow label="মোট রড" value={results.totalRodKg} unit="কেজি" />
                   <ResultRow label="মোট ইট" value={results.brickCount} unit="টি" />
                 </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-xl border shadow-sm">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">নির্দেশিকা</h3>
-                <ul className="text-[11px] space-y-2 text-slate-500 list-disc pl-4">
-                  <li>কংক্রিট মিক্স রেশিও ১:১.৫:৩ এবং প্লাষ্টার ১:৪ হিসেবে গণনা করা হয়েছে।</li>
-                  <li>ইটের হিসেবে ৫" দেয়ালে প্রতি স্কয়ার ফুটে ৫টি এবং ১০" দেয়ালে ১০টি ইট ধরা হয়েছে।</li>
-                  <li>এটি একটি সম্ভাব্য হিসেব, সাইটের প্রকৃত কাজের জন্য ইঞ্জিনিয়ারের পরামর্শ নিন।</li>
-                </ul>
               </div>
             </div>
           </div>
