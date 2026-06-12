@@ -377,8 +377,8 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -10 : 10; 
-        setZoom(prev => Math.min(250, Math.max(10, prev + delta)));
+        const delta = e.deltaY > 0 ? -5 : 5; 
+        setZoom(prev => Math.min(250, Math.max(0, prev + delta)));
       }
     };
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
@@ -747,9 +747,9 @@ export default function EstimatorClient() {
           </div>
           <div className="h-8 bg-white/80 backdrop-blur-md border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
-              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(10, z - 10))} />
-              <Slider value={[zoom]} max={250} min={10} step={10} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
-              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 10))} />
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(0, z - 5))} />
+              <Slider value={[zoom]} max={250} min={0} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
               <span className="text-[9px] font-bold text-slate-400 uppercase ml-1 md:ml-2">{Math.round(zoom)}%</span>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
@@ -813,8 +813,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     slabLen: 0, slabWid: 0, slabThick: 0, slabRodGap: 0, slabRodFactor: 0.30,
     wallLength: 0, wallHeight: 0, wallThick: 5,
     plasterArea: 0, plasterThick: 0, plasterSide: 1,
-    floorArea: 0, floorTileLen: 0, floorTileWid: 0, floorTileWastage: 10,
-    wallTileArea: 0, wallTileLen: 0, wallTileWid: 0, wallTileWastage: 10
+    floorArea: 0, floorTileLen: 0, floorTileWid: 0, floorTileWastage: 0,
+    wallTileArea: 0, wallTileLen: 0, wallTileWid: 0, wallTileWastage: 0
   });
 
   const handleInputChange = (field: string, val: string) => {
@@ -882,7 +882,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       if (formData.wallTileArea > 0 && formData.wallTileLen > 0 && formData.wallTileWid > 0) {
         const tileArea = (formData.wallTileLen / 12) * (formData.wallTileWid / 12);
         tiles = Math.ceil((formData.wallTileArea / tileArea) * (1 + formData.wallTileWastage / 100));
-        const dry = formData.wallTileArea * (0.5/12) * 1.54; // Assuming 0.5 inch mortar for walls
+        const dry = formData.wallTileArea * (0.5/12) * 1.54;
         cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
       }
     }
