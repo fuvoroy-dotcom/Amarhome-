@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -37,6 +38,13 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { doc, setDoc, getDoc, getDocs, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -71,6 +79,18 @@ type SavedDesignRef = {
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 const ARCH_SNAP = 1/48; // 0.25 inches
 const CANVAS_OFFSET = 40; 
+
+const ROD_OPTIONS = [
+  { label: "8 mm (2.5 Suta)", value: 0.12 },
+  { label: "10 mm (3 Suta)", value: 0.19 },
+  { label: "12 mm (4 Suta)", value: 0.30 },
+  { label: "16 mm (5 Suta)", value: 0.48 },
+  { label: "20 mm (6 Suta)", value: 0.75 },
+  { label: "22 mm (7 Suta)", value: 0.90 },
+  { label: "25 mm (8 Suta)", value: 1.17 },
+  { label: "28 mm (9 Suta)", value: 1.46 },
+  { label: "32 mm (10 Suta)", value: 1.91 },
+];
 
 export default function EstimatorClient() {
   const { toast } = useToast();
@@ -931,9 +951,10 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     // Rod weight calculations
     const colRodWeight = (formData.colHeight * formData.colRods * formData.columnCount) * formData.mainRodFactor;
     const beamRodWeight = (formData.beamLen * formData.beamRods) * formData.mainRodFactor;
-    const slabMainWeight = ((formData.slabLen / (formData.slabRodGap/12)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12)) * formData.slabLen) * 0.19; // 10mm as standard
+    const slabMainWeight = ((formData.slabLen / (formData.slabRodGap/12)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12)) * formData.slabLen) * formData.mainRodFactor;
+    const baseRodWeight = ((formData.baseRodLong * formData.baseLength + formData.baseRodWidth * formData.baseWidth) * formData.baseCount) * formData.mainRodFactor;
     
-    return { cementBags, sandCft, stoneCft, totalRodKg: Math.ceil(colRodWeight + beamRodWeight + slabMainWeight) };
+    return { cementBags, sandCft, stoneCft, totalRodKg: Math.ceil(colRodWeight + beamRodWeight + slabMainWeight + baseRodWeight) };
   };
 
   const results = calculateEstimation();
@@ -986,8 +1007,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <TabsTrigger value="pillar" className="text-[10px] md:text-xs">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs">বিম</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs">ছাদ</TabsTrigger>
-                  <TabsTrigger value="finishing" className="text-[10px] md:text-xs">প্লাস্টার/ইট</TabsTrigger>
-                  <TabsTrigger value="others" className="text-[10px] md:text-xs">টাইলস/ট্যাংক</TabsTrigger>
+                  <TabsTrigger value="materials" className="text-[10px] md:text-xs">রড সেটিংস</TabsTrigger>
+                  <TabsTrigger value="others" className="text-[10px] md:text-xs">অন্যান্য</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="foundation" className="space-y-4">
@@ -996,6 +1017,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     <InputField label="বেসের দৈর্ঘ্য (ফুট)" value={formData.baseLength} onChange={v => handleInputChange('baseLength', v)} />
                     <InputField label="বেসের প্রস্থ (ফুট)" value={formData.baseWidth} onChange={v => handleInputChange('baseWidth', v)} />
                     <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.baseThick} onChange={v => handleInputChange('baseThick', v)} />
+                    <InputField label="রড সংখ্যা (দৈর্ঘ্য বরাবর)" value={formData.baseRodLong} onChange={v => handleInputChange('baseRodLong', v)} />
+                    <InputField label="রড সংখ্যা (প্রস্থ বরাবর)" value={formData.baseRodWidth} onChange={v => handleInputChange('baseRodWidth', v)} />
                   </div>
                 </TabsContent>
 
@@ -1027,13 +1050,50 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="finishing" className="space-y-4">
-                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                    <p className="text-sm text-emerald-800 italic">এখানে আপনার ক্যানভাস ডিজাইনের দেয়ালগুলো অনুযায়ী ডিফল্ট হিসেব দেখানো হয়েছে।</p>
+                <TabsContent value="materials" className="space-y-6">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-sm text-blue-800 italic">এখানে আপনার ব্যবহৃত রডের মাপ নির্বাচন করুন। এটি আপনার পুরো প্রজেক্টের রডের ওজনের ওপর প্রভাব ফেলবে।</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="দেয়ালের উচ্চতা (ফুট)" value={10} onChange={() => {}} />
-                    <InputField label="পুরুত্ব (ইঞ্চি)" value={5} onChange={() => {}} />
+                  <div className="grid gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">মেইন রডের ধরন (Main Rod)</Label>
+                      <Select 
+                        value={formData.mainRodFactor.toString()} 
+                        onValueChange={(v) => handleInputChange('mainRodFactor', v)}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="রডের মাপ নির্বাচন করুন" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROD_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value.toString()}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">রিং রডের ধরন (Ring Rod)</Label>
+                      <Select 
+                        value={formData.ringRodFactor.toString()} 
+                        onValueChange={(v) => handleInputChange('ringRodFactor', v)}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="রিং রডের মাপ নির্বাচন করুন" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROD_OPTIONS.slice(0, 3).map(opt => (
+                            <SelectItem key={opt.value} value={opt.value.toString()}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <InputField label="রিং গ্যাপ (ইঞ্চি)" value={formData.ringGap} onChange={v => handleInputChange('ringGap', v)} />
                   </div>
                 </TabsContent>
 
@@ -1070,7 +1130,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">নির্দেশিকা</h3>
                 <ul className="text-xs space-y-3 text-slate-500 list-disc pl-4">
                   <li>কংক্রিট মিক্স রেশিও ১:১.৫:৩ (সিমেন্ট:বালু:পাথর) হিসেবে গণনা করা হয়েছে।</li>
-                  <li>রডের ওজন ১৬ মিমি (৫ সুতা) মেইন রড এবং ৮ মিমি রিং হিসেবে ধরা হয়েছে।</li>
+                  <li>রডের ওজন আপনার নির্বাচিত মাপ (যেমন: ১৬ মিমি বা ১০ মিমি) অনুযায়ী ধরা হয়েছে।</li>
                   <li>এটি একটি সম্ভাব্য হিসেব, সাইটের প্রকৃত কাজের জন্য ইঞ্জিনিয়ারের পরামর্শ নিন।</li>
                 </ul>
               </div>

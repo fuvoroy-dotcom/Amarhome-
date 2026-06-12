@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI advisory tool that provides contextual insights and best practices about construction materials and structural elements.
@@ -19,6 +20,10 @@ function getRodDescription(factor: number): string {
     case 0.30: return '12 mm (4 Suta)';
     case 0.48: return '16 mm (5 Suta)';
     case 0.75: return '20 mm (6 Suta)';
+    case 0.90: return '22 mm (7 Suta)';
+    case 1.17: return '25 mm (8 Suta)';
+    case 1.46: return '28 mm (9 Suta)';
+    case 1.91: return '32 mm (10 Suta)';
     default: return `${factor} (custom/unknown diameter)`;
   }
 }
@@ -27,6 +32,7 @@ function getRingRodDescription(factor: number): string {
   switch (factor) {
     case 0.12: return '8 mm ring';
     case 0.19: return '10 mm ring';
+    case 0.30: return '12 mm ring';
     default: return `${factor} (custom/unknown ring diameter)`;
   }
 }
