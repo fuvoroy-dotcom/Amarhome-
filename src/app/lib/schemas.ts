@@ -46,7 +46,6 @@ export const slabEstimatorSchema = z.object({
 });
 export type SlabEstimatorValues = z.infer<typeof slabEstimatorSchema>;
 
-
 const roomSchema = z.object({
     length: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
     width: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
@@ -110,7 +109,6 @@ export const tileEstimatorSchema = z.object({
 
 export type TileEstimatorValues = z.infer<typeof tileEstimatorSchema>;
 
-
 export const plasterEstimatorSchema = z.object({
   wallLengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
   wallHeightFt: z.coerce.number().min(1, "উচ্চতা কমপক্ষে ১ হতে হবে"),
@@ -120,42 +118,12 @@ export const plasterEstimatorSchema = z.object({
 
 export type PlasterEstimatorValues = z.infer<typeof plasterEstimatorSchema>;
 
-
-export const fullHouseEstimatorSchema = z.object({
-  floorCount: z.coerce.number().int("পূর্ণ সংখ্যা হতে হবে").min(1, "ন্যূনতম ১টি ফ্লোর হতে হবে"),
-  totalAreaSqFt: z.coerce.number().min(100, "ন্যূনতম ১০০ বর্গফুট হতে হবে"),
-  
-  // Per floor counts
-  roomCount: z.coerce.number().int().min(1, "প্রতি ফ্লোরে ন্যূনতম ১টি রুম থাকতে হবে"),
-  bathroomCount: z.coerce.number().int().min(0, "ন্যূনতম ০টি বাথরুম হতে হবে"),
-  
-  // Average dimensions
-  avgRoomLengthFt: z.coerce.number().min(8, "রুমের গড় দৈর্ঘ্য ন্যূনতম ৮ ফুট হতে হবে"),
-  avgRoomWidthFt: z.coerce.number().min(8, "রুমের গড় প্রস্থ ন্যূনতম ৮ ফুট হতে হবে"),
-  floorHeightFt: z.coerce.number().min(9, "ফ্লোরের উচ্চতা ন্যূনতম ৯ ফুট হতে হবে"),
-
-  // Structural details
-  columnCountPerFloor: z.coerce.number().int().min(4, "প্রতি ফ্লোরে ন্যূনতম ৪টি কলাম থাকতে হবে"),
-  slabThicknessIn: z.coerce.number().min(4, "ন্যূনতম পুরুত্ব ৪ ইঞ্চি").max(8, "সর্বোচ্চ পুরুত্ব ৮ ইঞ্চি").default(5),
-  wallThicknessIn: z.enum(['5', '10']).default('5'),
-  
-  // Tile details
-  tileFloors: z.boolean().default(true),
-  tileBathroomWalls: z.boolean().default(true),
-  bathroomWallTileHeightFt: z.coerce.number().min(5).max(10).default(7),
-  
-  // Plaster details
-  plasterInterior: z.boolean().default(true),
-  plasterExterior: z.boolean().default(true),
-
-  // Rods - Simplified for a full house estimate
-  mainRodFactor: z.coerce.number().default(0.48),
-  ringRodFactor: z.coerce.number().default(0.12),
-  ringGapIn: z.coerce.number().default(7),
+export const septicTankSchema = z.object({
+  lengthFt: z.coerce.number().min(1, "দৈর্ঘ্য কমপক্ষে ১ হতে হবে"),
+  widthFt: z.coerce.number().min(1, "প্রস্থ কমপক্ষে ১ হতে হবে"),
+  depthFt: z.coerce.number().min(1, "গভীরতা কমপক্ষে ১ হতে হবে"),
 });
-
-export type FullHouseEstimatorValues = z.infer<typeof fullHouseEstimatorSchema>;
-
+export type SepticTankValues = z.infer<typeof septicTankSchema>;
 
 export const AiConstructionAdvisoryInputSchema = z.object({
   baseCount: z.number().describe('Number of foundation bases.'),

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -13,7 +12,7 @@ import {
   Image as ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Hand
+  Hand, Calculator, ArrowLeft, Send
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,11 +31,18 @@ import {
   DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
 import { doc, setDoc, getDoc, getDocs, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import html2canvas from 'html2canvas';
+import { getConstructionAdvice } from "@/app/actions";
 
 type DesignObject = {
   id: string;
@@ -84,6 +90,7 @@ export default function EstimatorClient() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(true);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
+  const [viewMode, setViewMode] = useState<'design' | 'estimate'>('design');
 
   // Persistence States
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
@@ -722,6 +729,10 @@ export default function EstimatorClient() {
     };
   };
 
+  if (viewMode === 'estimate') {
+    return <EstimationView onBack={() => setViewMode('design')} />;
+  }
+
   return (
     <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
       <div className="h-10 bg-slate-800/90 backdrop-blur-md border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
@@ -747,6 +758,8 @@ export default function EstimatorClient() {
         <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
         <RibbonButton icon={<ImageIcon />} label="As Image" onClick={copyAsImage} />
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
+        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
+        <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setViewMode('estimate')} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
         <Button variant="outline" size="sm" className="text-destructive h-10 flex flex-col items-center justify-center p-1 md:p-2 ml-auto" onClick={deleteSelected}>
@@ -879,6 +892,211 @@ export default function EstimatorClient() {
           <div className="p-4 border-t bg-slate-50 flex justify-end"><DialogClose asChild><Button variant="outline" size="sm">বন্ধ করুন</Button></DialogClose></div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function EstimationView({ onBack }: { onBack: () => void }) {
+  const [activeTab, setActiveTab] = useState("foundation");
+  const [advice, setAdvice] = useState<string | null>(null);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    baseCount: 6, baseLength: 5, baseWidth: 5, baseThick: 12,
+    columnCount: 6, colLen: 10, colWid: 10, colHeight: 10, colRods: 6,
+    beamWid: 10, beamHeight: 12, beamLen: 60, beamRods: 4,
+    slabLen: 30, slabWid: 20, slabThick: 5, slabRodGap: 5,
+    mainRodFactor: 0.48, ringRodFactor: 0.12, ringGap: 7,
+    baseRodLong: 8, baseRodWidth: 8
+  });
+
+  const handleInputChange = (field: string, val: string) => {
+    setFormData(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
+  };
+
+  const calculateEstimation = () => {
+    // Concrete Volume Calculations (approx 1:1.5:3)
+    const baseVol = (formData.baseLength * formData.baseWidth * (formData.baseThick / 12)) * formData.baseCount;
+    const colVol = (formData.colLen / 12 * formData.colWid / 12 * formData.colHeight) * formData.columnCount;
+    const beamVol = (formData.beamLen * formData.beamWid / 12 * formData.beamHeight / 12);
+    const slabVol = (formData.slabLen * formData.slabWid * (formData.slabThick / 12));
+    
+    const totalVol = baseVol + colVol + beamVol + slabVol;
+    const wetVol = totalVol * 1.54; // Factor for dry volume
+    const cementBags = Math.ceil((wetVol / 5.5) / 1.25);
+    const sandCft = (wetVol / 5.5) * 1.5;
+    const stoneCft = (wetVol / 5.5) * 3;
+
+    // Rod weight calculations
+    const colRodWeight = (formData.colHeight * formData.colRods * formData.columnCount) * formData.mainRodFactor;
+    const beamRodWeight = (formData.beamLen * formData.beamRods) * formData.mainRodFactor;
+    const slabMainWeight = ((formData.slabLen / (formData.slabRodGap/12)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12)) * formData.slabLen) * 0.19; // 10mm as standard
+    
+    return { cementBags, sandCft, stoneCft, totalRodKg: Math.ceil(colRodWeight + beamRodWeight + slabMainWeight) };
+  };
+
+  const results = calculateEstimation();
+
+  const getAdvice = async () => {
+    setLoadingAdvice(true);
+    const result = await getConstructionAdvice({
+      ...formData,
+      baseLengthFt: formData.baseLength,
+      baseWidthFt: formData.baseWidth,
+      baseThicknessIn: formData.baseThick,
+      columnLengthIn: formData.colLen,
+      columnWidthIn: formData.colWid,
+      columnHeightFt: formData.colHeight,
+      columnRodCount: formData.colRods,
+      beamHeightIn: formData.beamHeight,
+      beamWidthIn: formData.beamWid,
+      beamLengthFt: formData.beamLen,
+      beamRodCount: formData.beamRods,
+      slabLengthFt: formData.slabLen,
+      slabWidthFt: formData.slabWid,
+      slabThicknessIn: formData.slabThick,
+      slabRodGapIn: formData.slabRodGap,
+      baseRodLongitudinalCount: formData.baseRodLong,
+      baseRodWidthCount: formData.baseRodWidth
+    });
+    if ('advice' in result) setAdvice(result.advice);
+    setLoadingAdvice(false);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
+      <div className="h-14 bg-white border-b flex items-center px-4 justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="w-5 h-5" /></Button>
+          <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2"><Calculator className="w-5 h-5 text-emerald-500" /> নির্মাণ হিসাব ক্যালকুলেটর</h2>
+        </div>
+        <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-9">
+          {loadingAdvice ? "অপেক্ষা করুন..." : <><Send className="w-4 h-4" /> এআই পরামর্শ</>}
+        </Button>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        <ScrollArea className="w-full h-full p-4">
+          <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-6 rounded-xl border shadow-sm">
+                <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto p-1 mb-6 bg-slate-100">
+                  <TabsTrigger value="foundation" className="text-[10px] md:text-xs">ফাউন্ডেশন</TabsTrigger>
+                  <TabsTrigger value="pillar" className="text-[10px] md:text-xs">কলাম</TabsTrigger>
+                  <TabsTrigger value="beam" className="text-[10px] md:text-xs">বিম</TabsTrigger>
+                  <TabsTrigger value="slab" className="text-[10px] md:text-xs">ছাদ</TabsTrigger>
+                  <TabsTrigger value="finishing" className="text-[10px] md:text-xs">প্লাস্টার/ইট</TabsTrigger>
+                  <TabsTrigger value="others" className="text-[10px] md:text-xs">টাইলস/ট্যাংক</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="foundation" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="বেসের সংখ্যা" value={formData.baseCount} onChange={v => handleInputChange('baseCount', v)} />
+                    <InputField label="বেসের দৈর্ঘ্য (ফুট)" value={formData.baseLength} onChange={v => handleInputChange('baseLength', v)} />
+                    <InputField label="বেসের প্রস্থ (ফুট)" value={formData.baseWidth} onChange={v => handleInputChange('baseWidth', v)} />
+                    <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.baseThick} onChange={v => handleInputChange('baseThick', v)} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="pillar" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="কলাম সংখ্যা" value={formData.columnCount} onChange={v => handleInputChange('columnCount', v)} />
+                    <InputField label="দৈর্ঘ্য (ইঞ্চি)" value={formData.colLen} onChange={v => handleInputChange('colLen', v)} />
+                    <InputField label="প্রস্থ (ইঞ্চি)" value={formData.colWid} onChange={v => handleInputChange('colWid', v)} />
+                    <InputField label="উচ্চতা (ফুট)" value={formData.colHeight} onChange={v => handleInputChange('colHeight', v)} />
+                    <InputField label="রড সংখ্যা (প্রতি কলাম)" value={formData.colRods} onChange={v => handleInputChange('colRods', v)} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="beam" className="space-y-4">
+                   <div className="grid grid-cols-2 gap-4">
+                    <InputField label="মোট বিম দৈর্ঘ্য (ফুট)" value={formData.beamLen} onChange={v => handleInputChange('beamLen', v)} />
+                    <InputField label="বিম উচ্চতা (ইঞ্চি)" value={formData.beamHeight} onChange={v => handleInputChange('beamHeight', v)} />
+                    <InputField label="বিম প্রস্থ (ইঞ্চি)" value={formData.beamWid} onChange={v => handleInputChange('beamWid', v)} />
+                    <InputField label="মেইন রড সংখ্যা" value={formData.beamRods} onChange={v => handleInputChange('beamRods', v)} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="slab" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="ছাদের দৈর্ঘ্য (ফুট)" value={formData.slabLen} onChange={v => handleInputChange('slabLen', v)} />
+                    <InputField label="ছাদের প্রস্থ (ফুট)" value={formData.slabWid} onChange={v => handleInputChange('slabWid', v)} />
+                    <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.slabThick} onChange={v => handleInputChange('slabThick', v)} />
+                    <InputField label="রড গ্যাপ (ইঞ্চি)" value={formData.slabRodGap} onChange={v => handleInputChange('slabRodGap', v)} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="finishing" className="space-y-4">
+                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <p className="text-sm text-emerald-800 italic">এখানে আপনার ক্যানভাস ডিজাইনের দেয়ালগুলো অনুযায়ী ডিফল্ট হিসেব দেখানো হয়েছে।</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="দেয়ালের উচ্চতা (ফুট)" value={10} onChange={() => {}} />
+                    <InputField label="পুরুত্ব (ইঞ্চি)" value={5} onChange={() => {}} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="others" className="space-y-4">
+                   <div className="grid grid-cols-2 gap-4">
+                    <InputField label="ট্যাংক দৈর্ঘ্য (ফুট)" value={10} onChange={() => {}} />
+                    <InputField label="ট্যাংক প্রস্থ (ফুট)" value={8} onChange={() => {}} />
+                    <InputField label="ট্যাংক গভীরতা (ফুট)" value={6} onChange={() => {}} />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {advice && (
+                <div className="bg-white p-6 rounded-xl border shadow-sm prose prose-slate max-w-none">
+                  <h3 className="text-lg font-bold text-emerald-700 mb-4 flex items-center gap-2">⭐ এআই বিশেষজ্ঞ পরামর্শ</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-emerald-600 text-white p-6 rounded-xl shadow-lg">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b border-white/20 pb-2"><Calculator className="w-5 h-5" /> আনুমানিক মালামাল</h3>
+                <div className="grid gap-4">
+                  <ResultRow label="সিমেন্ট" value={results.cementBags} unit="ব্যাগ" />
+                  <ResultRow label="বালু (সিলেট/লোকাল)" value={results.sandCft} unit="সিএফটি" />
+                  <ResultRow label="পাথর/খোয়া" value={results.stoneCft} unit="সিএফটি" />
+                  <ResultRow label="মোট রড" value={results.totalRodKg} unit="কেজি" />
+                  <ResultRow label="ইট (৫ ইঞ্চি দেয়াল)" value={1500} unit="টি" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border shadow-sm">
+                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">নির্দেশিকা</h3>
+                <ul className="text-xs space-y-3 text-slate-500 list-disc pl-4">
+                  <li>কংক্রিট মিক্স রেশিও ১:১.৫:৩ (সিমেন্ট:বালু:পাথর) হিসেবে গণনা করা হয়েছে।</li>
+                  <li>রডের ওজন ১৬ মিমি (৫ সুতা) মেইন রড এবং ৮ মিমি রিং হিসেবে ধরা হয়েছে।</li>
+                  <li>এটি একটি সম্ভাব্য হিসেব, সাইটের প্রকৃত কাজের জন্য ইঞ্জিনিয়ারের পরামর্শ নিন।</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="h-10" />
+        </ScrollArea>
+      </div>
+    </div>
+  );
+}
+
+function InputField({ label, value, onChange }: { label: string, value: number, onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-bold text-slate-600">{label}</Label>
+      <Input type="number" value={value} onChange={e => onChange(e.target.value)} className="h-10 bg-slate-50 border-slate-200 focus:ring-emerald-500" />
+    </div>
+  );
+}
+
+function ResultRow({ label, value, unit }: { label: string, value: number, unit: string }) {
+  return (
+    <div className="flex justify-between items-center bg-white/10 p-3 rounded-lg backdrop-blur-sm border border-white/10">
+      <span className="text-xs font-medium opacity-90">{label}</span>
+      <span className="text-sm font-black">{Math.ceil(value)} {unit}</span>
     </div>
   );
 }
