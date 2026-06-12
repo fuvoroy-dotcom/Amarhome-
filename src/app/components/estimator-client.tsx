@@ -750,7 +750,15 @@ export default function EstimatorClient() {
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(0, z - 5))} />
               <Slider value={[zoom]} max={250} min={0} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
-              <span className="text-[9px] font-bold text-slate-400 uppercase ml-1 md:ml-2">{Math.round(zoom)}%</span>
+              <div className="flex items-center gap-1 ml-1 md:ml-2">
+                <Input 
+                  type="number" 
+                  value={zoom} 
+                  onChange={(e) => setZoom(Math.min(250, Math.max(0, parseInt(e.target.value) || 0)))}
+                  className="h-6 w-12 text-[9px] md:text-[10px] font-bold text-center border-slate-200"
+                />
+                <span className="text-[9px] font-bold text-slate-400 uppercase">%</span>
+              </div>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
               <span className="text-[8px] md:text-[10px] font-bold text-slate-500">Dimensions</span>
