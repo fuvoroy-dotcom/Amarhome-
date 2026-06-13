@@ -14,7 +14,7 @@ import {
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
-  Layers, Boxes
+  Layers, Boxes, Plus, X
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -822,118 +822,186 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
   
-  const [formData, setFormData] = useState({
-    baseCount: 0, baseLength: 0, baseWidth: 0, baseThick: 0, baseRodLong: 0, baseRodWidth: 0, baseRodFactor: 0.48,
-    columnCount: 0, colLen: 0, colWid: 0, colHeight: 0, colRods: 0, colRodFactor: 0.48, colRingRodFactor: 0.12, colRingGap: 0,
-    beamLen: 0, beamHeight: 0, beamWid: 0, beamRods: 0, beamRodFactor: 0.48, beamRingRodFactor: 0.12, beamRingGap: 0,
-    slabLen: 0, slabWid: 0, slabThick: 0, slabRodGap: 0, slabRodFactor: 0.30,
-    wallLength: 0, wallHeight: 0, wallThick: 5,
-    plasterLen: 0, plasterHeight: 0, plasterThick: 0.5, plasterSide: 1,
-    floorLen: 0, floorWid: 0, floorTileLen: 0, floorTileWid: 0, floorTileWastage: 0,
-    wallTileLen: 0, wallTileHeight: 0, wallTileLenT: 0, wallTileWidT: 0, wallTileWastage: 0
-  });
+  const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48 }]);
+  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
+  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
+  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30 }]);
+  const [brickworks, setBrickworks] = useState([{ id: '1', len: 0, height: 0, thick: 5 }]);
+  const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
+  const [floorTiles, setFloorTiles] = useState([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+  const [wallTiles, setWallTiles] = useState([{ id: '1', len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
 
-  const handleInputChange = (field: string, val: string) => {
-    setFormData(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
+  const addItem = (type: string) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48 }]);
+    if (type === 'column') setColumns([...columns, { id, count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
+    if (type === 'beam') setBeams([...beams, { id, len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
+    if (type === 'slab') setSlabs([...slabs, { id, len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30 }]);
+    if (type === 'brickwork') setBrickworks([...brickworks, { id, len: 0, height: 0, thick: 5 }]);
+    if (type === 'plaster') setPlasters([...plasters, { id, len: 0, height: 0, thick: 0.5, sides: 1 }]);
+    if (type === 'floorTiles') setFloorTiles([...floorTiles, { id, len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+    if (type === 'wallTiles') setWallTiles([...wallTiles, { id, len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
   };
 
-  const calcSection = (name: string) => {
-    let cement = 0, sand = 0, stone = 0, rod = 0, bricks = 0, tiles = 0;
+  const removeItem = (type: string, id: string) => {
+    if (type === 'foundation') setFoundations(foundations.filter(f => f.id !== id));
+    if (type === 'column') setColumns(columns.filter(f => f.id !== id));
+    if (type === 'beam') setBeams(beams.filter(f => f.id !== id));
+    if (type === 'slab') setSlabs(slabs.filter(f => f.id !== id));
+    if (type === 'brickwork') setBrickworks(brickworks.filter(f => f.id !== id));
+    if (type === 'plaster') setPlasters(plasters.filter(f => f.id !== id));
+    if (type === 'floorTiles') setFloorTiles(floorTiles.filter(f => f.id !== id));
+    if (type === 'wallTiles') setWallTiles(wallTiles.filter(f => f.id !== id));
+  };
 
-    if (name === 'foundation') {
-      const vol = (formData.baseLength * formData.baseWidth * (formData.baseThick / 12)) * formData.baseCount;
+  const updateItem = (type: string, id: string, field: string, val: string) => {
+    const value = parseFloat(val) || 0;
+    if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'column') setColumns(columns.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'beam') setBeams(beams.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'slab') setSlabs(slabs.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'brickwork') setBrickworks(brickworks.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'plaster') setPlasters(plasters.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'floorTiles') setFloorTiles(floorTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'wallTiles') setWallTiles(wallTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
+  };
+
+  const calcAll = () => {
+    const total = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    const sectionTotals: any = {};
+
+    // Foundation
+    let fRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    foundations.forEach(f => {
+      const vol = (f.len * f.wid * (f.thick / 12)) * f.count;
       if (vol > 0) {
         const dry = vol * 1.54;
-        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
-        rod = ((formData.baseRodLong * formData.baseLength + formData.baseRodWidth * formData.baseWidth) * formData.baseCount) * formData.baseRodFactor;
+        fRes.cement += (dry / 5.5) / 1.25; fRes.sand += (dry / 5.5) * 1.5; fRes.stone += (dry / 5.5) * 3;
+        fRes.rod += ((f.rodLong * f.len + f.rodWidth * f.wid) * f.count) * f.rodFactor;
       }
-    } else if (name === 'column') {
-      const vol = (formData.colLen / 12 * formData.colWid / 12 * formData.colHeight) * formData.columnCount;
+    });
+    sectionTotals.foundation = fRes;
+
+    // Column
+    let cRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    columns.forEach(c => {
+      const vol = (c.len / 12 * c.wid / 12 * c.height) * c.count;
       if (vol > 0) {
         const dry = vol * 1.54;
-        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
-        const mainRod = (formData.colHeight * formData.colRods * formData.columnCount) * formData.colRodFactor;
-        const ringCount = (formData.colHeight / (formData.colRingGap/12 || 1)) * formData.columnCount;
-        const ringRod = (ringCount * (formData.colLen + formData.colWid) * 2 / 12) * formData.colRingRodFactor;
-        rod = mainRod + ringRod;
+        cRes.cement += (dry / 5.5) / 1.25; cRes.sand += (dry / 5.5) * 1.5; cRes.stone += (dry / 5.5) * 3;
+        const mainRod = (c.height * c.rods * c.count) * c.rodFactor;
+        const ringCount = (c.height / (c.ringGap/12 || 1)) * c.count;
+        const ringRod = (ringCount * (c.len + c.wid) * 2 / 12) * c.ringRodFactor;
+        cRes.rod += mainRod + ringRod;
       }
-    } else if (name === 'beam') {
-      const vol = (formData.beamLen * formData.beamWid / 12 * formData.beamHeight / 12);
+    });
+    sectionTotals.column = cRes;
+
+    // Beam
+    let bRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    beams.forEach(b => {
+      const vol = (b.len * b.wid / 12 * b.height / 12);
       if (vol > 0) {
         const dry = vol * 1.54;
-        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
-        const mainRod = (formData.beamLen * formData.beamRods) * formData.beamRodFactor;
-        const ringCount = (formData.beamLen / (formData.beamRingGap/12 || 1));
-        const ringRod = (ringCount * (formData.beamHeight + formData.beamWid) * 2 / 12) * formData.beamRingRodFactor;
-        rod = mainRod + ringRod;
+        bRes.cement += (dry / 5.5) / 1.25; bRes.sand += (dry / 5.5) * 1.5; bRes.stone += (dry / 5.5) * 3;
+        const mainRod = (b.len * b.rods) * b.rodFactor;
+        const ringCount = (b.len / (b.ringGap/12 || 1));
+        const ringRod = (ringCount * (b.height + b.wid) * 2 / 12) * b.ringRodFactor;
+        bRes.rod += mainRod + ringRod;
       }
-    } else if (name === 'slab') {
-      const vol = (formData.slabLen * formData.slabWid * (formData.slabThick / 12));
+    });
+    sectionTotals.beam = bRes;
+
+    // Slab
+    let sRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    slabs.forEach(s => {
+      const vol = (s.len * s.wid * (s.thick / 12));
       if (vol > 0) {
         const dry = vol * 1.54;
-        cement = (dry / 5.5) / 1.25; sand = (dry / 5.5) * 1.5; stone = (dry / 5.5) * 3;
-        rod = ((formData.slabLen / (formData.slabRodGap/12 || 1)) * formData.slabWid + (formData.slabWid / (formData.slabRodGap/12 || 1)) * formData.slabLen) * formData.slabRodFactor;
+        sRes.cement += (dry / 5.5) / 1.25; sRes.sand += (dry / 5.5) * 1.5; sRes.stone += (dry / 5.5) * 3;
+        sRes.rod += ((s.len / (s.rodGap/12 || 1)) * s.wid + (s.wid / (s.rodGap/12 || 1)) * s.len) * s.rodFactor;
       }
-    } else if (name === 'brickwork') {
-      bricks = Math.ceil(formData.wallLength * formData.wallHeight * (formData.wallThick === 5 ? 5 : 10));
-      const vol = (formData.wallLength * formData.wallHeight * (formData.wallThick / 12));
+    });
+    sectionTotals.slab = sRes;
+
+    // Brickwork
+    let brRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    brickworks.forEach(b => {
+      const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10));
+      brRes.bricks += count;
+      const vol = (b.len * b.height * (b.thick / 12));
       if (vol > 0) {
         const dry = vol * 0.35; 
-        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
+        brRes.cement += (dry / 5) / 1.25; brRes.sand += (dry / 5) * 4;
       }
-    } else if (name === 'plaster') {
-      const area = formData.plasterLen * formData.plasterHeight;
-      const vol = (area * (formData.plasterThick / 12)) * formData.plasterSide;
+    });
+    sectionTotals.brickwork = brRes;
+
+    // Plaster
+    let pRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    plasters.forEach(p => {
+      const area = p.len * p.height;
+      const vol = (area * (p.thick / 12)) * p.sides;
       if (vol > 0) {
         const dry = vol * 1.54;
-        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
+        pRes.cement += (dry / 5) / 1.25; pRes.sand += (dry / 5) * 4;
       }
-    } else if (name === 'floorTiles') {
-      const area = formData.floorLen * formData.floorWid;
-      if (area > 0 && formData.floorTileLen > 0 && formData.floorTileWid > 0) {
-        const tileArea = (formData.floorTileLen / 12) * (formData.floorTileWid / 12);
-        tiles = Math.ceil((area / tileArea) * (1 + formData.floorTileWastage / 100));
-        const dry = area * (1/12) * 1.54;
-        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
-      }
-    } else if (name === 'wallTiles') {
-      const area = formData.wallTileLen * formData.wallTileHeight;
-      if (area > 0 && formData.wallTileLenT > 0 && formData.wallTileWidT > 0) {
-        const tileArea = (formData.wallTileLenT / 12) * (formData.wallTileWidT / 12);
-        tiles = Math.ceil((area / tileArea) * (1 + formData.wallTileWastage / 100));
-        const dry = area * (0.5/12) * 1.54;
-        cement = (dry / 5) / 1.25; sand = (dry / 5) * 4;
-      }
-    }
+    });
+    sectionTotals.plaster = pRes;
 
-    return { cement, sand, stone, rod, bricks, tiles };
+    // Floor Tiles
+    let ftRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    floorTiles.forEach(f => {
+      const area = f.len * f.wid;
+      if (area > 0 && f.tLen > 0 && f.tWid > 0) {
+        const tileArea = (f.tLen / 12) * (f.tWid / 12);
+        ftRes.tiles += Math.ceil((area / tileArea) * (1 + f.wastage / 100));
+        const dry = area * (1/12) * 1.54;
+        ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4;
+      }
+    });
+    sectionTotals.floorTiles = ftRes;
+
+    // Wall Tiles
+    let wtRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    wallTiles.forEach(f => {
+      const area = f.len * f.height;
+      if (area > 0 && f.tLen > 0 && f.tWid > 0) {
+        const tileArea = (f.tLen / 12) * (f.tWid / 12);
+        wtRes.tiles += Math.ceil((area / tileArea) * (1 + f.wastage / 100));
+        const dry = area * (0.5/12) * 1.54;
+        wtRes.cement += (dry / 5) / 1.25; wtRes.sand += (dry / 5) * 4;
+      }
+    });
+    sectionTotals.wallTiles = wtRes;
+
+    Object.values(sectionTotals).forEach((res: any) => {
+      total.cement += res.cement; total.sand += res.sand; total.stone += res.stone;
+      total.rod += res.rod; total.bricks += res.bricks; total.tiles += res.tiles;
+    });
+
+    return { total, sectionTotals };
   };
+
+  const { total, sectionTotals } = calcAll();
+  const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
 
   const getAdvice = async () => {
     setLoadingAdvice(true);
+    // Use first entry for advice context
+    const f = foundations[0]; const c = columns[0]; const b = beams[0]; const s = slabs[0];
     const result = await getConstructionAdvice({
-      ...formData,
-      baseLengthFt: formData.baseLength, baseWidthFt: formData.baseWidth, baseThicknessIn: formData.baseThick,
-      columnLengthIn: formData.colLen, columnWidthIn: formData.colWid, columnHeightFt: formData.colHeight,
-      columnRodCount: formData.colRods, beamHeightIn: formData.beamHeight, beamWidthIn: formData.beamWid,
-      beamLengthFt: formData.beamLen, beamRodCount: formData.beamRods, slabLengthFt: formData.slabLen,
-      slabWidthFt: formData.slabWid, slabThicknessIn: formData.slabThick, slabRodGapIn: formData.slabRodGap,
-      baseRodLongitudinalCount: formData.baseRodLong, baseRodWidthCount: formData.baseRodWidth,
-      ringGapIn: formData.colRingGap || formData.beamRingGap, mainRodFactor: formData.colRodFactor, ringRodFactor: formData.colRingRodFactor
+      baseCount: f.count, baseLengthFt: f.len, baseWidthFt: f.wid, baseThicknessIn: f.thick,
+      columnCount: c.count, columnLengthIn: c.len, columnWidthIn: c.wid, columnHeightFt: c.height,
+      columnRodCount: c.rods, beamHeightIn: b.height, beamWidthIn: b.wid,
+      beamLengthFt: b.len, beamRodCount: b.rods, slabLengthFt: s.len,
+      slabWidthFt: s.wid, slabThicknessIn: s.thick, slabRodGapIn: s.rodGap,
+      baseRodLongitudinalCount: f.rodLong, baseRodWidthCount: f.rodWidth,
+      ringGapIn: c.ringGap || b.ringGap, mainRodFactor: c.rodFactor, ringRodFactor: c.ringRodFactor
     } as any);
     if (result && 'advice' in result) setAdvice(result.advice);
     setLoadingAdvice(false);
   };
-
-  const sections = ['foundation', 'column', 'beam', 'slab', 'brickwork', 'plaster', 'floorTiles', 'wallTiles'];
-  const results = sections.reduce((acc, s) => {
-    const res = calcSection(s);
-    acc.cement += res.cement; acc.sand += res.sand; acc.stone += res.stone; 
-    acc.rod += res.rod; acc.bricks += res.bricks; acc.tiles += res.tiles;
-    return acc;
-  }, { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 });
-
-  const currentRes = calcSection(activeTab);
 
   return (
     <div className="flex flex-col h-[100svh] w-full bg-slate-50 overflow-hidden">
@@ -965,106 +1033,154 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                 </TabsList>
 
                 <TabsContent value="foundation" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="বেসের সংখ্যা" value={formData.baseCount} onChange={v => handleInputChange('baseCount', v)} />
-                    <InputField label="বেসের দৈর্ঘ্য (ফুট)" value={formData.baseLength} onChange={v => handleInputChange('baseLength', v)} />
-                    <InputField label="বেসের প্রস্থ (ফুট)" value={formData.baseWidth} onChange={v => handleInputChange('baseWidth', v)} />
-                    <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.baseThick} onChange={v => handleInputChange('baseThick', v)} />
-                    <InputField label="রড সংখ্যা (দৈর্ঘ্য বরাবর)" value={formData.baseRodLong} onChange={v => handleInputChange('baseRodLong', v)} />
-                    <InputField label="রড সংখ্যা (প্রস্থ বরাবর)" value={formData.baseRodWidth} onChange={v => handleInputChange('baseRodWidth', v)} />
-                    <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={formData.baseRodFactor} onChange={v => handleInputChange('baseRodFactor', v)} /></div>
-                  </div>
+                  {foundations.map((f, idx) => (
+                    <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">বেস #{idx+1}</h4>{foundations.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('foundation', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="বেসের সংখ্যা" value={f.count} onChange={v => updateItem('foundation', f.id, 'count', v)} />
+                        <InputField label="বেসের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} />
+                        <InputField label="বেসের প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} />
+                        <InputField label="পুরুত্ব (ইঞ্চি)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} />
+                        <InputField label="রড সংখ্যা (দৈর্ঘ্য বরাবর)" value={f.rodLong} onChange={v => updateItem('foundation', f.id, 'rodLong', v)} />
+                        <InputField label="রড সংখ্যা (প্রস্থ বরাবর)" value={f.rodWidth} onChange={v => updateItem('foundation', f.id, 'rodWidth', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={f.rodFactor} onChange={v => updateItem('foundation', f.id, 'rodFactor', v)} /></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন বেস যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="column" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="কলাম সংখ্যা" value={formData.columnCount} onChange={v => handleInputChange('columnCount', v)} />
-                    <InputField label="দৈর্ঘ্য (ইঞ্চি)" value={formData.colLen} onChange={v => handleInputChange('colLen', v)} />
-                    <InputField label="প্রস্থ (ইঞ্চি)" value={formData.colWid} onChange={v => handleInputChange('colWid', v)} />
-                    <InputField label="উচ্চতা (ফুট)" value={formData.colHeight} onChange={v => handleInputChange('colHeight', v)} />
-                    <InputField label="মেইন রড সংখ্যা" value={formData.colRods} onChange={v => handleInputChange('colRods', v)} />
-                    <InputField label="রিং গ্যাপ (ইঞ্চি)" value={formData.colRingGap} onChange={v => handleInputChange('colRingGap', v)} />
-                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={formData.colRodFactor} onChange={v => handleInputChange('colRodFactor', v)} /></div>
-                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={formData.colRingRodFactor} onChange={v => handleInputChange('colRingRodFactor', v)} limit={3} /></div>
-                  </div>
+                  {columns.map((c, idx) => (
+                    <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">কলাম #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="কলাম সংখ্যা" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} />
+                        <InputField label="দৈর্ঘ্য (ইঞ্চি)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} />
+                        <InputField label="প্রস্থ (ইঞ্চি)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} />
+                        <InputField label="উচ্চতা (ফুট)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} />
+                        <InputField label="মেইন রড সংখ্যা" value={c.rods} onChange={v => updateItem('column', c.id, 'rods', v)} />
+                        <InputField label="রিং গ্যাপ (ইঞ্চি)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={c.rodFactor} onChange={v => updateItem('column', c.id, 'rodFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={c.ringRodFactor} onChange={v => updateItem('column', c.id, 'ringRodFactor', v)} limit={3} /></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন কলাম যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="beam" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="বিমের মোট দৈর্ঘ্য (ফুট)" value={formData.beamLen} onChange={v => handleInputChange('beamLen', v)} />
-                    <InputField label="বিম উচ্চতা (ইঞ্চি)" value={formData.beamHeight} onChange={v => handleInputChange('beamHeight', v)} />
-                    <InputField label="বিম প্রস্থ (ইঞ্চি)" value={formData.beamWid} onChange={v => handleInputChange('beamWid', v)} />
-                    <InputField label="মেইন রড সংখ্যা" value={formData.beamRods} onChange={v => handleInputChange('beamRods', v)} />
-                    <InputField label="রিং গ্যাপ (ইঞ্চি)" value={formData.beamRingGap} onChange={v => handleInputChange('beamRingGap', v)} />
-                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={formData.beamRodFactor} onChange={v => handleInputChange('beamRodFactor', v)} /></div>
-                    <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={formData.beamRingRodFactor} onChange={v => handleInputChange('beamRingRodFactor', v)} limit={3} /></div>
-                  </div>
+                  {beams.map((b, idx) => (
+                    <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">বিম #{idx+1}</h4>{beams.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('beam', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="বিমের মোট দৈর্ঘ্য (ফুট)" value={b.len} onChange={v => updateItem('beam', b.id, 'len', v)} />
+                        <InputField label="বিম উচ্চতা (ইঞ্চি)" value={b.height} onChange={v => updateItem('beam', b.id, 'height', v)} />
+                        <InputField label="বিম প্রস্থ (ইঞ্চি)" value={b.wid} onChange={v => updateItem('beam', b.id, 'wid', v)} />
+                        <InputField label="মেইন রড সংখ্যা" value={b.rods} onChange={v => updateItem('beam', b.id, 'rods', v)} />
+                        <InputField label="রিং গ্যাপ (ইঞ্চি)" value={b.ringGap} onChange={v => updateItem('beam', b.id, 'ringGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={b.rodFactor} onChange={v => updateItem('beam', b.id, 'rodFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={b.ringRodFactor} onChange={v => updateItem('beam', b.id, 'ringRodFactor', v)} limit={3} /></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন বিম যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="slab" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="ছাদের দৈর্ঘ্য (ফুট)" value={formData.slabLen} onChange={v => handleInputChange('slabLen', v)} />
-                    <InputField label="ছাদের প্রস্থ (ফুট)" value={formData.slabWid} onChange={v => handleInputChange('slabWid', v)} />
-                    <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.slabThick} onChange={v => handleInputChange('slabThick', v)} />
-                    <InputField label="রড গ্যাপ (ইঞ্চি)" value={formData.slabRodGap} onChange={v => handleInputChange('slabRodGap', v)} />
-                    <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={formData.slabRodFactor} onChange={v => handleInputChange('slabRodFactor', v)} /></div>
-                  </div>
+                  {slabs.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">ছাদের অংশ #{idx+1}</h4>{slabs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('slab', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="ছাদের দৈর্ঘ্য (ফুট)" value={s.len} onChange={v => updateItem('slab', s.id, 'len', v)} />
+                        <InputField label="ছাদের প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} />
+                        <InputField label="পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} />
+                        <InputField label="রড গ্যাপ (ইঞ্চি)" value={s.rodGap} onChange={v => updateItem('slab', s.id, 'rodGap', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={s.rodFactor} onChange={v => updateItem('slab', s.id, 'rodFactor', v)} /></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ছাদের অংশ যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="brickwork" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={formData.wallLength} onChange={v => handleInputChange('wallLength', v)} />
-                    <InputField label="দেয়ালের উচ্চতা (ফুট)" value={formData.wallHeight} onChange={v => handleInputChange('wallHeight', v)} />
-                    <div className="col-span-2 space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">দেয়ালের পুরুত্ব</Label>
-                      <Select value={formData.wallThick.toString()} onValueChange={v => handleInputChange('wallThick', v)}>
-                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="5">৫ ইঞ্চি দেয়াল</SelectItem><SelectItem value="10">১০ ইঞ্চি দেয়াল</SelectItem></SelectContent>
-                      </Select>
+                  {brickworks.map((b, idx) => (
+                    <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">গাথনী দেয়াল #{idx+1}</h4>{brickworks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('brickwork', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={b.len} onChange={v => updateItem('brickwork', b.id, 'len', v)} />
+                        <InputField label="দেয়ালের উচ্চতা (ফুট)" value={b.height} onChange={v => updateItem('brickwork', b.id, 'height', v)} />
+                        <div className="col-span-2 space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">দেয়ালের পুরুত্ব</Label>
+                          <Select value={b.thick.toString()} onValueChange={v => updateItem('brickwork', b.id, 'thick', v)}>
+                            <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent><SelectItem value="5">৫ ইঞ্চি দেয়াল</SelectItem><SelectItem value="10">১০ ইঞ্চি দেয়াল</SelectItem></SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন দেয়াল যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="plaster" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="প্লাষ্টার দৈর্ঘ্য (ফুট)" value={formData.plasterLen} onChange={v => handleInputChange('plasterLen', v)} />
-                    <InputField label="প্লাষ্টার উচ্চতা (ফুট)" value={formData.plasterHeight} onChange={v => handleInputChange('plasterHeight', v)} />
-                    <InputField label="পুরুত্ব (ইঞ্চি)" value={formData.plasterThick} onChange={v => handleInputChange('plasterThick', v)} />
-                    <div className="col-span-2 space-y-2">
-                      <Label className="text-xs font-bold text-slate-600">পাশ</Label>
-                      <Select value={formData.plasterSide.toString()} onValueChange={v => handleInputChange('plasterSide', v)}>
-                        <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="1">এক পাশ</SelectItem><SelectItem value="2">দুই পাশ</SelectItem></SelectContent>
-                      </Select>
+                  {plasters.map((p, idx) => (
+                    <div key={p.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">প্লাষ্টার এরিয়া #{idx+1}</h4>{plasters.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('plaster', p.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="প্লাষ্টার দৈর্ঘ্য (ফুট)" value={p.len} onChange={v => updateItem('plaster', p.id, 'len', v)} />
+                        <InputField label="প্লাষ্টার উচ্চতা (ফুট)" value={p.height} onChange={v => updateItem('plaster', p.id, 'height', v)} />
+                        <InputField label="পুরুত্ব (ইঞ্চি)" value={p.thick} onChange={v => updateItem('plaster', p.id, 'thick', v)} />
+                        <div className="col-span-2 space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">পাশ</Label>
+                          <Select value={p.sides.toString()} onValueChange={v => updateItem('plaster', p.id, 'sides', v)}>
+                            <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent><SelectItem value="1">এক পাশ</SelectItem><SelectItem value="2">দুই পাশ</SelectItem></SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন প্লাষ্টার এরিয়া যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="floorTiles" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="ফ্লোর দৈর্ঘ্য (ফুট)" value={formData.floorLen} onChange={v => handleInputChange('floorLen', v)} />
-                    <InputField label="ফ্লোর প্রস্থ (ফুট)" value={formData.floorWid} onChange={v => handleInputChange('floorWid', v)} />
-                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.floorTileLen} onChange={v => handleInputChange('floorTileLen', v)} />
-                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.floorTileWid} onChange={v => handleInputChange('floorTileWid', v)} />
-                    <InputField label="অপচয় (%)" value={formData.floorTileWastage} onChange={v => handleInputChange('floorTileWastage', v)} />
-                  </div>
+                  {floorTiles.map((f, idx) => (
+                    <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">ফ্লোর এরিয়া #{idx+1}</h4>{floorTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('floorTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="ফ্লোর দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('floorTiles', f.id, 'len', v)} />
+                        <InputField label="ফ্লোর প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('floorTiles', f.id, 'wid', v)} />
+                        <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={f.tLen} onChange={v => updateItem('floorTiles', f.id, 'tLen', v)} />
+                        <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={f.tWid} onChange={v => updateItem('floorTiles', f.id, 'tWid', v)} />
+                        <InputField label="অপচয় (%)" value={f.wastage} onChange={v => updateItem('floorTiles', f.id, 'wastage', v)} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ফ্লোর এরিয়া যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="wallTiles" className="space-y-6 m-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={formData.wallTileLen} onChange={v => handleInputChange('wallTileLen', v)} />
-                    <InputField label="দেয়ালের উচ্চতা (ফুট)" value={formData.wallTileHeight} onChange={v => handleInputChange('wallTileHeight', v)} />
-                    <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={formData.wallTileLenT} onChange={v => handleInputChange('wallTileLenT', v)} />
-                    <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={formData.wallTileWidT} onChange={v => handleInputChange('wallTileWidT', v)} />
-                    <InputField label="অপচয় (%)" value={formData.wallTileWastage} onChange={v => handleInputChange('wallTileWastage', v)} />
-                  </div>
+                  {wallTiles.map((f, idx) => (
+                    <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500">দেয়াল এরিয়া #{idx+1}</h4>{wallTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('wallTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('wallTiles', f.id, 'len', v)} />
+                        <InputField label="দেয়ালের উচ্চতা (ফুট)" value={f.height} onChange={v => updateItem('wallTiles', f.id, 'height', v)} />
+                        <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={f.tLen} onChange={v => updateItem('wallTiles', f.id, 'tLen', v)} />
+                        <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={f.tWid} onChange={v => updateItem('wallTiles', f.id, 'tWid', v)} />
+                        <InputField label="অপচয় (%)" value={f.wastage} onChange={v => updateItem('wallTiles', f.id, 'wastage', v)} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন দেয়াল এরিয়া যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
@@ -1072,12 +1188,12 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-4">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2"><Boxes className="w-5 h-5" /> মোট সমন্বিত মালামাল</h3>
                     <div className="grid gap-3">
-                      <ResultRow label="সিমেন্ট" value={results.cement} unit="ব্যাগ" dark />
-                      <ResultRow label="বালু" value={results.sand} unit="সিএফটি" dark />
-                      <ResultRow label="পাথর/খোয়া" value={results.stone} unit="সিএফটি" dark />
-                      <ResultRow label="রড" value={results.rod} unit="কেজি" dark />
-                      <ResultRow label="ইট" value={results.bricks} unit="টি" dark />
-                      <ResultRow label="টাইলস (মোট)" value={results.tiles} unit="টি" dark />
+                      <ResultRow label="সিমেন্ট" value={total.cement} unit="ব্যাগ" dark />
+                      <ResultRow label="বালু" value={total.sand} unit="সিএফটি" dark />
+                      <ResultRow label="পাথর/খোয়া" value={total.stone} unit="সিএফটি" dark />
+                      <ResultRow label="রড" value={total.rod} unit="কেজি" dark />
+                      <ResultRow label="ইট" value={total.bricks} unit="টি" dark />
+                      <ResultRow label="টাইলস (মোট)" value={total.tiles} unit="টি" dark />
                     </div>
                   </div>
                 </TabsContent>
@@ -1095,11 +1211,11 @@ function EstimationView({ onBack }: { onBack: () => void }) {
               <div className="bg-slate-800 text-white p-5 rounded-xl shadow-lg sticky top-6">
                 <h3 className="text-md font-bold mb-4 border-b border-white/20 pb-2 flex items-center gap-2"><Calculator className="w-4 h-4" /> ইনস্ট্যান্ট সামারি</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">সিমেন্ট:</span><span className="font-bold">{Math.ceil(results.cement)} ব্যাগ</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(results.sand)} CFT</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(results.rod)} KG</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{results.bricks} টি</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস:</span><span className="font-bold">{results.tiles} টি</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">সিমেন্ট:</span><span className="font-bold">{Math.ceil(total.cement)} ব্যাগ</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(total.sand)} CFT</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(total.rod)} KG</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{total.bricks} টি</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস:</span><span className="font-bold">{total.tiles} টি</span></div>
                 </div>
               </div>
             </div>
@@ -1171,3 +1287,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1"><span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[15px] md:min-w-[50px]">{label}</span><Input className="h-6 md:h-7 w-16 md:w-24 text-[9px] md:text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
+
