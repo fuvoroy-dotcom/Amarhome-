@@ -343,7 +343,8 @@ export default function EstimatorClient() {
     if (subType.startsWith('door') || subType === 'sliding-door') { newObj.w = 3.5; newObj.h = currentWallThickness; }
     if (subType === 'double-door') { newObj.w = 6; newObj.h = currentWallThickness; }
     if (subType === 'window') { newObj.w = 4; newObj.h = currentWallThickness; }
-    if (subType === 'stair') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
+    if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
+    if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
 
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -456,7 +457,8 @@ export default function EstimatorClient() {
         else if (selectedTool === 'sliding-door') addObjectAt('opening', 'sliding-door', 'Sliding Door', snappedX, snappedY);
         else if (selectedTool === 'double-door') addObjectAt('opening', 'double-door', 'Double Door', snappedX, snappedY);
         else if (selectedTool === 'window') addObjectAt('opening', 'window', 'Window', snappedX, snappedY);
-        else if (selectedTool === 'stair') addObjectAt('stair', 'stair', 'Stair', snappedX, snappedY);
+        else if (selectedTool === 'stair-u') addObjectAt('stair', 'stair-u', 'Stair 1', snappedX, snappedY);
+        else if (selectedTool === 'stair-dogleg') addObjectAt('stair', 'stair-dogleg', 'Stair 2', snappedX, snappedY);
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
         setSelectedTool('select'); return;
     }
@@ -614,12 +616,61 @@ export default function EstimatorClient() {
         </svg>
       );
     }
-    if (obj.subType === 'stair') {
-      const steps = obj.stepCount || 10; const landingH = obj.h * 0.2; const flightW = obj.w * 0.45; const gapW = obj.w * 0.1; const stepH = (obj.h - landingH * 2) / (steps / 2);
+    if (obj.subType === 'stair-u') {
+      const steps = obj.stepCount || 15; 
+      const landingH = obj.h * 0.25; 
+      const flightW = obj.w * 0.3;
+      const midFlightH = obj.h - 2 * landingH;
+      const sCount = Math.floor(steps / 3);
+      const stepH = midFlightH / sCount;
+      const stepW = (obj.w - 2 * flightW) / sCount;
+
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} /><line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1="0" y1={obj.h - landingH} x2={obj.w} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW} y1={landingH} x2={flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW + gapW} y1={landingH} x2={flightW + gapW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {Array.from({ length: Math.ceil(steps / 2) }).map((_, i) => (<React.Fragment key={i}><line x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} /><line x1={flightW + gapW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} /></React.Fragment>))}
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Main structure lines */}
+          <line x1={flightW} y1={0} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={obj.w - flightW} y1={0} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={flightW} y1={obj.h - landingH} x2={obj.w - flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Flight 1 steps */}
+          {Array.from({ length: sCount }).map((_, i) => (
+            <line key={`f1-${i}`} x1="0" y1={obj.h - landingH - (i * stepH)} x2={flightW} y2={obj.h - landingH - (i * stepH)} stroke={obj.color} strokeWidth={sw} />
+          ))}
+          {/* Flight 2 steps (horizontal) */}
+          {Array.from({ length: sCount }).map((_, i) => (
+            <line key={`f2-${i}`} x1={flightW + (i * stepW)} y1={landingH} x2={flightW + (i * stepW)} y2={0} stroke={obj.color} strokeWidth={sw} />
+          ))}
+          {/* Flight 3 steps */}
+          {Array.from({ length: sCount }).map((_, i) => (
+            <line key={`f3-${i}`} x1={obj.w - flightW} y1={landingH + (i * stepH)} x2={obj.w} y2={landingH + (i * stepH)} stroke={obj.color} strokeWidth={sw} />
+          ))}
+        </svg>
+      );
+    }
+    if (obj.subType === 'stair-dogleg') {
+      const steps = obj.stepCount || 10; 
+      const landingH = obj.h * 0.2; 
+      const railW = obj.w * 0.1;
+      const flightW = (obj.w - railW) / 2;
+      const midH = obj.h - landingH;
+      const sCount = Math.floor(steps / 2);
+      const stepH = midH / sCount;
+
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
+          {/* Steps Left Flight */}
+          {Array.from({ length: sCount }).map((_, i) => (
+            <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
+          ))}
+          {/* Steps Right Flight */}
+          {Array.from({ length: sCount }).map((_, i) => (
+            <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
+          ))}
         </svg>
       );
     }
@@ -689,7 +740,8 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} />
               <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} />
               <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} />
-              <SymbolButton active={selectedTool === 'stair'} icon={<Rows />} label="Stair" onClick={() => setSelectedTool('stair')} />
+              <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} />
+              <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} />
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} />
               <div className="w-px h-8 bg-slate-200 mx-1 md:hidden" />
               <div className="flex md:flex-col gap-2 items-center md:items-stretch">
@@ -783,7 +835,7 @@ export default function EstimatorClient() {
                   <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
-                  {firstSelectedObject.subType === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
+                  {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                   {firstSelectedObject.type === 'text' && (<PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />)}
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
