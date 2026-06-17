@@ -860,12 +860,12 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const updateItem = (type: string, id: string, field: string, val: string) => {
     const value = parseFloat(val) || 0;
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'column') setColumns(columns.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'beam') setBeams(beams.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'slab') setSlabs(slabs.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'stair') setStairs(stairs.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'brickwork') setBrickworks(brickworks.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'plaster') setPlasters(plasters.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
+    if (type === 'beam') setBeams(beams.map(b => b.id === id ? { ...b, [field]: value } : b));
+    if (type === 'slab') setSlabs(slabs.map(s => s.id === id ? { ...s, [field]: value } : s));
+    if (type === 'stair') setStairs(stairs.map(s => s.id === id ? { ...s, [field]: value } : s));
+    if (type === 'brickwork') setBrickworks(brickworks.map(b => b.id === id ? { ...b, [field]: value } : b));
+    if (type === 'plaster') setPlasters(plasters.map(p => p.id === id ? { ...p, [field]: value } : p));
     if (type === 'floorTiles') setFloorTiles(floorTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'wallTiles') setWallTiles(wallTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
   };
@@ -931,16 +931,13 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     // Stair (Three Landing)
     let stRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     stairs.forEach(s => {
-      // Each flight vol
       const flightVol = (s.wLen * s.wid * (s.thick / 12));
       const stepsVol = (0.5 * (s.riser / 12) * (s.tread / 12) * s.wid) * s.steps;
       const landingVol = (s.lLen * s.lWid * (s.thick / 12));
-      
-      const totalVolPerStair = (flightVol + stepsVol + landingVol) * 3; // 3 Flights/Landings for "3 landing stair"
+      const totalVolPerStair = (flightVol + stepsVol + landingVol) * 3; 
       if (totalVolPerStair > 0 && s.count > 0) {
         const dry = totalVolPerStair * s.count * 1.54;
         stRes.cement += (dry / 5.5) / 1.25; stRes.sand += (dry / 5.5) * 1.5; stRes.stone += (dry / 5.5) * 3;
-        
         const mainRod = ((s.wLen + s.lLen) * (s.wid / (s.mainGap/12 || 1))) * s.mainFactor * 3 * s.count;
         const distRod = (s.wid * ((s.wLen + s.lLen) / (s.distGap/12 || 1))) * s.distFactor * 3 * s.count;
         stRes.rod += mainRod + distRod;
@@ -1012,7 +1009,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
   const getAdvice = async () => {
     setLoadingAdvice(true);
-    // Use first entry for advice context
     const f = foundations[0]; const c = columns[0]; const b = beams[0]; const s = slabs[0];
     const result = await getConstructionAdvice({
       baseCount: f.count, baseLengthFt: f.len, baseWidthFt: f.wid, baseThicknessIn: f.thick,
@@ -1135,10 +1131,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                 <TabsContent value="stair" className="space-y-6 m-0">
                   {stairs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-bold text-xs text-slate-500 uppercase">তিন ল্যান্ডিং সিড়ি #{idx+1}</h4>
-                        {stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}
-                      </div>
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500 uppercase">তিন ল্যান্ডিং সিড়ি #{idx+1}</h4>{stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
                         <InputField label="সিড়ির সংখ্যা" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} />
                         <InputField label="ফ্লাইট দৈর্ঘ্য (ফুট)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} />
@@ -1151,6 +1144,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         <InputField label="ল্যান্ডিং প্রস্থ (ফুট)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} />
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={s.mainFactor} onChange={v => updateItem('stair', s.id, 'mainFactor', v)} /></div>
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">ডিস্ট. রড</Label><RodSelect value={s.distFactor} onChange={v => updateItem('stair', s.id, 'distFactor', v)} /></div>
+                        <InputField label="মেইন রড গ্যাপ (ইঞ্চি)" value={s.mainGap} onChange={v => updateItem('stair', s.id, 'mainGap', v)} />
+                        <InputField label="ডিস্ট. রড গ্যাপ (ইঞ্চি)" value={s.distGap} onChange={v => updateItem('stair', s.id, 'distGap', v)} />
                       </div>
                     </div>
                   ))}
