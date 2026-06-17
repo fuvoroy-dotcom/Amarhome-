@@ -826,6 +826,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
   const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
   const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30 }]);
+  const [stairs, setStairs] = useState([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6 }]);
   const [brickworks, setBrickworks] = useState([{ id: '1', len: 0, height: 0, thick: 5 }]);
   const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
   const [floorTiles, setFloorTiles] = useState([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
@@ -837,6 +838,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'column') setColumns([...columns, { id, count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
     if (type === 'beam') setBeams([...beams, { id, len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
     if (type === 'slab') setSlabs([...slabs, { id, len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30 }]);
+    if (type === 'stair') setStairs([...stairs, { id, count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6 }]);
     if (type === 'brickwork') setBrickworks([...brickworks, { id, len: 0, height: 0, thick: 5 }]);
     if (type === 'plaster') setPlasters([...plasters, { id, len: 0, height: 0, thick: 0.5, sides: 1 }]);
     if (type === 'floorTiles') setFloorTiles([...floorTiles, { id, len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
@@ -848,6 +850,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'column') setColumns(columns.filter(f => f.id !== id));
     if (type === 'beam') setBeams(beams.filter(f => f.id !== id));
     if (type === 'slab') setSlabs(slabs.filter(f => f.id !== id));
+    if (type === 'stair') setStairs(stairs.filter(f => f.id !== id));
     if (type === 'brickwork') setBrickworks(brickworks.filter(f => f.id !== id));
     if (type === 'plaster') setPlasters(plasters.filter(f => f.id !== id));
     if (type === 'floorTiles') setFloorTiles(floorTiles.filter(f => f.id !== id));
@@ -860,6 +863,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'column') setColumns(columns.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'beam') setBeams(beams.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'slab') setSlabs(slabs.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'stair') setStairs(stairs.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'brickwork') setBrickworks(brickworks.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'plaster') setPlasters(plasters.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'floorTiles') setFloorTiles(floorTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
@@ -923,6 +927,26 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       }
     });
     sectionTotals.slab = sRes;
+
+    // Stair (Three Landing)
+    let stRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    stairs.forEach(s => {
+      // Each flight vol
+      const flightVol = (s.wLen * s.wid * (s.thick / 12));
+      const stepsVol = (0.5 * (s.riser / 12) * (s.tread / 12) * s.wid) * s.steps;
+      const landingVol = (s.lLen * s.lWid * (s.thick / 12));
+      
+      const totalVolPerStair = (flightVol + stepsVol + landingVol) * 3; // 3 Flights/Landings for "3 landing stair"
+      if (totalVolPerStair > 0 && s.count > 0) {
+        const dry = totalVolPerStair * s.count * 1.54;
+        stRes.cement += (dry / 5.5) / 1.25; stRes.sand += (dry / 5.5) * 1.5; stRes.stone += (dry / 5.5) * 3;
+        
+        const mainRod = ((s.wLen + s.lLen) * (s.wid / (s.mainGap/12 || 1))) * s.mainFactor * 3 * s.count;
+        const distRod = (s.wid * ((s.wLen + s.lLen) / (s.distGap/12 || 1))) * s.distFactor * 3 * s.count;
+        stRes.rod += mainRod + distRod;
+      }
+    });
+    sectionTotals.stair = stRes;
 
     // Brickwork
     let brRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
@@ -1025,6 +1049,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">বিম</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ছাদ</TabsTrigger>
+                  <TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0">সিড়ি</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">গাথনী</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
                   <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফ্লোর টাইলস</TabsTrigger>
@@ -1104,6 +1129,32 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     </div>
                   ))}
                   <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ছাদের অংশ যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="stair" className="space-y-6 m-0">
+                  {stairs.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-bold text-xs text-slate-500 uppercase">তিন ল্যান্ডিং সিড়ি #{idx+1}</h4>
+                        {stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="সিড়ির সংখ্যা" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} />
+                        <InputField label="ফ্লাইট দৈর্ঘ্য (ফুট)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} />
+                        <InputField label="সিড়ির প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('stair', s.id, 'wid', v)} />
+                        <InputField label="স্ল্যাব পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('stair', s.id, 'thick', v)} />
+                        <InputField label="ধাপ সংখ্যা (প্রতি ফ্লাইট)" value={s.steps} onChange={v => updateItem('stair', s.id, 'steps', v)} />
+                        <InputField label="রাইজার উচ্চতা (ইঞ্চি)" value={s.riser} onChange={v => updateItem('stair', s.id, 'riser', v)} />
+                        <InputField label="ট্রেড প্রস্থ (ইঞ্চি)" value={s.tread} onChange={v => updateItem('stair', s.id, 'tread', v)} />
+                        <InputField label="ল্যান্ডিং দৈর্ঘ্য (ফুট)" value={s.lLen} onChange={v => updateItem('stair', s.id, 'lLen', v)} />
+                        <InputField label="ল্যান্ডিং প্রস্থ (ফুট)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={s.mainFactor} onChange={v => updateItem('stair', s.id, 'mainFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">ডিস্ট. রড</Label><RodSelect value={s.distFactor} onChange={v => updateItem('stair', s.id, 'distFactor', v)} /></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সিড়ি যোগ করুন</Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
@@ -1287,4 +1338,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1"><span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[15px] md:min-w-[50px]">{label}</span><Input className="h-6 md:h-7 w-16 md:w-24 text-[9px] md:text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
-
