@@ -630,20 +630,16 @@ export default function EstimatorClient() {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Main structure lines */}
           <line x1={flightW} y1={0} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={obj.w - flightW} y1={0} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={flightW} y1={obj.h - landingH} x2={obj.w - flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Flight 1 steps */}
           {Array.from({ length: sCount }).map((_, i) => (
             <line key={`f1-${i}`} x1="0" y1={obj.h - landingH - (i * stepH)} x2={flightW} y2={obj.h - landingH - (i * stepH)} stroke={obj.color} strokeWidth={sw} />
           ))}
-          {/* Flight 2 steps (horizontal) */}
           {Array.from({ length: sCount }).map((_, i) => (
             <line key={`f2-${i}`} x1={flightW + (i * stepW)} y1={landingH} x2={flightW + (i * stepW)} y2={0} stroke={obj.color} strokeWidth={sw} />
           ))}
-          {/* Flight 3 steps */}
           {Array.from({ length: sCount }).map((_, i) => (
             <line key={`f3-${i}`} x1={obj.w - flightW} y1={landingH + (i * stepH)} x2={obj.w} y2={landingH + (i * stepH)} stroke={obj.color} strokeWidth={sw} />
           ))}
@@ -665,11 +661,9 @@ export default function EstimatorClient() {
           <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
-          {/* Steps Left Flight */}
           {Array.from({ length: sCount }).map((_, i) => (
             <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
           ))}
-          {/* Steps Right Flight */}
           {Array.from({ length: sCount }).map((_, i) => (
             <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
           ))}
@@ -840,7 +834,16 @@ export default function EstimatorClient() {
                   {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                   {firstSelectedObject.type === 'text' && (
                     <>
-                      <PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[50px]">লেখা/মাপ</span>
+                        <Input 
+                          className="h-6 md:h-7 w-32 md:w-48 text-[9px] md:text-[11px] font-bold border-slate-200" 
+                          value={localPropText} 
+                          onChange={e => setLocalPropText(e.target.value)} 
+                          onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)}
+                          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                        />
+                      </div>
                       <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
                       <Button 
                         variant={firstSelectedObject.isBold ? "default" : "outline"} 
@@ -941,10 +944,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     const total = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     const sectionTotals: any = {};
 
-    // Foundation
     let fRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     foundations.forEach(f => {
-      const vol = (f.len * f.wid * (f.thick / 12)) * f.count;
+      const vol = (f.count * f.len * f.wid * (f.thick / 12));
       if (vol > 0) {
         const dry = vol * 1.54;
         fRes.cement += (dry / 5.5) / 1.25; fRes.sand += (dry / 5.5) * 1.5; fRes.stone += (dry / 5.5) * 3;
@@ -953,10 +955,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.foundation = fRes;
 
-    // Column
     let cRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     columns.forEach(c => {
-      const vol = (c.len / 12 * c.wid / 12 * c.height) * c.count;
+      const vol = (c.count * (c.len / 12) * (c.wid / 12) * c.height);
       if (vol > 0) {
         const dry = vol * 1.54;
         cRes.cement += (dry / 5.5) / 1.25; cRes.sand += (dry / 5.5) * 1.5; cRes.stone += (dry / 5.5) * 3;
@@ -968,10 +969,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.column = cRes;
 
-    // Beam
     let bRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     beams.forEach(b => {
-      const vol = (b.len * b.wid / 12 * b.height / 12);
+      const vol = (b.len * (b.wid / 12) * (b.height / 12));
       if (vol > 0) {
         const dry = vol * 1.54;
         bRes.cement += (dry / 5.5) / 1.25; bRes.sand += (dry / 5.5) * 1.5; bRes.stone += (dry / 5.5) * 3;
@@ -983,7 +983,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.beam = bRes;
 
-    // Slab
     let sRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     slabs.forEach(s => {
       const vol = (s.len * s.wid * (s.thick / 12));
@@ -995,7 +994,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.slab = sRes;
 
-    // Stair (Three Landing)
     let stRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     stairs.forEach(s => {
       const flightVol = (s.wLen * s.wid * (s.thick / 12));
@@ -1012,7 +1010,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.stair = stRes;
 
-    // Brickwork
     let brRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     brickworks.forEach(b => {
       const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10));
@@ -1025,7 +1022,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.brickwork = brRes;
 
-    // Plaster
     let pRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     plasters.forEach(p => {
       const area = p.len * p.height;
@@ -1037,7 +1033,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.plaster = pRes;
 
-    // Floor Tiles
     let ftRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     floorTiles.forEach(f => {
       const area = f.len * f.wid;
@@ -1050,7 +1045,6 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.floorTiles = ftRes;
 
-    // Wall Tiles
     let wtRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
     wallTiles.forEach(f => {
       const area = f.len * f.height;
@@ -1400,3 +1394,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1"><span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[15px] md:min-w-[50px]">{label}</span><Input className="h-6 md:h-7 w-16 md:w-24 text-[9px] md:text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
+
