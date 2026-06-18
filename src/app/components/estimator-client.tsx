@@ -8,7 +8,7 @@ import {
   Clipboard as ClipboardIcon, Copy as CopyIcon, Undo2, Redo2,
   Pencil, ZoomIn, ZoomOut,
   RotateCw, Save, User,
-  Type as TypeIcon,
+  Type as TypeIcon, Bold as BoldIcon,
   MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   Image as ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
@@ -126,6 +126,7 @@ export default function EstimatorClient() {
   const [localPropRot, setLocalPropRot] = useState("");
   const [localPropSteps, setLocalPropSteps] = useState("");
   const [localPropText, setLocalPropText] = useState("");
+  const [localPropFontSize, setLocalPropFontSize] = useState("");
 
   const formatFeetInches = (val: number) => {
     const roundedVal = Math.round(val * 48) / 48;
@@ -163,8 +164,9 @@ export default function EstimatorClient() {
       setLocalPropRot(firstSelectedObject.rotation.toString());
       setLocalPropSteps((firstSelectedObject.stepCount || 10).toString());
       setLocalPropText(firstSelectedObject.textContent || "");
+      setLocalPropFontSize((firstSelectedObject.fontSize || 14).toString());
     }
-  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, firstSelectedObject?.textContent]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, firstSelectedObject?.textContent, firstSelectedObject?.fontSize]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -674,7 +676,7 @@ export default function EstimatorClient() {
         </svg>
       );
     }
-    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'bold' : 'normal' }}>{obj.textContent || obj.label}</div>;
+    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none text-center leading-tight" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'bold' : 'normal' }}>{obj.textContent || obj.label}</div>;
     return null;
   };
 
@@ -836,7 +838,20 @@ export default function EstimatorClient() {
                   <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
                   {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
-                  {firstSelectedObject.type === 'text' && (<PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />)}
+                  {firstSelectedObject.type === 'text' && (
+                    <>
+                      <PropField label="লেবেল" value={localPropText} onChange={setLocalPropText} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} />
+                      <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
+                      <Button 
+                        variant={firstSelectedObject.isBold ? "default" : "outline"} 
+                        size="icon" 
+                        className="h-7 w-7 ml-1" 
+                        onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}
+                      >
+                        <BoldIcon className="w-3 h-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
                   {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-4 h-4 md:w-5 md:h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
