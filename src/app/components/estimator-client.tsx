@@ -904,6 +904,17 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [septicTanks, setSepticTanks] = useState([{ id: '1', count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
   const [soakWells, setSoakWells] = useState([{ id: '1', count: 0, dia: 0, depth: 0 }]);
 
+  const [prices, setPrices] = useState({
+    cement: 0,
+    sand: 0,
+    stone: 0,
+    chips: 0,
+    rod: 0,
+    bricks: 0,
+    floorTiles: 0,
+    wallTiles: 0
+  });
+
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
@@ -1114,8 +1125,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       total.chips += res.chips || 0;
       total.rod += res.rod || 0; 
       total.bricks += res.bricks || 0; 
-      total.floorTiles += res.floorTiles || 0; 
-      total.wallTiles += res.wallTiles || 0;
+      total.floorTiles += (res.floorTiles || 0); 
+      total.wallTiles += (res.wallTiles || 0);
     });
 
     return { total, sectionTotals };
@@ -1123,6 +1134,19 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
   const { total, sectionTotals } = calcAll();
   const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
+
+  const grandTotalCost = useMemo(() => {
+    return (
+      Math.ceil(total.cement) * prices.cement +
+      Math.ceil(total.sand) * prices.sand +
+      Math.ceil(total.stone) * prices.stone +
+      Math.ceil(total.chips) * prices.chips +
+      Math.ceil(total.rod) * prices.rod +
+      Math.ceil(total.bricks) * prices.bricks +
+      Math.ceil(total.floorTiles) * prices.floorTiles +
+      Math.ceil(total.wallTiles) * prices.wallTiles
+    );
+  }, [total, prices]);
 
   const getAdvice = async () => {
     setLoadingAdvice(true);
@@ -1387,17 +1411,24 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                 </TabsContent>
 
                 <TabsContent value="total" className="space-y-6 m-0">
-                  <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-4">
-                    <h3 className="font-bold text-emerald-800 flex items-center gap-2"><Boxes className="w-5 h-5" /> মোট সমন্বিত মালামাল</h3>
-                    <div className="grid gap-3">
-                      <ResultRow label="সিমেন্ট" value={total.cement} unit="ব্যাগ" dark />
-                      <ResultRow label="বালু" value={total.sand} unit="সিএফটি" dark />
-                      <ResultRow label="পাথর" value={total.stone} unit="সিএফটি" dark />
-                      <ResultRow label="খোয়া" value={total.chips} unit="সিএফটি" dark />
-                      <ResultRow label="রড" value={total.rod} unit="কেজি" dark />
-                      <ResultRow label="ইট" value={total.bricks} unit="টি" dark />
-                      <ResultRow label="ফ্লোর টাইলস" value={total.floorTiles} unit="টি" dark />
-                      <ResultRow label="ওয়াল টাইলস" value={total.wallTiles} unit="টি" dark />
+                  <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-6">
+                    <div className="flex justify-between items-center border-b border-emerald-100 pb-4">
+                      <h3 className="font-bold text-emerald-800 flex items-center gap-2 text-lg"><Boxes className="w-6 h-6" /> মালামাল ও খরচ হিসাব</h3>
+                      <div className="bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md">
+                        <span className="text-xs uppercase font-bold opacity-80 block">সর্বমোট খরচ:</span>
+                        <span className="text-xl font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <CostRow label="সিমেন্ট" value={total.cement} unit="ব্যাগ" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} />
+                      <CostRow label="বালু" value={total.sand} unit="সিএফটি" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} />
+                      <CostRow label="পাথর" value={total.stone} unit="সিএফটি" price={prices.stone} onPriceChange={(v) => setPrices({...prices, stone: v})} />
+                      <CostRow label="খোয়া" value={total.chips} unit="সিএফটি" price={prices.chips} onPriceChange={(v) => setPrices({...prices, chips: v})} />
+                      <CostRow label="রড" value={total.rod} unit="কেজি" price={prices.rod} onPriceChange={(v) => setPrices({...prices, rod: v})} />
+                      <CostRow label="ইট" value={total.bricks} unit="টি" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} />
+                      <CostRow label="ফ্লোর টাইলস" value={total.floorTiles} unit="টি" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} />
+                      <CostRow label="ওয়াল টাইলস" value={total.wallTiles} unit="টি" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} />
                     </div>
                   </div>
                 </TabsContent>
@@ -1420,6 +1451,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(total.rod)} KG</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{total.bricks} টি</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস (মোট):</span><span className="font-bold">{total.floorTiles + total.wallTiles} টি</span></div>
+                  <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center"><span className="text-xs font-bold text-emerald-400">মোট খরচ:</span><span className="text-lg font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
                 </div>
               </div>
             </div>
@@ -1459,6 +1491,34 @@ function ResultRow({ label, value, unit, small, dark }: { label: string, value: 
     )}>
       <span className={cn("font-medium", small ? "text-[9px]" : "text-[11px]", dark ? "text-emerald-900" : "text-slate-600")}>{label}</span>
       <span className={cn("font-black", small ? "text-[10px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
+    </div>
+  );
+}
+
+function CostRow({ label, value, unit, price, onPriceChange }: { label: string, value: number, unit: string, price: number, onPriceChange: (v: number) => void }) {
+  const qty = Math.ceil(value);
+  const subTotal = qty * price;
+  
+  return (
+    <div className="grid grid-cols-12 gap-3 items-center p-3 bg-white border border-emerald-100 rounded-lg shadow-sm">
+      <div className="col-span-3">
+        <span className="text-xs font-bold text-slate-700 block">{label}</span>
+        <span className="text-[10px] text-slate-400">{qty} {unit}</span>
+      </div>
+      <div className="col-span-4 flex items-center gap-2">
+        <span className="text-[10px] font-bold text-slate-400">দর (৳)</span>
+        <Input 
+          type="number" 
+          value={price === 0 ? "" : price} 
+          onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)}
+          className="h-8 text-xs font-bold text-emerald-700 bg-emerald-50/30 border-emerald-100" 
+          placeholder="প্রতি একক..."
+        />
+      </div>
+      <div className="col-span-5 text-right">
+        <span className="text-[10px] uppercase font-bold text-slate-400 block">উপ-মোট:</span>
+        <span className="text-sm font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
+      </div>
     </div>
   );
 }
