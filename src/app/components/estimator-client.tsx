@@ -689,7 +689,7 @@ export default function EstimatorClient() {
   };
 
   if (viewMode === 'estimate') {
-    return <EstimationView onBack={() => setViewMode('design')} />;
+    return <EstimationView designObjects={designObjects} onBack={() => setViewMode('design')} />;
   }
 
   return (
@@ -887,7 +887,7 @@ export default function EstimatorClient() {
   );
 }
 
-function EstimationView({ onBack }: { onBack: () => void }) {
+function EstimationView({ designObjects, onBack }: { designObjects: DesignObject[], onBack: () => void }) {
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
@@ -912,7 +912,10 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     rod: 0,
     bricks: 0,
     floorTiles: 0,
-    wallTiles: 0
+    wallTiles: 0,
+    labor: 0,
+    doors: 0,
+    windows: 0
   });
 
   const addItem = (type: string) => {
@@ -960,7 +963,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   };
 
   const calcAll = () => {
-    const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
+    const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 };
     const sectionTotals: any = {};
 
     let fRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
@@ -1089,19 +1092,17 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     let sepRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     septicTanks.forEach(s => {
       if (s.count > 0 && s.len > 0 && s.wid > 0 && s.depth > 0) {
-        // Walls (10 inch brickwork)
         const wallPerimeter = 2 * (s.len + s.wid);
         const brickVol = wallPerimeter * s.depth * (10/12);
         sepRes.bricks += Math.ceil(brickVol * 10 * s.count);
-        // Concrete (base + top slab)
-        const baseVol = s.len * s.wid * (3/12); // 3 inch base
-        const topVol = s.len * s.wid * (4/12);  // 4 inch top
+        const baseVol = s.len * s.wid * (3/12); 
+        const topVol = s.len * s.wid * (4/12);  
         const totalConcVol = (baseVol + topVol) * s.count;
         const dry = totalConcVol * 1.54;
         const aggr = (dry / 5.5) * 3;
         sepRes.cement += (dry / 5.5) / 1.25; sepRes.sand += (dry / 5.5) * 1.5;
         if (s.aggregateType === 'chips') sepRes.chips += aggr; else sepRes.stone += aggr;
-        sepRes.rod += (s.len * s.wid * 0.5) * s.count; // Estimated rod for top slab
+        sepRes.rod += (s.len * s.wid * 0.5) * s.count; 
       }
     });
     sectionTotals.septicTank = sepRes;
@@ -1110,7 +1111,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     soakWells.forEach(s => {
       if (s.count > 0 && s.dia > 0 && s.depth > 0) {
         const circ = Math.PI * s.dia;
-        const brickVol = circ * s.depth * (5/12); // 5 inch lining
+        const brickVol = circ * s.depth * (5/12); 
         swRes.bricks += Math.ceil(brickVol * 5 * s.count);
         const dry = brickVol * 0.35 * s.count;
         swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4;
@@ -1129,6 +1130,10 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       total.wallTiles += (res.wallTiles || 0);
     });
 
+    total.labor = slabs.reduce((acc, s) => acc + (s.len * s.wid), 0);
+    total.doors = designObjects.filter(o => o.type === 'opening' && o.subType.includes('door')).length;
+    total.windows = designObjects.filter(o => o.type === 'opening' && o.subType === 'window').length;
+
     return { total, sectionTotals };
   };
 
@@ -1144,7 +1149,10 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       Math.ceil(total.rod) * prices.rod +
       Math.ceil(total.bricks) * prices.bricks +
       Math.ceil(total.floorTiles) * prices.floorTiles +
-      Math.ceil(total.wallTiles) * prices.wallTiles
+      Math.ceil(total.wallTiles) * prices.wallTiles +
+      Math.ceil(total.labor) * prices.labor +
+      total.doors * prices.doors +
+      total.windows * prices.windows
     );
   }, [total, prices]);
 
@@ -1414,7 +1422,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-6">
                     <div className="flex justify-between items-center border-b border-emerald-100 pb-4">
                       <h3 className="font-bold text-emerald-800 flex items-center gap-2 text-lg"><Boxes className="w-6 h-6" /> মালামাল ও খরচ হিসাব</h3>
-                      <div className="bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md">
+                      <div className="bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md text-right">
                         <span className="text-xs uppercase font-bold opacity-80 block">সর্বমোট খরচ:</span>
                         <span className="text-xl font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
                       </div>
@@ -1429,6 +1437,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                       <CostRow label="ইট" value={total.bricks} unit="টি" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} />
                       <CostRow label="ফ্লোর টাইলস" value={total.floorTiles} unit="টি" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} />
                       <CostRow label="ওয়াল টাইলস" value={total.wallTiles} unit="টি" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} />
+                      <CostRow label="মজুরি (ছাদ এরিয়া)" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
+                      <CostRow label="দরজা (নকশা অনুযায়ী)" value={total.doors} unit="টি" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
+                      <CostRow label="জানালা (নকশা অনুযায়ী)" value={total.windows} unit="টি" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
                     </div>
                   </div>
                 </TabsContent>
@@ -1450,7 +1461,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(total.sand)} CFT</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(total.rod)} KG</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{total.bricks} টি</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস (মোট):</span><span className="font-bold">{total.floorTiles + total.wallTiles} টি</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">মজুরি (Sqft):</span><span className="font-bold">{Math.ceil(total.labor)}</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">দরজা/জানালা:</span><span className="font-bold">{total.doors}/{total.windows} টি</span></div>
                   <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center"><span className="text-xs font-bold text-emerald-400">মোট খরচ:</span><span className="text-lg font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
                 </div>
               </div>
