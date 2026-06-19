@@ -14,7 +14,7 @@ import {
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
-  Layers, Boxes, Plus, X
+  Layers, Boxes, Plus, X, Droplets
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -516,7 +516,7 @@ export default function EstimatorClient() {
     } else if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
       if (e.cancelable) e.preventDefault();
       const mainId = selectedObjectIds[0];
-      const mainObj = designObjects.find(o => o.id === id);
+      const mainObj = designObjects.find(o => o.id === mainId);
       if (!mainObj || mainObj.isJoined) return;
       const mainOffset = dragOffsets[mainId];
       if (!mainOffset) return;
@@ -901,6 +901,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
   const [floorTiles, setFloorTiles] = useState([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
   const [wallTiles, setWallTiles] = useState([{ id: '1', len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+  const [septicTanks, setSepticTanks] = useState([{ id: '1', count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
+  const [soakWells, setSoakWells] = useState([{ id: '1', count: 0, dia: 0, depth: 0 }]);
 
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -913,6 +915,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'plaster') setPlasters([...plasters, { id, len: 0, height: 0, thick: 0.5, sides: 1 }]);
     if (type === 'floorTiles') setFloorTiles([...floorTiles, { id, len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
     if (type === 'wallTiles') setWallTiles([...wallTiles, { id, len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+    if (type === 'septicTank') setSepticTanks([...septicTanks, { id, count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
+    if (type === 'soakWell') setSoakWells([...soakWells, { id, count: 0, dia: 0, depth: 0 }]);
   };
 
   const removeItem = (type: string, id: string) => {
@@ -925,6 +929,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'plaster') setPlasters(plasters.filter(f => f.id !== id));
     if (type === 'floorTiles') setFloorTiles(floorTiles.filter(f => f.id !== id));
     if (type === 'wallTiles') setWallTiles(wallTiles.filter(f => f.id !== id));
+    if (type === 'septicTank') setSepticTanks(septicTanks.filter(f => f.id !== id));
+    if (type === 'soakWell') setSoakWells(soakWells.filter(f => f.id !== id));
   };
 
   const updateItem = (type: string, id: string, field: string, val: string | number) => {
@@ -938,6 +944,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'plaster') setPlasters(plasters.map(p => p.id === id ? { ...p, [field]: value } : p));
     if (type === 'floorTiles') setFloorTiles(floorTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'wallTiles') setWallTiles(wallTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'septicTank') setSepticTanks(septicTanks.map(f => f.id === id ? { ...f, [field]: (field === 'aggregateType' ? val : value) } : f));
+    if (type === 'soakWell') setSoakWells(soakWells.map(f => f.id === id ? { ...f, [field]: value } : f));
   };
 
   const calcAll = () => {
@@ -1007,14 +1015,14 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       const flightVol = (s.wLen * s.wid * (s.thick / 12));
       const stepsVol = (0.5 * (s.riser / 12) * (s.tread / 12) * s.wid) * s.steps;
       const landingVol = (s.lLen * s.lWid * (s.thick / 12));
-      const totalVolPerStair = (flightVol + stepsVol + landingVol) * 3; 
+      const totalVolPerStair = (flightVol + stepsVol + landingVol); 
       if (totalVolPerStair > 0 && s.count > 0) {
         const dry = totalVolPerStair * s.count * 1.54;
         const aggr = (dry / 5.5) * 3;
         stRes.cement += (dry / 5.5) / 1.25; stRes.sand += (dry / 5.5) * 1.5;
         if (s.aggregateType === 'chips') stRes.chips += aggr; else stRes.stone += aggr;
-        const mainRod = ((s.wLen + s.lLen) * (s.wid / (s.mainGap/12 || 1))) * s.mainFactor * 3 * s.count;
-        const distRod = (s.wid * ((s.wLen + s.lLen) / (s.distGap/12 || 1))) * s.distFactor * 3 * s.count;
+        const mainRod = ((s.wLen + s.lLen) * (s.wid / (s.mainGap/12 || 1))) * s.mainFactor * s.count;
+        const distRod = (s.wid * ((s.wLen + s.lLen) / (s.distGap/12 || 1))) * s.distFactor * s.count;
         stRes.rod += mainRod + distRod;
       }
     });
@@ -1066,6 +1074,38 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       }
     });
     sectionTotals.wallTiles = wtRes;
+
+    let sepRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
+    septicTanks.forEach(s => {
+      if (s.count > 0 && s.len > 0 && s.wid > 0 && s.depth > 0) {
+        // Walls (10 inch brickwork)
+        const wallPerimeter = 2 * (s.len + s.wid);
+        const brickVol = wallPerimeter * s.depth * (10/12);
+        sepRes.bricks += Math.ceil(brickVol * 10 * s.count);
+        // Concrete (base + top slab)
+        const baseVol = s.len * s.wid * (3/12); // 3 inch base
+        const topVol = s.len * s.wid * (4/12);  // 4 inch top
+        const totalConcVol = (baseVol + topVol) * s.count;
+        const dry = totalConcVol * 1.54;
+        const aggr = (dry / 5.5) * 3;
+        sepRes.cement += (dry / 5.5) / 1.25; sepRes.sand += (dry / 5.5) * 1.5;
+        if (s.aggregateType === 'chips') sepRes.chips += aggr; else sepRes.stone += aggr;
+        sepRes.rod += (s.len * s.wid * 0.5) * s.count; // Estimated rod for top slab
+      }
+    });
+    sectionTotals.septicTank = sepRes;
+
+    let swRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
+    soakWells.forEach(s => {
+      if (s.count > 0 && s.dia > 0 && s.depth > 0) {
+        const circ = Math.PI * s.dia;
+        const brickVol = circ * s.depth * (5/12); // 5 inch lining
+        swRes.bricks += Math.ceil(brickVol * 5 * s.count);
+        const dry = brickVol * 0.35 * s.count;
+        swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4;
+      }
+    });
+    sectionTotals.soakWell = swRes;
 
     Object.values(sectionTotals).forEach((res: any) => {
       total.cement += res.cement || 0; 
@@ -1127,6 +1167,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
                   <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফ্লোর টাইলস</TabsTrigger>
                   <TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ওয়াল টাইলস</TabsTrigger>
+                  <TabsTrigger value="septicTank" className="text-[10px] md:text-xs px-3 py-2 shrink-0">সেফটিক ট্যাংক</TabsTrigger>
+                  <TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0">সোক ওয়েল</TabsTrigger>
                   <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-bold">মোট মালামাল</TabsTrigger>
                 </TabsList>
 
@@ -1312,6 +1354,38 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
+                <TabsContent value="septicTank" className="space-y-6 m-0">
+                  {septicTanks.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500 uppercase">সেফটিক ট্যাংক #{idx+1}</h4>{septicTanks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('septicTank', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="ট্যাংকের সংখ্যা" value={s.count} onChange={v => updateItem('septicTank', s.id, 'count', v)} />
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={s.len} onChange={v => updateItem('septicTank', s.id, 'len', v)} />
+                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('septicTank', s.id, 'wid', v)} />
+                        <InputField label="গভীরতা (ফুট)" value={s.depth} onChange={v => updateItem('septicTank', s.id, 'depth', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া (বেস ও ছাদের জন্য)</Label><Select value={s.aggregateType} onValueChange={v => updateItem('septicTank', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সেফটিক ট্যাংক যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="soakWell" className="space-y-6 m-0">
+                  {soakWells.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-xs text-slate-500 uppercase">সোক ওয়েল #{idx+1}</h4>{soakWells.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('soakWell', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="কুয়ার সংখ্যা" value={s.count} onChange={v => updateItem('soakWell', s.id, 'count', v)} />
+                        <InputField label="ব্যাস (ফুট)" value={s.dia} onChange={v => updateItem('soakWell', s.id, 'dia', v)} />
+                        <InputField label="গভীরতা (ফুট)" value={s.depth} onChange={v => updateItem('soakWell', s.id, 'depth', v)} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সোক ওয়েল যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
                 <TabsContent value="total" className="space-y-6 m-0">
                   <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-4">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2"><Boxes className="w-5 h-5" /> মোট সমন্বিত মালামাল</h3>
@@ -1419,4 +1493,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1"><span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[15px] md:min-w-[50px]">{label}</span><Input className="h-6 md:h-7 w-16 md:w-24 text-[9px] md:text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
-
