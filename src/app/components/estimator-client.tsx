@@ -516,7 +516,7 @@ export default function EstimatorClient() {
     } else if (interactionMode === 'dragging' && selectedObjectIds.length > 0) {
       if (e.cancelable) e.preventDefault();
       const mainId = selectedObjectIds[0];
-      const mainObj = designObjects.find(o => o.id === mainId);
+      const mainObj = designObjects.find(o => o.id === id);
       if (!mainObj || mainObj.isJoined) return;
       const mainOffset = dragOffsets[mainId];
       if (!mainOffset) return;
@@ -892,11 +892,11 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
   
-  const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48 }]);
-  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
-  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
-  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30 }]);
-  const [stairs, setStairs] = useState([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6 }]);
+  const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
+  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
+  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
+  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30, aggregateType: 'stone' }]);
+  const [stairs, setStairs] = useState([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
   const [brickworks, setBrickworks] = useState([{ id: '1', len: 0, height: 0, thick: 5 }]);
   const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
   const [floorTiles, setFloorTiles] = useState([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
@@ -904,11 +904,11 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
-    if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48 }]);
-    if (type === 'column') setColumns([...columns, { id, count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
-    if (type === 'beam') setBeams([...beams, { id, len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0 }]);
-    if (type === 'slab') setSlabs([...slabs, { id, len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30 }]);
-    if (type === 'stair') setStairs([...stairs, { id, count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6 }]);
+    if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
+    if (type === 'column') setColumns([...columns, { id, count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
+    if (type === 'beam') setBeams([...beams, { id, len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
+    if (type === 'slab') setSlabs([...slabs, { id, len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30, aggregateType: 'stone' }]);
+    if (type === 'stair') setStairs([...stairs, { id, count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
     if (type === 'brickwork') setBrickworks([...brickworks, { id, len: 0, height: 0, thick: 5 }]);
     if (type === 'plaster') setPlasters([...plasters, { id, len: 0, height: 0, thick: 0.5, sides: 1 }]);
     if (type === 'floorTiles') setFloorTiles([...floorTiles, { id, len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
@@ -927,8 +927,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     if (type === 'wallTiles') setWallTiles(wallTiles.filter(f => f.id !== id));
   };
 
-  const updateItem = (type: string, id: string, field: string, val: string) => {
-    const value = parseFloat(val) || 0;
+  const updateItem = (type: string, id: string, field: string, val: string | number) => {
+    const value = typeof val === 'string' ? (parseFloat(val) || 0) : val;
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
     if (type === 'beam') setBeams(beams.map(b => b.id === id ? { ...b, [field]: value } : b));
@@ -941,26 +941,30 @@ function EstimationView({ onBack }: { onBack: () => void }) {
   };
 
   const calcAll = () => {
-    const total = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
     const sectionTotals: any = {};
 
-    let fRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let fRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     foundations.forEach(f => {
       const vol = (f.count * f.len * f.wid * (f.thick / 12));
       if (vol > 0) {
         const dry = vol * 1.54;
-        fRes.cement += (dry / 5.5) / 1.25; fRes.sand += (dry / 5.5) * 1.5; fRes.stone += (dry / 5.5) * 3;
+        const aggr = (dry / 5.5) * 3;
+        fRes.cement += (dry / 5.5) / 1.25; fRes.sand += (dry / 5.5) * 1.5;
+        if (f.aggregateType === 'chips') fRes.chips += aggr; else fRes.stone += aggr;
         fRes.rod += ((f.rodLong * f.len + f.rodWidth * f.wid) * f.count) * f.rodFactor;
       }
     });
     sectionTotals.foundation = fRes;
 
-    let cRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let cRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     columns.forEach(c => {
       const vol = (c.count * (c.len / 12) * (c.wid / 12) * c.height);
       if (vol > 0) {
         const dry = vol * 1.54;
-        cRes.cement += (dry / 5.5) / 1.25; cRes.sand += (dry / 5.5) * 1.5; cRes.stone += (dry / 5.5) * 3;
+        const aggr = (dry / 5.5) * 3;
+        cRes.cement += (dry / 5.5) / 1.25; cRes.sand += (dry / 5.5) * 1.5;
+        if (c.aggregateType === 'chips') cRes.chips += aggr; else cRes.stone += aggr;
         const mainRod = (c.height * c.rods * c.count) * c.rodFactor;
         const ringCount = (c.height / (c.ringGap/12 || 1)) * c.count;
         const ringRod = (ringCount * (c.len + c.wid) * 2 / 12) * c.ringRodFactor;
@@ -969,12 +973,14 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.column = cRes;
 
-    let bRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let bRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     beams.forEach(b => {
       const vol = (b.len * (b.wid / 12) * (b.height / 12));
       if (vol > 0) {
         const dry = vol * 1.54;
-        bRes.cement += (dry / 5.5) / 1.25; bRes.sand += (dry / 5.5) * 1.5; bRes.stone += (dry / 5.5) * 3;
+        const aggr = (dry / 5.5) * 3;
+        bRes.cement += (dry / 5.5) / 1.25; bRes.sand += (dry / 5.5) * 1.5;
+        if (b.aggregateType === 'chips') bRes.chips += aggr; else bRes.stone += aggr;
         const mainRod = (b.len * b.rods) * b.rodFactor;
         const ringCount = (b.len / (b.ringGap/12 || 1));
         const ringRod = (ringCount * (b.height + b.wid) * 2 / 12) * b.ringRodFactor;
@@ -983,18 +989,20 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.beam = bRes;
 
-    let sRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let sRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     slabs.forEach(s => {
       const vol = (s.len * s.wid * (s.thick / 12));
       if (vol > 0) {
         const dry = vol * 1.54;
-        sRes.cement += (dry / 5.5) / 1.25; sRes.sand += (dry / 5.5) * 1.5; sRes.stone += (dry / 5.5) * 3;
+        const aggr = (dry / 5.5) * 3;
+        sRes.cement += (dry / 5.5) / 1.25; sRes.sand += (dry / 5.5) * 1.5;
+        if (s.aggregateType === 'chips') sRes.chips += aggr; else sRes.stone += aggr;
         sRes.rod += ((s.len / (s.rodGap/12 || 1)) * s.wid + (s.wid / (s.rodGap/12 || 1)) * s.len) * s.rodFactor;
       }
     });
     sectionTotals.slab = sRes;
 
-    let stRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let stRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     stairs.forEach(s => {
       const flightVol = (s.wLen * s.wid * (s.thick / 12));
       const stepsVol = (0.5 * (s.riser / 12) * (s.tread / 12) * s.wid) * s.steps;
@@ -1002,7 +1010,9 @@ function EstimationView({ onBack }: { onBack: () => void }) {
       const totalVolPerStair = (flightVol + stepsVol + landingVol) * 3; 
       if (totalVolPerStair > 0 && s.count > 0) {
         const dry = totalVolPerStair * s.count * 1.54;
-        stRes.cement += (dry / 5.5) / 1.25; stRes.sand += (dry / 5.5) * 1.5; stRes.stone += (dry / 5.5) * 3;
+        const aggr = (dry / 5.5) * 3;
+        stRes.cement += (dry / 5.5) / 1.25; stRes.sand += (dry / 5.5) * 1.5;
+        if (s.aggregateType === 'chips') stRes.chips += aggr; else stRes.stone += aggr;
         const mainRod = ((s.wLen + s.lLen) * (s.wid / (s.mainGap/12 || 1))) * s.mainFactor * 3 * s.count;
         const distRod = (s.wid * ((s.wLen + s.lLen) / (s.distGap/12 || 1))) * s.distFactor * 3 * s.count;
         stRes.rod += mainRod + distRod;
@@ -1010,7 +1020,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.stair = stRes;
 
-    let brRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let brRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     brickworks.forEach(b => {
       const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10));
       brRes.bricks += count;
@@ -1022,7 +1032,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.brickwork = brRes;
 
-    let pRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let pRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
     plasters.forEach(p => {
       const area = p.len * p.height;
       const vol = (area * (p.thick / 12)) * p.sides;
@@ -1033,24 +1043,24 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     });
     sectionTotals.plaster = pRes;
 
-    let ftRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let ftRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
     floorTiles.forEach(f => {
       const area = f.len * f.wid;
       if (area > 0 && f.tLen > 0 && f.tWid > 0) {
         const tileArea = (f.tLen / 12) * (f.tWid / 12);
-        ftRes.tiles += Math.ceil((area / tileArea) * (1 + f.wastage / 100));
+        ftRes.floorTiles += Math.ceil((area / tileArea) * (1 + f.wastage / 100));
         const dry = area * (1/12) * 1.54;
         ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4;
       }
     });
     sectionTotals.floorTiles = ftRes;
 
-    let wtRes = { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+    let wtRes = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
     wallTiles.forEach(f => {
       const area = f.len * f.height;
       if (area > 0 && f.tLen > 0 && f.tWid > 0) {
         const tileArea = (f.tLen / 12) * (f.tWid / 12);
-        wtRes.tiles += Math.ceil((area / tileArea) * (1 + f.wastage / 100));
+        wtRes.wallTiles += Math.ceil((area / tileArea) * (1 + f.wastage / 100));
         const dry = area * (0.5/12) * 1.54;
         wtRes.cement += (dry / 5) / 1.25; wtRes.sand += (dry / 5) * 4;
       }
@@ -1058,15 +1068,21 @@ function EstimationView({ onBack }: { onBack: () => void }) {
     sectionTotals.wallTiles = wtRes;
 
     Object.values(sectionTotals).forEach((res: any) => {
-      total.cement += res.cement; total.sand += res.sand; total.stone += res.stone;
-      total.rod += res.rod; total.bricks += res.bricks; total.tiles += res.tiles;
+      total.cement += res.cement || 0; 
+      total.sand += res.sand || 0; 
+      total.stone += res.stone || 0; 
+      total.chips += res.chips || 0;
+      total.rod += res.rod || 0; 
+      total.bricks += res.bricks || 0; 
+      total.floorTiles += res.floorTiles || 0; 
+      total.wallTiles += res.wallTiles || 0;
     });
 
     return { total, sectionTotals };
   };
 
   const { total, sectionTotals } = calcAll();
-  const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, rod: 0, bricks: 0, tiles: 0 };
+  const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
 
   const getAdvice = async () => {
     setLoadingAdvice(true);
@@ -1125,7 +1141,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         <InputField label="পুরুত্ব (ইঞ্চি)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} />
                         <InputField label="রড সংখ্যা (দৈর্ঘ্য বরাবর)" value={f.rodLong} onChange={v => updateItem('foundation', f.id, 'rodLong', v)} />
                         <InputField label="রড সংখ্যা (প্রস্থ বরাবর)" value={f.rodWidth} onChange={v => updateItem('foundation', f.id, 'rodWidth', v)} />
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={f.rodFactor} onChange={v => updateItem('foundation', f.id, 'rodFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={f.rodFactor} onChange={v => updateItem('foundation', f.id, 'rodFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={f.aggregateType} onValueChange={v => updateItem('foundation', f.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
@@ -1146,6 +1163,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         <InputField label="রিং গ্যাপ (ইঞ্চি)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} />
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={c.rodFactor} onChange={v => updateItem('column', c.id, 'rodFactor', v)} /></div>
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={c.ringRodFactor} onChange={v => updateItem('column', c.id, 'ringRodFactor', v)} limit={3} /></div>
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
@@ -1165,6 +1183,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         <InputField label="রিং গ্যাপ (ইঞ্চি)" value={b.ringGap} onChange={v => updateItem('beam', b.id, 'ringGap', v)} />
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">মেইন রড</Label><RodSelect value={b.rodFactor} onChange={v => updateItem('beam', b.id, 'rodFactor', v)} /></div>
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রিং রড</Label><RodSelect value={b.ringRodFactor} onChange={v => updateItem('beam', b.id, 'ringRodFactor', v)} limit={3} /></div>
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={b.aggregateType} onValueChange={v => updateItem('beam', b.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
@@ -1181,7 +1200,8 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         <InputField label="ছাদের প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} />
                         <InputField label="পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} />
                         <InputField label="রড গ্যাপ (ইঞ্চি)" value={s.rodGap} onChange={v => updateItem('slab', s.id, 'rodGap', v)} />
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={s.rodFactor} onChange={v => updateItem('slab', s.id, 'rodFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">রডের ধরন</Label><RodSelect value={s.rodFactor} onChange={v => updateItem('slab', s.id, 'rodFactor', v)} /></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={s.aggregateType} onValueChange={v => updateItem('slab', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
@@ -1207,6 +1227,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">ডিস্ট. রড</Label><RodSelect value={s.distFactor} onChange={v => updateItem('stair', s.id, 'distFactor', v)} /></div>
                         <InputField label="মেইন রড গ্যাপ (ইঞ্চি)" value={s.mainGap} onChange={v => updateItem('stair', s.id, 'mainGap', v)} />
                         <InputField label="ডিস্ট. রড গ্যাপ (ইঞ্চি)" value={s.distGap} onChange={v => updateItem('stair', s.id, 'distGap', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={s.aggregateType} onValueChange={v => updateItem('stair', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
@@ -1297,10 +1318,12 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                     <div className="grid gap-3">
                       <ResultRow label="সিমেন্ট" value={total.cement} unit="ব্যাগ" dark />
                       <ResultRow label="বালু" value={total.sand} unit="সিএফটি" dark />
-                      <ResultRow label="পাথর/খোয়া" value={total.stone} unit="সিএফটি" dark />
+                      <ResultRow label="পাথর" value={total.stone} unit="সিএফটি" dark />
+                      <ResultRow label="খোয়া" value={total.chips} unit="সিএফটি" dark />
                       <ResultRow label="রড" value={total.rod} unit="কেজি" dark />
                       <ResultRow label="ইট" value={total.bricks} unit="টি" dark />
-                      <ResultRow label="টাইলস (মোট)" value={total.tiles} unit="টি" dark />
+                      <ResultRow label="ফ্লোর টাইলস" value={total.floorTiles} unit="টি" dark />
+                      <ResultRow label="ওয়াল টাইলস" value={total.wallTiles} unit="টি" dark />
                     </div>
                   </div>
                 </TabsContent>
@@ -1322,7 +1345,7 @@ function EstimationView({ onBack }: { onBack: () => void }) {
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(total.sand)} CFT</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(total.rod)} KG</span></div>
                   <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{total.bricks} টি</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস:</span><span className="font-bold">{total.tiles} টি</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">টাইলস (মোট):</span><span className="font-bold">{total.floorTiles + total.wallTiles} টি</span></div>
                 </div>
               </div>
             </div>
@@ -1334,18 +1357,20 @@ function EstimationView({ onBack }: { onBack: () => void }) {
 }
 
 function SectionResult({ res }: { res: any }) {
-  const hasValues = res.cement > 0 || res.rod > 0 || res.bricks > 0 || res.tiles > 0;
+  const hasValues = (res.cement || 0) > 0 || (res.rod || 0) > 0 || (res.bricks || 0) > 0 || (res.floorTiles || 0) > 0 || (res.wallTiles || 0) > 0;
   if (!hasValues) return <div className="p-4 bg-slate-50 border border-dashed rounded-lg text-center text-[10px] text-slate-400">এই সেকশনে কোন ইনপুট দেওয়া হয়নি</div>;
   return (
     <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-2">
       <h4 className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">সেকশন রেজাল্ট</h4>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {res.cement > 0 && <ResultRow label="সিমেন্ট" value={res.cement} unit="ব্যাগ" small />}
-        {res.sand > 0 && <ResultRow label="বালু" value={res.sand} unit="সিএফটি" small />}
-        {res.stone > 0 && <ResultRow label="পাথর" value={res.stone} unit="সিএফটি" small />}
-        {res.rod > 0 && <ResultRow label="রড" value={res.rod} unit="কেজি" small />}
-        {res.bricks > 0 && <ResultRow label="ইট" value={res.bricks} unit="টি" small />}
-        {res.tiles > 0 && <ResultRow label="টাইলস" value={res.tiles} unit="টি" small />}
+        {(res.cement || 0) > 0 && <ResultRow label="সিমেন্ট" value={res.cement} unit="ব্যাগ" small />}
+        {(res.sand || 0) > 0 && <ResultRow label="বালু" value={res.sand} unit="সিএফটি" small />}
+        {(res.stone || 0) > 0 && <ResultRow label="পাথর" value={res.stone} unit="সিএফটি" small />}
+        {(res.chips || 0) > 0 && <ResultRow label="খোয়া" value={res.chips} unit="সিএফটি" small />}
+        {(res.rod || 0) > 0 && <ResultRow label="রড" value={res.rod} unit="কেজি" small />}
+        {(res.bricks || 0) > 0 && <ResultRow label="ইট" value={res.bricks} unit="টি" small />}
+        {(res.floorTiles || 0) > 0 && <ResultRow label="ফ্লোর টাইলস" value={res.floorTiles} unit="টি" small />}
+        {(res.wallTiles || 0) > 0 && <ResultRow label="ওয়াল টাইলস" value={res.wallTiles} unit="টি" small />}
       </div>
     </div>
   );
