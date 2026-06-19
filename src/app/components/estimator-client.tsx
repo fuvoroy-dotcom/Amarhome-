@@ -948,7 +948,10 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   };
 
   const updateItem = (type: string, id: string, field: string, val: string | number) => {
-    const value = typeof val === 'string' ? (parseFloat(val) || 0) : val;
+    // If it's a field that should stay a string (like aggregateType), don't parse it as float
+    const isStringField = field === 'aggregateType' || field === 'subType';
+    const value = (isStringField || typeof val !== 'string') ? val : (parseFloat(val) || 0);
+    
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
     if (type === 'beam') setBeams(beams.map(b => b.id === id ? { ...b, [field]: value } : b));
@@ -958,7 +961,7 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     if (type === 'plaster') setPlasters(plasters.map(p => p.id === id ? { ...p, [field]: value } : p));
     if (type === 'floorTiles') setFloorTiles(floorTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'wallTiles') setWallTiles(wallTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'septicTank') setSepticTanks(septicTanks.map(f => f.id === id ? { ...f, [field]: (field === 'aggregateType' ? val : value) } : f));
+    if (type === 'septicTank') setSepticTanks(septicTanks.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'soakWell') setSoakWells(soakWells.map(f => f.id === id ? { ...f, [field]: value } : f));
   };
 
