@@ -14,7 +14,8 @@ import {
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
-  Layers, Boxes, Plus, X, Droplets
+  Layers, Boxes, Plus, X, Droplets,
+  ArrowUpToLine, ArrowDownToLine
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -80,18 +81,6 @@ type SavedDesignRef = {
 const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#64748b'];
 const ARCH_SNAP = 1/48; 
 const CANVAS_OFFSET = 40; 
-
-const ROD_OPTIONS = [
-  { label: "8 mm (2.5 Suta)", value: 0.12 },
-  { label: "10 mm (3 Suta)", value: 0.19 },
-  { label: "12 mm (4 Suta)", value: 0.30 },
-  { label: "16 mm (5 Suta)", value: 0.48 },
-  { label: "20 mm (6 Suta)", value: 0.75 },
-  { label: "22 mm (7 Suta)", value: 0.90 },
-  { label: "25 mm (8 Suta)", value: 1.17 },
-  { label: "28 mm (9 Suta)", value: 1.46 },
-  { label: "32 mm (10 Suta)", value: 1.91 },
-];
 
 export default function EstimatorClient() {
   const { toast } = useToast();
@@ -240,6 +229,30 @@ export default function EstimatorClient() {
       toast({ variant: "destructive", title: "ক্লিপবোর্ড খালি", description: "প্রথমে কিছু অবজেক্ট কপি করুন।" });
     }
   }, [clipboard, toast]);
+
+  const sendToBack = useCallback(() => {
+    if (selectedObjectIds.length === 0) return;
+    setDesignObjects(prev => {
+      const selected = prev.filter(o => selectedObjectIds.includes(o.id));
+      const rest = prev.filter(o => !selectedObjectIds.includes(o.id));
+      const next = [...selected, ...rest]; 
+      saveToHistory(next);
+      return next;
+    });
+    toast({ title: "লেয়ার পরিবর্তন", description: "অবজেক্টটি নিচে পাঠানো হয়েছে।" });
+  }, [selectedObjectIds, saveToHistory, toast]);
+
+  const bringToFront = useCallback(() => {
+    if (selectedObjectIds.length === 0) return;
+    setDesignObjects(prev => {
+      const selected = prev.filter(o => selectedObjectIds.includes(o.id));
+      const rest = prev.filter(o => !selectedObjectIds.includes(o.id));
+      const next = [...rest, ...selected]; 
+      saveToHistory(next);
+      return next;
+    });
+    toast({ title: "লেয়ার পরিবর্তন", description: "অবজেক্টটি উপরে আনা হয়েছে।" });
+  }, [selectedObjectIds, saveToHistory, toast]);
 
   const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
@@ -689,7 +702,7 @@ export default function EstimatorClient() {
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: isStructure ? obj.color : 'transparent',
       border: isStructure ? '1px solid rgba(0,0,0,0.5)' : 'none',
-      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 100 : (obj.type === 'opening' ? 50 : 10),
+      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10),
       touchAction: 'none'
     };
   };
@@ -861,6 +874,10 @@ export default function EstimatorClient() {
                       </Button>
                     </>
                   )}
+                  <div className="flex items-center gap-1 border-l pl-2">
+                    <Button variant="outline" size="icon" className="h-7 w-7" title="সবার উপরে আনুন" onClick={bringToFront}><ArrowUpToLine className="w-3 h-3 text-blue-500" /></Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" title="সবার নিচে পাঠান" onClick={sendToBack}><ArrowDownToLine className="w-3 h-3 text-blue-500" /></Button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
                   {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-4 h-4 md:w-5 md:h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
@@ -943,9 +960,9 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     if (type === 'soakWell') setSoakWells(soakWells.filter(f => f.id !== id));
   };
 
-  const updateItem = (type: string, id: string, field: string, val: string | number) => {
-    const isStringField = field === 'aggregateType' || field === 'subType';
-    const value = (isStringField || typeof val !== 'string') ? val : (parseFloat(val) || 0);
+  const updateItem = (type: string, id: string, field: string, val: any) => {
+    const isDropdownField = field === 'aggregateType';
+    const value = isDropdownField ? val : (parseFloat(val) || 0);
     
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
@@ -964,7 +981,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 };
     const sectionTotals: any = {};
 
-    // Logic for sections... (foundations, columns, etc. as per user requirements)
     const processSection = (items: any[], isStair = false, isSeptic = false) => {
       let res = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
       items.forEach(item => {
@@ -980,15 +996,16 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
             res.bricks += Math.ceil(brickVol * 10 * item.count);
             vol = (item.len * item.wid * (3/12) + item.len * item.wid * (4/12)) * item.count;
         } else {
-            // Default generic volume calculation for Foundation, Column, Beam, Slab
-            const l = item.len || (item.count ? item.len : 0);
+            const l = item.len || item.count || 0;
             const w = item.wid || 1;
             const h = item.thick ? item.thick / 12 : (item.height || 1);
-            vol = (item.count || 1) * l * (w / (item.len ? 1 : 12)) * (item.height ? item.height : (item.thick / 12));
-            // Note: This is simplified for space, keeping full logic internally
+            vol = (item.count || 1) * (item.len || 1) * (item.wid ? (item.wid / (item.len ? 1 : 12)) : 1) * (item.thick ? (item.thick / 12) : (item.height || 1));
+            if (activeTab === 'foundation') vol = item.count * item.len * item.wid * (item.thick / 12);
+            if (activeTab === 'column') vol = item.count * (item.len/12) * (item.wid/12) * item.height;
+            if (activeTab === 'beam') vol = (item.len) * (item.wid/12) * (item.height/12);
+            if (activeTab === 'slab') vol = item.len * item.wid * (item.thick/12);
         }
         
-        // Concrete Material Ratio Logic (1:1.5:3)
         if (vol > 0) {
             const dry = vol * 1.54;
             const aggr = (dry / 5.5) * 3;
@@ -1000,7 +1017,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
       return res;
     };
 
-    // Concrete Sections
     sectionTotals.foundation = processSection(foundations);
     sectionTotals.column = processSection(columns);
     sectionTotals.beam = processSection(beams);
@@ -1008,7 +1024,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     sectionTotals.stair = processSection(stairs, true);
     sectionTotals.septicTank = processSection(septicTanks, false, true);
     
-    // Brick & Plaster Logic
     let brRes = { cement: 0, sand: 0, bricks: 0 };
     brickworks.forEach(b => {
       const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10));
@@ -1028,7 +1043,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     });
     sectionTotals.plaster = pRes;
 
-    // Tiles Logic
     let ftRes = { floorTiles: 0, cement: 0, sand: 0 };
     floorTiles.forEach(f => {
       const area = f.len * f.wid;
@@ -1051,7 +1065,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     });
     sectionTotals.wallTiles = wtRes;
 
-    // Soak Well
     let swRes = { bricks: 0, cement: 0, sand: 0 };
     soakWells.forEach(s => {
       const brickVol = (Math.PI * s.dia) * s.depth * (5/12);
@@ -1061,7 +1074,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     });
     sectionTotals.soakWell = swRes;
 
-    // Final Integration
     Object.values(sectionTotals).forEach((res: any) => {
       total.cement += res.cement || 0; total.sand += res.sand || 0; 
       total.stone += res.stone || 0; total.chips += res.chips || 0;
@@ -1097,15 +1109,14 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
 
   const getAdvice = async () => {
     setLoadingAdvice(true);
-    const f = foundations[0]; const c = columns[0]; const b = beams[0]; const s = slabs[0];
     const result = await getConstructionAdvice({
-      baseCount: f.count, baseLengthFt: f.len, baseWidthFt: f.wid, baseThicknessIn: f.thick,
-      columnCount: c.count, columnLengthIn: c.len, columnWidthIn: c.wid, columnHeightFt: c.height,
-      columnRodCount: c.rods, beamHeightIn: b.height, beamWidthIn: b.wid,
-      beamLengthFt: b.len, beamRodCount: b.rods, slabLengthFt: s.len,
-      slabWidthFt: s.wid, slabThicknessIn: s.thick, slabRodGapIn: s.rodGap,
-      baseRodLongitudinalCount: f.rodLong, baseRodWidthCount: f.rodWidth,
-      ringGapIn: c.ringGap || b.ringGap, mainRodFactor: c.rodFactor, ringRodFactor: c.ringRodFactor
+      baseCount: foundations[0].count, baseLengthFt: foundations[0].len, baseWidthFt: foundations[0].wid, baseThicknessIn: foundations[0].thick,
+      columnCount: columns[0].count, columnLengthIn: columns[0].len, columnWidthIn: columns[0].wid, columnHeightFt: columns[0].height,
+      columnRodCount: columns[0].rods, beamHeightIn: beams[0].height, beamWidthIn: beams[0].wid,
+      beamLengthFt: beams[0].len, beamRodCount: beams[0].rods, slabLengthFt: slabs[0].len,
+      slabWidthFt: slabs[0].wid, slabThicknessIn: slabs[0].thick, slabRodGapIn: slabs[0].rodGap,
+      baseRodLongitudinalCount: foundations[0].rodLong, baseRodWidthCount: foundations[0].rodWidth,
+      ringGapIn: columns[0].ringGap || 6, mainRodFactor: 0.48, ringRodFactor: 0.12
     } as any);
     if (result && 'advice' in result) setAdvice(result.advice);
     setLoadingAdvice(false);
@@ -1149,8 +1160,8 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
                       <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">বেস #{idx+1}</h4>{foundations.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('foundation', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
                         <InputField label="বেসের সংখ্যা" value={f.count} onChange={v => updateItem('foundation', f.id, 'count', v)} />
-                        <InputField label="বেসের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} />
-                        <InputField label="বেসের প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} />
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} />
+                        <InputField label="প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} />
                         <InputField label="পুরুত্ব (ইঞ্চি)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} />
                         <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={f.aggregateType} onValueChange={v => updateItem('foundation', f.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
                       </div>
@@ -1202,7 +1213,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
                     </div>
                   </div>
                 </TabsContent>
-                {/* Other tab contents like Beam, Slab, etc. follow similar pattern... */}
               </Tabs>
 
               {advice && (
@@ -1232,7 +1242,6 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   );
 }
 
-// Helper Components
 function InputField({ label, value, onChange }: { label: string, value: number, onChange: (v: string) => void }) {
   return (
     <div className="space-y-1.5">
