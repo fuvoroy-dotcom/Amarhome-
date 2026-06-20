@@ -928,7 +928,8 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   const [soakWells, setSoakWells] = useState([{ id: '1', count: 0, dia: 0, depth: 0 }]);
 
   const [prices, setPrices] = useState({
-    cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0
+    cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0,
+    electric: 0, fittings: 0, paint: 0, others: 0
   });
 
   const addItem = (type: string) => {
@@ -961,8 +962,8 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   };
 
   const updateItem = (type: string, id: string, field: string, val: any) => {
-    const isDropdownField = field === 'aggregateType';
-    const value = isDropdownField ? val : (parseFloat(val) || 0);
+    const isTextField = field === 'aggregateType';
+    const value = isTextField ? val : (parseFloat(val) || 0);
     
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
@@ -981,29 +982,25 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 };
     const sectionTotals: any = {};
 
-    const processSection = (items: any[], isStair = false, isSeptic = false) => {
+    const processSection = (items: any[], type: string) => {
       let res = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
       items.forEach(item => {
         let vol = 0;
-        if (isStair) {
+        if (type === 'stair') {
             const flightVol = (item.wLen * item.wid * (item.thick / 12));
             const stepsVol = (0.5 * (item.riser / 12) * (item.tread / 12) * item.wid) * item.steps;
             const landingVol = (item.lLen * item.lWid * (item.thick / 12));
             vol = (flightVol + stepsVol + landingVol) * item.count;
-        } else if (isSeptic) {
+        } else if (type === 'septicTank') {
             const wallPerimeter = 2 * (item.len + item.wid);
             const brickVol = wallPerimeter * item.depth * (10/12);
             res.bricks += Math.ceil(brickVol * 10 * item.count);
             vol = (item.len * item.wid * (3/12) + item.len * item.wid * (4/12)) * item.count;
         } else {
-            const l = item.len || item.count || 0;
-            const w = item.wid || 1;
-            const h = item.thick ? item.thick / 12 : (item.height || 1);
-            vol = (item.count || 1) * (item.len || 1) * (item.wid ? (item.wid / (item.len ? 1 : 12)) : 1) * (item.thick ? (item.thick / 12) : (item.height || 1));
-            if (activeTab === 'foundation') vol = item.count * item.len * item.wid * (item.thick / 12);
-            if (activeTab === 'column') vol = item.count * (item.len/12) * (item.wid/12) * item.height;
-            if (activeTab === 'beam') vol = (item.len) * (item.wid/12) * (item.height/12);
-            if (activeTab === 'slab') vol = item.len * item.wid * (item.thick/12);
+            if (type === 'foundation') vol = item.count * item.len * item.wid * (item.thick / 12);
+            else if (type === 'column') vol = item.count * (item.len/12) * (item.wid/12) * item.height;
+            else if (type === 'beam') vol = (item.len) * (item.wid/12) * (item.height/12);
+            else if (type === 'slab') vol = item.len * item.wid * (item.thick/12);
         }
         
         if (vol > 0) {
@@ -1017,12 +1014,12 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
       return res;
     };
 
-    sectionTotals.foundation = processSection(foundations);
-    sectionTotals.column = processSection(columns);
-    sectionTotals.beam = processSection(beams);
-    sectionTotals.slab = processSection(slabs);
-    sectionTotals.stair = processSection(stairs, true);
-    sectionTotals.septicTank = processSection(septicTanks, false, true);
+    sectionTotals.foundation = processSection(foundations, 'foundation');
+    sectionTotals.column = processSection(columns, 'column');
+    sectionTotals.beam = processSection(beams, 'beam');
+    sectionTotals.slab = processSection(slabs, 'slab');
+    sectionTotals.stair = processSection(stairs, 'stair');
+    sectionTotals.septicTank = processSection(septicTanks, 'septicTank');
     
     let brRes = { cement: 0, sand: 0, bricks: 0 };
     brickworks.forEach(b => {
@@ -1089,7 +1086,7 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   };
 
   const { total, sectionTotals } = calcAll();
-  const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, tiles: 0 };
+  const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
 
   const grandTotalCost = useMemo(() => {
     return (
@@ -1103,7 +1100,8 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
       Math.ceil(total.wallTiles) * prices.wallTiles +
       Math.ceil(total.labor) * prices.labor +
       total.doors * prices.doors +
-      total.windows * prices.windows
+      total.windows * prices.windows +
+      prices.electric + prices.fittings + prices.paint + prices.others
     );
   }, [total, prices]);
 
@@ -1188,6 +1186,157 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
+                <TabsContent value="beam" className="space-y-6 m-0">
+                  {beams.map((b, idx) => (
+                    <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">বিম #{idx+1}</h4>{beams.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('beam', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={b.len} onChange={v => updateItem('beam', b.id, 'len', v)} />
+                        <InputField label="প্রস্থ (ইঞ্চি)" value={b.wid} onChange={v => updateItem('beam', b.id, 'wid', v)} />
+                        <InputField label="উচ্চতা (ইঞ্চি)" value={b.height} onChange={v => updateItem('beam', b.id, 'height', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={b.aggregateType} onValueChange={v => updateItem('beam', b.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন বিম যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="slab" className="space-y-6 m-0">
+                  {slabs.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">ছাদ #{idx+1}</h4>{slabs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('slab', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={s.len} onChange={v => updateItem('slab', s.id, 'len', v)} />
+                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} />
+                        <InputField label="পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={s.aggregateType} onValueChange={v => updateItem('slab', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ছাদ যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="stair" className="space-y-6 m-0">
+                  {stairs.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">সিড়ি #{idx+1}</h4>{stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="সিড়ির সংখ্যা" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} />
+                        <InputField label="ফ্লাইট দৈর্ঘ্য (ফুট)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} />
+                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('stair', s.id, 'wid', v)} />
+                        <InputField label="ওয়েস্ট স্ল্যাব পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('stair', s.id, 'thick', v)} />
+                        <InputField label="ধাপ সংখ্যা" value={s.steps} onChange={v => updateItem('stair', s.id, 'steps', v)} />
+                        <InputField label="রাইজার (ইঞ্চি)" value={s.riser} onChange={v => updateItem('stair', s.id, 'riser', v)} />
+                        <InputField label="ট্রেড (ইঞ্চি)" value={s.tread} onChange={v => updateItem('stair', s.id, 'tread', v)} />
+                        <InputField label="ল্যান্ডিং দৈর্ঘ্য (ফুট)" value={s.lLen} onChange={v => updateItem('stair', s.id, 'lLen', v)} />
+                        <InputField label="ল্যান্ডিং প্রস্থ (ফুট)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={s.aggregateType} onValueChange={v => updateItem('stair', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সিড়ি যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="brickwork" className="space-y-6 m-0">
+                  {brickworks.map((b, idx) => (
+                    <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">গাথনী #{idx+1}</h4>{brickworks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('brickwork', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={b.len} onChange={v => updateItem('brickwork', b.id, 'len', v)} />
+                        <InputField label="উচ্চতা (ফুট)" value={b.height} onChange={v => updateItem('brickwork', b.id, 'height', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পুরুত্ব (ইঞ্চি)</Label><Select value={b.thick.toString()} onValueChange={v => updateItem('brickwork', b.id, 'thick', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="5">৫ ইঞ্চি</SelectItem><SelectItem value="10">১০ ইঞ্চি</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন গাথনী যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="plaster" className="space-y-6 m-0">
+                  {plasters.map((p, idx) => (
+                    <div key={p.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">প্লাষ্টার #{idx+1}</h4>{plasters.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('plaster', p.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={p.len} onChange={v => updateItem('plaster', p.id, 'len', v)} />
+                        <InputField label="উচ্চতা (ফুট)" value={p.height} onChange={v => updateItem('plaster', p.id, 'height', v)} />
+                        <InputField label="পুরুত্ব (ইঞ্চি)" value={p.thick} onChange={v => updateItem('plaster', p.id, 'thick', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">উভয় পাশ?</Label><Select value={p.sides.toString()} onValueChange={v => updateItem('plaster', p.id, 'sides', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">এক পাশ</SelectItem><SelectItem value="2">উভয় পাশ</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন প্লাষ্টার যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="floorTiles" className="space-y-6 m-0">
+                  {floorTiles.map((f, idx) => (
+                    <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">ফ্লোর টাইলস #{idx+1}</h4>{floorTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('floorTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="রুমের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('floorTiles', f.id, 'len', v)} />
+                        <InputField label="রুমের প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('floorTiles', f.id, 'wid', v)} />
+                        <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={f.tLen} onChange={v => updateItem('floorTiles', f.id, 'tLen', v)} />
+                        <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={f.tWid} onChange={v => updateItem('floorTiles', f.id, 'tWid', v)} />
+                        <InputField label="অপচয় (%)" value={f.wastage} onChange={v => updateItem('floorTiles', f.id, 'wastage', v)} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ফ্লোর টাইলস যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="wallTiles" className="space-y-6 m-0">
+                  {wallTiles.map((f, idx) => (
+                    <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">ওয়াল টাইলস #{idx+1}</h4>{wallTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('wallTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('wallTiles', f.id, 'len', v)} />
+                        <InputField label="দেয়ালের উচ্চতা (ফুট)" value={f.height} onChange={v => updateItem('wallTiles', f.id, 'height', v)} />
+                        <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={f.tLen} onChange={v => updateItem('wallTiles', f.id, 'tLen', v)} />
+                        <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={f.tWid} onChange={v => updateItem('wallTiles', f.id, 'tWid', v)} />
+                        <InputField label="অপচয় (%)" value={f.wastage} onChange={v => updateItem('wallTiles', f.id, 'wastage', v)} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ওয়াল টাইলস যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="septicTank" className="space-y-6 m-0">
+                  {septicTanks.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">সেফটিক ট্যাংক #{idx+1}</h4>{septicTanks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('septicTank', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="সংখ্যা" value={s.count} onChange={v => updateItem('septicTank', s.id, 'count', v)} />
+                        <InputField label="দৈর্ঘ্য (ফুট)" value={s.len} onChange={v => updateItem('septicTank', s.id, 'len', v)} />
+                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('septicTank', s.id, 'wid', v)} />
+                        <InputField label="গভীরতা (ফুট)" value={s.depth} onChange={v => updateItem('septicTank', s.id, 'depth', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া (ছাদ ও তলার জন্য)</Label><Select value={s.aggregateType} onValueChange={v => updateItem('septicTank', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ট্যাংক যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
+                <TabsContent value="soakWell" className="space-y-6 m-0">
+                  {soakWells.map((s, idx) => (
+                    <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">সোক ওয়েল #{idx+1}</h4>{soakWells.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('soakWell', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="সংখ্যা" value={s.count} onChange={v => updateItem('soakWell', s.id, 'count', v)} />
+                        <InputField label="ব্যাস (ফুট)" value={s.dia} onChange={v => updateItem('soakWell', s.id, 'dia', v)} />
+                        <InputField label="গভীরতা (ফুট)" value={s.depth} onChange={v => updateItem('soakWell', s.id, 'depth', v)} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সোক ওয়েল যোগ করুন</Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+
                 <TabsContent value="total" className="space-y-6 m-0">
                   <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-6">
                     <div className="flex justify-between items-center border-b border-emerald-100 pb-4">
@@ -1210,6 +1359,16 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
                       <CostRow label="মজুরি (ছাদ এরিয়া)" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
                       <CostRow label="দরজা (নকশা অনুযায়ী)" value={total.doors} unit="টি" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
                       <CostRow label="জানালা (নকশা অনুযায়ী)" value={total.windows} unit="টি" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
+                      
+                      <div className="pt-4 mt-4 border-t border-emerald-100 space-y-3">
+                        <h4 className="text-xs font-black text-emerald-800 uppercase tracking-widest mb-2">অন্যান্য খরচ</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">ইলেকট্রিক</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">ফিটিংস</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">রং</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">অন্যান্য</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -1262,6 +1421,9 @@ function SectionResult({ res }: { res: any }) {
         {(res.sand || 0) > 0 && <ResultRow label="বালু" value={res.sand} unit="সিএফটি" small />}
         {(res.stone || 0) > 0 && <ResultRow label="পাথর" value={res.stone} unit="সিএফটি" small />}
         {(res.chips || 0) > 0 && <ResultRow label="খোয়া" value={res.chips} unit="সিএফটি" small />}
+        {(res.bricks || 0) > 0 && <ResultRow label="ইট" value={res.bricks} unit="টি" small />}
+        {(res.floorTiles || 0) > 0 && <ResultRow label="মেঝে টাইলস" value={res.floorTiles} unit="টি" small />}
+        {(res.wallTiles || 0) > 0 && <ResultRow label="ওয়াল টাইলস" value={res.wallTiles} unit="টি" small />}
       </div>
     </div>
   );
