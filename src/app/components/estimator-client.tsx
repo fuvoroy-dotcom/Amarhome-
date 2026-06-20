@@ -82,6 +82,16 @@ const COLORS = ['#000000', '#ef4444', '#ffffff', '#f97316', '#facc15', '#22c55e'
 const ARCH_SNAP = 1/48; 
 const CANVAS_OFFSET = 40; 
 
+const ROD_OPTIONS = [
+  { label: '8 mm (2.5 Suta)', factor: 0.12 },
+  { label: '10 mm (3 Suta)', factor: 0.19 },
+  { label: '12 mm (4 Suta)', factor: 0.30 },
+  { label: '16 mm (5 Suta)', factor: 0.48 },
+  { label: '20 mm (6 Suta)', factor: 0.75 },
+  { label: '22 mm (7 Suta)', factor: 0.90 },
+  { label: '25 mm (8 Suta)', factor: 1.17 },
+];
+
 export default function EstimatorClient() {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -854,7 +864,7 @@ export default function EstimatorClient() {
                   {firstSelectedObject.type === 'text' && (
                     <>
                       <div className="flex items-center gap-1">
-                        <span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[50px]">লেখা/মাপ</span>
+                        <span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[50px]"> can write name or measure </span>
                         <Input 
                           className="h-6 md:h-7 w-32 md:w-48 text-[9px] md:text-[11px] font-bold border-slate-200" 
                           value={localPropText} 
@@ -875,22 +885,22 @@ export default function EstimatorClient() {
                     </>
                   )}
                   <div className="flex items-center gap-1 border-l pl-2">
-                    <Button variant="outline" size="icon" className="h-7 w-7" title="সবার উপরে আনুন" onClick={bringToFront}><ArrowUpToLine className="w-3 h-3 text-blue-500" /></Button>
-                    <Button variant="outline" size="icon" className="h-7 w-7" title="সবার নিচে পাঠান" onClick={sendToBack}><ArrowDownToLine className="w-3 h-3 text-blue-500" /></Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-3 h-3 text-blue-500" /></Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-3 h-3 text-blue-500" /></Button>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
                   {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-4 h-4 md:w-5 md:h-5 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-200")} style={{ backgroundColor: c }} />)}
                 </div>
               </div>
-            ) : <div className="flex items-center justify-center w-full text-slate-300 italic text-[9px] md:text-[10px] uppercase tracking-widest font-medium">অবজেক্ট সিলেক্ট করুন</div>}
+            ) : <div className="flex items-center justify-center w-full text-slate-300 italic text-[9px] md:text-[10px] uppercase tracking-widest font-medium">Select Object</div>}
           </div>
         </div>
       </div>
       <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
         <DialogContent className="max-w-md bg-white p-0 overflow-hidden rounded-xl border shadow-2xl">
           <DialogHeader className="p-6 bg-slate-50 border-b">
-            <DialogTitle className="flex items-center gap-2 text-slate-800"><FolderOpen className="w-5 h-5 text-amber-500" />সেভ করা ডিজাইনগুলো</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-slate-800"><FolderOpen className="w-5 h-5 text-amber-500" />Saved Designs</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] p-4">
             <div className="grid gap-2">
@@ -901,7 +911,7 @@ export default function EstimatorClient() {
                     <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button></div>
                   </div>
                 ))
-              ) : (<div className="p-8 text-center text-slate-400 italic">কোন ডিজাইন সেভ করা নেই।</div>)}
+              ) : (<div className="p-8 text-center text-slate-400 italic">No saved designs</div>)}
             </div>
           </ScrollArea>
         </DialogContent>
@@ -916,9 +926,9 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   const [loadingAdvice, setLoadingAdvice] = useState(false);
   
   const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
-  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
-  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
-  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30, aggregateType: 'stone' }]);
+  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 5, rodFactor: 0.30, aggregateType: 'stone' }]);
   const [stairs, setStairs] = useState([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
   const [brickworks, setBrickworks] = useState([{ id: '1', len: 0, height: 0, thick: 5 }]);
   const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
@@ -935,9 +945,9 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
-    if (type === 'column') setColumns([...columns, { id, count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
-    if (type === 'beam') setBeams([...beams, { id, len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 0, aggregateType: 'stone' }]);
-    if (type === 'slab') setSlabs([...slabs, { id, len: 0, wid: 0, thick: 0, rodGap: 0, rodFactor: 0.30, aggregateType: 'stone' }]);
+    if (type === 'column') setColumns([...columns, { id, count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    if (type === 'beam') setBeams([...beams, { id, len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    if (type === 'slab') setSlabs([...slabs, { id, len: 0, wid: 0, thick: 0, rodGap: 5, rodFactor: 0.30, aggregateType: 'stone' }]);
     if (type === 'stair') setStairs([...stairs, { id, count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
     if (type === 'brickwork') setBrickworks([...brickworks, { id, len: 0, height: 0, thick: 5 }]);
     if (type === 'plaster') setPlasters([...plasters, { id, len: 0, height: 0, thick: 0.5, sides: 1 }]);
@@ -962,8 +972,8 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
   };
 
   const updateItem = (type: string, id: string, field: string, val: any) => {
-    const isTextField = field === 'aggregateType';
-    const value = isTextField ? val : (parseFloat(val) || 0);
+    const textFields = ['aggregateType'];
+    const value = textFields.includes(field) ? val : (parseFloat(val) || 0);
     
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
@@ -986,23 +996,44 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
       let res = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
       items.forEach(item => {
         let vol = 0;
-        if (type === 'stair') {
+        let rodWeight = 0;
+
+        if (type === 'foundation') {
+            vol = item.count * item.len * item.wid * (item.thick / 12);
+            rodWeight = (item.rodLong * item.wid + item.rodWidth * item.len) * item.count * item.rodFactor;
+        } else if (type === 'column') {
+            vol = item.count * (item.len/12) * (item.wid/12) * item.height;
+            const mainRodLen = item.rods * item.height * item.count;
+            const ringsCount = (item.height * 12) / item.ringGap;
+            const ringLen = 2 * (item.len + item.wid) / 12;
+            rodWeight = (mainRodLen * item.rodFactor) + (ringsCount * ringLen * item.count * item.ringRodFactor);
+        } else if (type === 'beam') {
+            vol = item.len * (item.wid/12) * (item.height/12);
+            const mainRodLen = item.rods * item.len;
+            const ringsCount = (item.len * 12) / item.ringGap;
+            const ringLen = 2 * (item.height + item.wid) / 12;
+            rodWeight = (mainRodLen * item.rodFactor) + (ringsCount * ringLen * item.ringRodFactor);
+        } else if (type === 'slab') {
+            vol = item.len * item.wid * (item.thick/12);
+            const gapFt = item.rodGap / 12;
+            const rodsLen = (item.len / gapFt * item.wid) + (item.wid / gapFt * item.len);
+            rodWeight = rodsLen * item.rodFactor;
+        } else if (type === 'stair') {
             const flightVol = (item.wLen * item.wid * (item.thick / 12));
             const stepsVol = (0.5 * (item.riser / 12) * (item.tread / 12) * item.wid) * item.steps;
             const landingVol = (item.lLen * item.lWid * (item.thick / 12));
             vol = (flightVol + stepsVol + landingVol) * item.count;
+            const mainRods = (item.wid / (item.mainGap/12)) * item.wLen;
+            const distRods = (item.wLen / (item.distGap/12)) * item.wid;
+            rodWeight = (mainRods * item.mainFactor + distRods * item.distFactor) * item.count;
         } else if (type === 'septicTank') {
             const wallPerimeter = 2 * (item.len + item.wid);
             const brickVol = wallPerimeter * item.depth * (10/12);
             res.bricks += Math.ceil(brickVol * 10 * item.count);
             vol = (item.len * item.wid * (3/12) + item.len * item.wid * (4/12)) * item.count;
-        } else {
-            if (type === 'foundation') vol = item.count * item.len * item.wid * (item.thick / 12);
-            else if (type === 'column') vol = item.count * (item.len/12) * (item.wid/12) * item.height;
-            else if (type === 'beam') vol = (item.len) * (item.wid/12) * (item.height/12);
-            else if (type === 'slab') vol = item.len * item.wid * (item.thick/12);
+            rodWeight = (item.len * item.wid * 0.5) * item.count; 
         }
-        
+
         if (vol > 0) {
             const dry = vol * 1.54;
             const aggr = (dry / 5.5) * 3;
@@ -1010,6 +1041,7 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
             res.sand += (dry / 5.5) * 1.5;
             if (item.aggregateType === 'chips') res.chips += aggr; else res.stone += aggr;
         }
+        res.rod += rodWeight;
       });
       return res;
     };
@@ -1125,10 +1157,10 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
-          <h2 className="text-sm md:text-lg font-bold text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> নির্মাণ হিসাব ক্যালকুলেটর</h2>
+          <h2 className="text-sm md:text-lg font-bold text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2>
         </div>
         <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 md:h-9 text-[10px] md:text-xs">
-          {loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} এআই পরামর্শ
+          {loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice 
         </Button>
       </div>
 
@@ -1138,235 +1170,252 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
             <div className="lg:col-span-2 space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
                 <TabsList className="flex h-auto p-1 mb-6 bg-slate-100 overflow-x-auto no-scrollbar gap-1 justify-start">
-                  <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফাউন্ডেশন</TabsTrigger>
-                  <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0">কলাম</TabsTrigger>
-                  <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">বিম</TabsTrigger>
-                  <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ছাদ</TabsTrigger>
-                  <TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0">সিড়ি</TabsTrigger>
-                  <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">গাথনী</TabsTrigger>
-                  <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">প্লাষ্টার</TabsTrigger>
-                  <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ফ্লোর টাইলস</TabsTrigger>
-                  <TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">ওয়াল টাইলস</TabsTrigger>
-                  <TabsTrigger value="septicTank" className="text-[10px] md:text-xs px-3 py-2 shrink-0">সেফটিক ট্যাংক</TabsTrigger>
-                  <TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0">সোক ওয়েল</TabsTrigger>
-                  <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-bold">মোট মালামাল</TabsTrigger>
+                  <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Foundation</TabsTrigger>
+                  <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Column</TabsTrigger>
+                  <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Beam</TabsTrigger>
+                  <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Roof</TabsTrigger>
+                  <TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Stair</TabsTrigger>
+                  <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Brickwork</TabsTrigger>
+                  <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Plaster</TabsTrigger>
+                  <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Floor Tiles</TabsTrigger>
+                  <TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Wall Tiles</TabsTrigger>
+                  <TabsTrigger value="septicTank" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Septic Tank</TabsTrigger>
+                  <TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0">Soak Well</TabsTrigger>
+                  <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-bold">Total Materials</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="foundation" className="space-y-6 m-0">
                   {foundations.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">বেস #{idx+1}</h4>{foundations.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('foundation', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Base #{idx+1}</h4>{foundations.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('foundation', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="বেসের সংখ্যা" value={f.count} onChange={v => updateItem('foundation', f.id, 'count', v)} />
-                        <InputField label="দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} />
-                        <InputField label="প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} />
-                        <InputField label="পুরুত্ব (ইঞ্চি)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={f.aggregateType} onValueChange={v => updateItem('foundation', f.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                        <InputField label="Base Count" value={f.count} onChange={v => updateItem('foundation', f.id, 'count', v)} />
+                        <InputField label="Length (ft)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} />
+                        <InputField label="Width (ft)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} />
+                        <InputField label="Thickness (in)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} />
+                        <InputField label="Longitudinal Rods (count)" value={f.rodLong} onChange={v => updateItem('foundation', f.id, 'rodLong', v)} />
+                        <InputField label="Width-wise Rods (count)" value={f.rodWidth} onChange={v => updateItem('foundation', f.id, 'rodWidth', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Main Rod size</Label><Select value={f.rodFactor.toString()} onValueChange={v => updateItem('foundation', f.id, 'rodFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Stone/Khoya</Label><Select value={f.aggregateType} onValueChange={v => updateItem('foundation', f.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন বেস যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new base </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="column" className="space-y-6 m-0">
                   {columns.map((c, idx) => (
                     <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">কলাম #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Column #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="কলাম সংখ্যা" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} />
-                        <InputField label="দৈর্ঘ্য (ইঞ্চি)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} />
-                        <InputField label="প্রস্থ (ইঞ্চি)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} />
-                        <InputField label="উচ্চতা (ফুট)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} />
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                        <InputField label="Column Count" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} />
+                        <InputField label="Length (in)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} />
+                        <InputField label="Width (in)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} />
+                        <InputField label="Height (ft)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} />
+                        <InputField label="Main Rods (count)" value={c.rods} onChange={v => updateItem('column', c.id, 'rods', v)} />
+                        <InputField label="Ring Gap (in)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Main Rod size</Label><Select value={c.rodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'rodFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Ring Rod size</Label><Select value={c.ringRodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'ringRodFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">Stone/Khoya</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন কলাম যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new column </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="beam" className="space-y-6 m-0">
                   {beams.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">বিম #{idx+1}</h4>{beams.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('beam', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Beam #{idx+1}</h4>{beams.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('beam', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="দৈর্ঘ্য (ফুট)" value={b.len} onChange={v => updateItem('beam', b.id, 'len', v)} />
-                        <InputField label="প্রস্থ (ইঞ্চি)" value={b.wid} onChange={v => updateItem('beam', b.id, 'wid', v)} />
-                        <InputField label="উচ্চতা (ইঞ্চি)" value={b.height} onChange={v => updateItem('beam', b.id, 'height', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={b.aggregateType} onValueChange={v => updateItem('beam', b.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                        <InputField label="Length (ft)" value={b.len} onChange={v => updateItem('beam', b.id, 'len', v)} />
+                        <InputField label="Width (in)" value={b.wid} onChange={v => updateItem('beam', b.id, 'wid', v)} />
+                        <InputField label="Height (in)" value={b.height} onChange={v => updateItem('beam', b.id, 'height', v)} />
+                        <InputField label="Main Rods (count)" value={b.rods} onChange={v => updateItem('beam', b.id, 'rods', v)} />
+                        <InputField label="Ring Gap (in)" value={b.ringGap} onChange={v => updateItem('beam', b.id, 'ringGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Main Rod size</Label><Select value={b.rodFactor.toString()} onValueChange={v => updateItem('beam', b.id, 'rodFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Ring Rod size</Label><Select value={b.ringRodFactor.toString()} onValueChange={v => updateItem('beam', b.id, 'ringRodFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Stone/Khoya</Label><Select value={b.aggregateType} onValueChange={v => updateItem('beam', b.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন বিম যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new beam </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="slab" className="space-y-6 m-0">
                   {slabs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">ছাদ #{idx+1}</h4>{slabs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('slab', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Roof #{idx+1}</h4>{slabs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('slab', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="দৈর্ঘ্য (ফুট)" value={s.len} onChange={v => updateItem('slab', s.id, 'len', v)} />
-                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} />
-                        <InputField label="পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={s.aggregateType} onValueChange={v => updateItem('slab', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                        <InputField label="Length (ft)" value={s.len} onChange={v => updateItem('slab', s.id, 'len', v)} />
+                        <InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} />
+                        <InputField label="Thickness (in)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} />
+                        <InputField label="Rod Gap (in)" value={s.rodGap} onChange={v => updateItem('slab', s.id, 'rodGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Main Rod size</Label><Select value={s.rodFactor.toString()} onValueChange={v => updateItem('slab', s.id, 'rodFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('slab', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ছাদ যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new roof </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="stair" className="space-y-6 m-0">
                   {stairs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">সিড়ি #{idx+1}</h4>{stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Stair #{idx+1}</h4>{stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="সিড়ির সংখ্যা" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} />
-                        <InputField label="ফ্লাইট দৈর্ঘ্য (ফুট)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} />
-                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('stair', s.id, 'wid', v)} />
-                        <InputField label="ওয়েস্ট স্ল্যাব পুরুত্ব (ইঞ্চি)" value={s.thick} onChange={v => updateItem('stair', s.id, 'thick', v)} />
-                        <InputField label="ধাপ সংখ্যা" value={s.steps} onChange={v => updateItem('stair', s.id, 'steps', v)} />
-                        <InputField label="রাইজার (ইঞ্চি)" value={s.riser} onChange={v => updateItem('stair', s.id, 'riser', v)} />
-                        <InputField label="ট্রেড (ইঞ্চি)" value={s.tread} onChange={v => updateItem('stair', s.id, 'tread', v)} />
-                        <InputField label="ল্যান্ডিং দৈর্ঘ্য (ফুট)" value={s.lLen} onChange={v => updateItem('stair', s.id, 'lLen', v)} />
-                        <InputField label="ল্যান্ডিং প্রস্থ (ফুট)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} />
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া</Label><Select value={s.aggregateType} onValueChange={v => updateItem('stair', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                        <InputField label="Stair Count" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} />
+                        <InputField label="Flight Length (ft)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} />
+                        <InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('stair', s.id, 'wid', v)} />
+                        <InputField label="Waist Slab Thickness (in)" value={s.thick} onChange={v => updateItem('stair', s.id, 'thick', v)} />
+                        <InputField label="Steps Count" value={s.steps} onChange={v => updateItem('stair', s.id, 'steps', v)} />
+                        <InputField label="Riser (in)" value={s.riser} onChange={v => updateItem('stair', s.id, 'riser', v)} />
+                        <InputField label="Tread (in)" value={s.tread} onChange={v => updateItem('stair', s.id, 'tread', v)} />
+                        <InputField label="Landing Length (ft)" value={s.lLen} onChange={v => updateItem('stair', s.id, 'lLen', v)} />
+                        <InputField label="Landing Width (ft)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} />
+                        <InputField label="Main Rod Gap (in)" value={s.mainGap} onChange={v => updateItem('stair', s.id, 'mainGap', v)} />
+                        <InputField label="Dist. Rod Gap (in)" value={s.distGap} onChange={v => updateItem('stair', s.id, 'distGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Main Rod size</Label><Select value={s.mainFactor.toString()} onValueChange={v => updateItem('stair', s.id, 'mainFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Dist. Rod size</Label><Select value={s.distFactor.toString()} onValueChange={v => updateItem('stair', s.id, 'distFactor', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('stair', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সিড়ি যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new stair </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="brickwork" className="space-y-6 m-0">
                   {brickworks.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">গাথনী #{idx+1}</h4>{brickworks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('brickwork', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Brickwork #{idx+1}</h4>{brickworks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('brickwork', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="দৈর্ঘ্য (ফুট)" value={b.len} onChange={v => updateItem('brickwork', b.id, 'len', v)} />
-                        <InputField label="উচ্চতা (ফুট)" value={b.height} onChange={v => updateItem('brickwork', b.id, 'height', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">পুরুত্ব (ইঞ্চি)</Label><Select value={b.thick.toString()} onValueChange={v => updateItem('brickwork', b.id, 'thick', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="5">৫ ইঞ্চি</SelectItem><SelectItem value="10">১০ ইঞ্চি</SelectItem></SelectContent></Select></div>
+                        <InputField label="Length (ft)" value={b.len} onChange={v => updateItem('brickwork', b.id, 'len', v)} />
+                        <InputField label="Height (ft)" value={b.height} onChange={v => updateItem('brickwork', b.id, 'height', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Thickness (in)</Label><Select value={b.thick.toString()} onValueChange={v => updateItem('brickwork', b.id, 'thick', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="5">5 in</SelectItem><SelectItem value="10">10 in</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন গাথনী যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new brickwork </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="plaster" className="space-y-6 m-0">
                   {plasters.map((p, idx) => (
                     <div key={p.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">প্লাষ্টার #{idx+1}</h4>{plasters.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('plaster', p.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Plaster #{idx+1}</h4>{plasters.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('plaster', p.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="দৈর্ঘ্য (ফুট)" value={p.len} onChange={v => updateItem('plaster', p.id, 'len', v)} />
-                        <InputField label="উচ্চতা (ফুট)" value={p.height} onChange={v => updateItem('plaster', p.id, 'height', v)} />
-                        <InputField label="পুরুত্ব (ইঞ্চি)" value={p.thick} onChange={v => updateItem('plaster', p.id, 'thick', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">উভয় পাশ?</Label><Select value={p.sides.toString()} onValueChange={v => updateItem('plaster', p.id, 'sides', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">এক পাশ</SelectItem><SelectItem value="2">উভয় পাশ</SelectItem></SelectContent></Select></div>
+                        <InputField label="Length (ft)" value={p.len} onChange={v => updateItem('plaster', p.id, 'len', v)} />
+                        <InputField label="Height (ft)" value={p.height} onChange={v => updateItem('plaster', p.id, 'height', v)} />
+                        <InputField label="Thickness (in)" value={p.thick} onChange={v => updateItem('plaster', p.id, 'thick', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-bold text-slate-600">Sides?</Label><Select value={p.sides.toString()} onValueChange={v => updateItem('plaster', p.id, 'sides', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">One side</SelectItem><SelectItem value="2">Both sides</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন প্লাষ্টার যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new plaster </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="floorTiles" className="space-y-6 m-0">
                   {floorTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">ফ্লোর টাইলস #{idx+1}</h4>{floorTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('floorTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Floor Tiles #{idx+1}</h4>{floorTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('floorTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="রুমের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('floorTiles', f.id, 'len', v)} />
-                        <InputField label="রুমের প্রস্থ (ফুট)" value={f.wid} onChange={v => updateItem('floorTiles', f.id, 'wid', v)} />
-                        <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={f.tLen} onChange={v => updateItem('floorTiles', f.id, 'tLen', v)} />
-                        <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={f.tWid} onChange={v => updateItem('floorTiles', f.id, 'tWid', v)} />
-                        <InputField label="অপচয় (%)" value={f.wastage} onChange={v => updateItem('floorTiles', f.id, 'wastage', v)} />
+                        <InputField label="Room Length (ft)" value={f.len} onChange={v => updateItem('floorTiles', f.id, 'len', v)} />
+                        <InputField label="Room Width (ft)" value={f.wid} onChange={v => updateItem('floorTiles', f.id, 'wid', v)} />
+                        <InputField label="Tiles Length (in)" value={f.tLen} onChange={v => updateItem('floorTiles', f.id, 'tLen', v)} />
+                        <InputField label="Tiles Width (in)" value={f.tWid} onChange={v => updateItem('floorTiles', f.id, 'tWid', v)} />
+                        <InputField label="Wastage (%)" value={f.wastage} onChange={v => updateItem('floorTiles', f.id, 'wastage', v)} />
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ফ্লোর টাইলস যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new floor tiles </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="wallTiles" className="space-y-6 m-0">
                   {wallTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">ওয়াল টাইলস #{idx+1}</h4>{wallTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('wallTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Wall Tiles #{idx+1}</h4>{wallTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('wallTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="দেয়ালের দৈর্ঘ্য (ফুট)" value={f.len} onChange={v => updateItem('wallTiles', f.id, 'len', v)} />
-                        <InputField label="দেয়ালের উচ্চতা (ফুট)" value={f.height} onChange={v => updateItem('wallTiles', f.id, 'height', v)} />
-                        <InputField label="টাইলস দৈর্ঘ্য (ইঞ্চি)" value={f.tLen} onChange={v => updateItem('wallTiles', f.id, 'tLen', v)} />
-                        <InputField label="টাইলস প্রস্থ (ইঞ্চি)" value={f.tWid} onChange={v => updateItem('wallTiles', f.id, 'tWid', v)} />
-                        <InputField label="অপচয় (%)" value={f.wastage} onChange={v => updateItem('wallTiles', f.id, 'wastage', v)} />
+                        <InputField label="Wall Length (ft)" value={f.len} onChange={v => updateItem('wallTiles', f.id, 'len', v)} />
+                        <InputField label="Wall Height (ft)" value={f.height} onChange={v => updateItem('wallTiles', f.id, 'height', v)} />
+                        <InputField label="Tiles Length (in)" value={f.tLen} onChange={v => updateItem('wallTiles', f.id, 'tLen', v)} />
+                        <InputField label="Tiles Width (in)" value={f.tWid} onChange={v => updateItem('wallTiles', f.id, 'tWid', v)} />
+                        <InputField label="Wastage (%)" value={f.wastage} onChange={v => updateItem('wallTiles', f.id, 'wastage', v)} />
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ওয়াল টাইলস যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new wall tiles </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="septicTank" className="space-y-6 m-0">
                   {septicTanks.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">সেফটিক ট্যাংক #{idx+1}</h4>{septicTanks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('septicTank', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Septic Tank #{idx+1}</h4>{septicTanks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('septicTank', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="সংখ্যা" value={s.count} onChange={v => updateItem('septicTank', s.id, 'count', v)} />
-                        <InputField label="দৈর্ঘ্য (ফুট)" value={s.len} onChange={v => updateItem('septicTank', s.id, 'len', v)} />
-                        <InputField label="প্রস্থ (ফুট)" value={s.wid} onChange={v => updateItem('septicTank', s.id, 'wid', v)} />
-                        <InputField label="গভীরতা (ফুট)" value={s.depth} onChange={v => updateItem('septicTank', s.id, 'depth', v)} />
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">পাথর/খোয়া (ছাদ ও তলার জন্য)</Label><Select value={s.aggregateType} onValueChange={v => updateItem('septicTank', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">পাথর</SelectItem><SelectItem value="chips">খোয়া</SelectItem></SelectContent></Select></div>
+                        <InputField label="Count" value={s.count} onChange={v => updateItem('septicTank', s.id, 'count', v)} />
+                        <InputField label="Length (ft)" value={s.len} onChange={v => updateItem('septicTank', s.id, 'len', v)} />
+                        <InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('septicTank', s.id, 'wid', v)} />
+                        <InputField label="Depth (ft)" value={s.depth} onChange={v => updateItem('septicTank', s.id, 'depth', v)} />
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-bold text-slate-600">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('septicTank', s.id, 'aggregateType', v)}><SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন ট্যাংক যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new tank </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="soakWell" className="space-y-6 m-0">
                   {soakWells.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">সোক ওয়েল #{idx+1}</h4>{soakWells.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('soakWell', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="flex justify-between items-center"><h4 className="font-bold text-xs text-slate-500">Soak Well #{idx+1}</h4>{soakWells.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('soakWell', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <InputField label="সংখ্যা" value={s.count} onChange={v => updateItem('soakWell', s.id, 'count', v)} />
-                        <InputField label="ব্যাস (ফুট)" value={s.dia} onChange={v => updateItem('soakWell', s.id, 'dia', v)} />
-                        <InputField label="গভীরতা (ফুট)" value={s.depth} onChange={v => updateItem('soakWell', s.id, 'depth', v)} />
+                        <InputField label="Count" value={s.count} onChange={v => updateItem('soakWell', s.id, 'count', v)} />
+                        <InputField label="Diameter (ft)" value={s.dia} onChange={v => updateItem('soakWell', s.id, 'dia', v)} />
+                        <InputField label="Depth (ft)" value={s.depth} onChange={v => updateItem('soakWell', s.id, 'depth', v)} />
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> নতুন সোক ওয়েল যোগ করুন</Button>
+                  <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full gap-2 text-xs border-dashed"><Plus className="w-3 h-3" /> Add new soak well </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
 
                 <TabsContent value="total" className="space-y-6 m-0">
                   <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-6">
                     <div className="flex justify-between items-center border-b border-emerald-100 pb-4">
-                      <h3 className="font-bold text-emerald-800 flex items-center gap-2 text-lg"><Boxes className="w-6 h-6" /> মালামাল ও খরচ হিসাব</h3>
+                      <h3 className="font-bold text-emerald-800 flex items-center gap-2 text-lg"><Boxes className="w-6 h-6" /> Materials & Cost Summary </h3>
                       <div className="bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md text-right">
-                        <span className="text-xs uppercase font-bold opacity-80 block">সর্বমোট খরচ:</span>
+                        <span className="text-xs uppercase font-bold opacity-80 block">Grand Total:</span>
                         <span className="text-xl font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
                       </div>
                     </div>
                     
                     <div className="space-y-3">
-                      <CostRow label="সিমেন্ট" value={total.cement} unit="ব্যাগ" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} />
-                      <CostRow label="বালু" value={total.sand} unit="সিএফটি" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} />
-                      <CostRow label="পাথর" value={total.stone} unit="সিএফটি" price={prices.stone} onPriceChange={(v) => setPrices({...prices, stone: v})} />
-                      <CostRow label="খোয়া" value={total.chips} unit="সিএফটি" price={prices.chips} onPriceChange={(v) => setPrices({...prices, chips: v})} />
-                      <CostRow label="রড" value={total.rod} unit="কেজি" price={prices.rod} onPriceChange={(v) => setPrices({...prices, rod: v})} />
-                      <CostRow label="ইট" value={total.bricks} unit="টি" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} />
-                      <CostRow label="ফ্লোর টাইলস" value={total.floorTiles} unit="টি" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} />
-                      <CostRow label="ওয়াল টাইলস" value={total.wallTiles} unit="টি" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} />
-                      <CostRow label="মজুরি (ছাদ এরিয়া)" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
-                      <CostRow label="দরজা (নকশা অনুযায়ী)" value={total.doors} unit="টি" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
-                      <CostRow label="জানালা (নকশা অনুযায়ী)" value={total.windows} unit="টি" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
+                      <CostRow label="Cement" value={total.cement} unit="bag" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} />
+                      <CostRow label="Sand" value={total.sand} unit="CFT" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} />
+                      <CostRow label="Stone" value={total.stone} unit="CFT" price={prices.stone} onPriceChange={(v) => setPrices({...prices, stone: v})} />
+                      <CostRow label="Khoya" value={total.chips} unit="CFT" price={prices.chips} onPriceChange={(v) => setPrices({...prices, chips: v})} />
+                      <CostRow label="Rod" value={total.rod} unit="KG" price={prices.rod} onPriceChange={(v) => setPrices({...prices, rod: v})} />
+                      <CostRow label="Bricks" value={total.bricks} unit="pcs" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} />
+                      <CostRow label="Floor Tiles" value={total.floorTiles} unit="pcs" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} />
+                      <CostRow label="Wall Tiles" value={total.wallTiles} unit="pcs" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} />
+                      <CostRow label="Labor Cost (Slab Area)" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
+                      <CostRow label="Doors (from design)" value={total.doors} unit="pcs" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
+                      <CostRow label="Windows (from design)" value={total.windows} unit="pcs" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
                       
                       <div className="pt-4 mt-4 border-t border-emerald-100 space-y-3">
-                        <h4 className="text-xs font-black text-emerald-800 uppercase tracking-widest mb-2">অন্যান্য খরচ</h4>
+                        <h4 className="text-xs font-black text-emerald-800 uppercase tracking-widest mb-2">Other Expenses</h4>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">ইলেকট্রিক</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
-                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">ফিটিংস</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
-                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">রং</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
-                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">অন্যান্য</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
+                          <div className="space-y-1.5"><Label className="text-[10px] font-bold text-slate-500 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-8 text-xs font-bold border-emerald-100" /></div>
                         </div>
                       </div>
                     </div>
@@ -1376,7 +1425,7 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
 
               {advice && (
                 <div className="bg-white p-5 rounded-xl border shadow-sm">
-                  <h3 className="text-md font-bold text-emerald-700 mb-3 flex items-center gap-2">⭐ এআই বিশেষজ্ঞ পরামর্শ</h3>
+                  <h3 className="text-md font-bold text-emerald-700 mb-3 flex items-center gap-2">⭐ AI Specialist Advice</h3>
                   <div className="text-[12px] md:text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div>
                 </div>
               )}
@@ -1384,13 +1433,13 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
 
             <div className="space-y-6">
               <div className="bg-slate-800 text-white p-5 rounded-xl shadow-lg sticky top-6">
-                <h3 className="text-md font-bold mb-4 border-b border-white/20 pb-2 flex items-center gap-2"><Calculator className="w-4 h-4" /> ইনস্ট্যান্ট সামারি</h3>
+                <h3 className="text-md font-bold mb-4 border-b border-white/20 pb-2 flex items-center gap-2"><Calculator className="w-4 h-4" /> Instant Summary </h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">সিমেন্ট:</span><span className="font-bold">{Math.ceil(total.cement)} ব্যাগ</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">বালু:</span><span className="font-bold">{Math.ceil(total.sand)} CFT</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">রড:</span><span className="font-bold">{Math.ceil(total.rod)} KG</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="opacity-70">ইট:</span><span className="font-bold">{total.bricks} টি</span></div>
-                  <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center"><span className="text-xs font-bold text-emerald-400">মোট খরচ:</span><span className="text-lg font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">Cement:</span><span className="font-bold">{Math.ceil(total.cement)} bags</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">Sand:</span><span className="font-bold">{Math.ceil(total.sand)} CFT</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">Rod:</span><span className="font-bold">{Math.ceil(total.rod)} KG</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="opacity-70">Bricks:</span><span className="font-bold">{total.bricks} pcs</span></div>
+                  <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center"><span className="text-xs font-bold text-emerald-400">Total Cost:</span><span className="text-lg font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
                 </div>
               </div>
             </div>
@@ -1412,18 +1461,19 @@ function InputField({ label, value, onChange }: { label: string, value: number, 
 
 function SectionResult({ res }: { res: any }) {
   const hasValues = (res.cement || 0) > 0 || (res.rod || 0) > 0 || (res.bricks || 0) > 0 || (res.floorTiles || 0) > 0 || (res.wallTiles || 0) > 0;
-  if (!hasValues) return <div className="p-4 bg-slate-50 border border-dashed rounded-lg text-center text-[10px] text-slate-400">এই সেকশনে কোন ইনপুট দেওয়া হয়নি</div>;
+  if (!hasValues) return <div className="p-4 bg-slate-50 border border-dashed rounded-lg text-center text-[10px] text-slate-400"> No inputs for this section </div>;
   return (
     <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-2">
-      <h4 className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">সেকশন রেজাল্ট</h4>
+      <h4 className="text-[10px] font-bold text-blue-700 uppercase tracking-widest"> Section Result </h4>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {(res.cement || 0) > 0 && <ResultRow label="সিমেন্ট" value={res.cement} unit="ব্যাগ" small />}
-        {(res.sand || 0) > 0 && <ResultRow label="বালু" value={res.sand} unit="সিএফটি" small />}
-        {(res.stone || 0) > 0 && <ResultRow label="পাথর" value={res.stone} unit="সিএফটি" small />}
-        {(res.chips || 0) > 0 && <ResultRow label="খোয়া" value={res.chips} unit="সিএফটি" small />}
-        {(res.bricks || 0) > 0 && <ResultRow label="ইট" value={res.bricks} unit="টি" small />}
-        {(res.floorTiles || 0) > 0 && <ResultRow label="মেঝে টাইলস" value={res.floorTiles} unit="টি" small />}
-        {(res.wallTiles || 0) > 0 && <ResultRow label="ওয়াল টাইলস" value={res.wallTiles} unit="টি" small />}
+        {(res.cement || 0) > 0 && <ResultRow label="Cement" value={res.cement} unit="bag" small />}
+        {(res.sand || 0) > 0 && <ResultRow label="Sand" value={res.sand} unit="CFT" small />}
+        {(res.stone || 0) > 0 && <ResultRow label="Stone" value={res.stone} unit="CFT" small />}
+        {(res.chips || 0) > 0 && <ResultRow label="Khoya" value={res.chips} unit="CFT" small />}
+        {(res.rod || 0) > 0 && <ResultRow label="Rod" value={res.rod} unit="KG" small />}
+        {(res.bricks || 0) > 0 && <ResultRow label="Bricks" value={res.bricks} unit="pcs" small />}
+        {(res.floorTiles || 0) > 0 && <ResultRow label="Floor Tiles" value={res.floorTiles} unit="pcs" small />}
+        {(res.wallTiles || 0) > 0 && <ResultRow label="Wall Tiles" value={res.wallTiles} unit="pcs" small />}
       </div>
     </div>
   );
@@ -1452,11 +1502,11 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
         <span className="text-[10px] text-slate-400">{qty} {unit}</span>
       </div>
       <div className="col-span-4 flex items-center gap-2">
-        <span className="text-[10px] font-bold text-slate-400">দর (৳)</span>
-        <Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-8 text-xs font-bold text-emerald-700 bg-emerald-50/30 border-emerald-100" placeholder="প্রতি একক..." />
+        <span className="text-[10px] font-bold text-slate-400">Price (৳)</span>
+        <Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-8 text-xs font-bold text-emerald-700 bg-emerald-50/30 border-emerald-100" placeholder="Per unit..." />
       </div>
       <div className="col-span-5 text-right">
-        <span className="text-[10px] uppercase font-bold text-slate-400 block">উপ-মোট:</span>
+        <span className="text-[10px] uppercase font-bold text-slate-400 block">Sub-total:</span>
         <span className="text-sm font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
       </div>
     </div>
@@ -1474,3 +1524,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return <div className="flex items-center gap-1"><span className="text-[8px] md:text-[10px] font-black text-slate-300 uppercase min-w-[15px] md:min-w-[50px]">{label}</span><Input className="h-6 md:h-7 w-16 md:w-24 text-[9px] md:text-[11px] font-bold text-center border-slate-200" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>;
 }
+
