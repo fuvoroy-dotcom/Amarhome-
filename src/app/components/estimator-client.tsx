@@ -10,7 +10,7 @@ import {
   RotateCw, Save, User,
   Type as TypeIcon, Bold as BoldIcon,
   MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
-  Image as ImageIcon,
+  ImageIcon,
   Rows, FilePlus, FolderOpen, Search, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
@@ -801,6 +801,7 @@ export default function EstimatorClient() {
       <EstimationView 
         designObjects={designObjects} 
         onBack={() => setViewMode('design')}
+        onSave={saveToFirestore}
         foundations={foundations} setFoundations={setFoundations}
         columns={columns} setColumns={setColumns}
         beams={beams} setBeams={setBeams}
@@ -1028,7 +1029,7 @@ export default function EstimatorClient() {
 // -------------------------------------------------------------------------------------------------
 
 function EstimationView({ 
-  designObjects, onBack,
+  designObjects, onBack, onSave,
   foundations, setFoundations,
   columns, setColumns,
   beams, setBeams,
@@ -1044,6 +1045,7 @@ function EstimationView({
 }: { 
   designObjects: DesignObject[], 
   onBack: () => void,
+  onSave: () => void,
   foundations: any[], setFoundations: (v: any[]) => void,
   columns: any[], setColumns: (v: any[]) => void,
   beams: any[], setBeams: (v: any[]) => void,
@@ -1278,9 +1280,12 @@ function EstimationView({
           <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
           <h2 className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2>
         </div>
-        <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 md:h-12 text-[10px] md:text-xs font-black">
-          {loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice 
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-10 md:h-12 text-[10px] md:text-sm hover:bg-slate-100 font-black gap-2 border-slate-300" onClick={onSave}><Save className="w-4 h-4 text-green-600"/> SAVE</Button>
+          <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 md:h-12 text-[10px] md:text-xs font-black">
+            {loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice 
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
