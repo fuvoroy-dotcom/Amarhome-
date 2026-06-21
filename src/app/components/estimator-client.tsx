@@ -15,7 +15,7 @@ import {
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
   Layers, Boxes, Plus, X, Droplets,
-  ArrowUpToLine, ArrowDownToLine
+  ArrowUpToLine, ArrowDownToLine, CopyPlus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { doc, setDoc, getDoc, getDocs, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -275,6 +275,26 @@ export default function EstimatorClient() {
       errorEmitter.emit('permission-error', permissionError);
     });
   }, [designObjects, projectName, currentDesignId, toast]);
+
+  const duplicateProject = useCallback(() => {
+    const newId = Math.random().toString(36).substr(2, 9);
+    const newName = "কপি - " + projectName;
+    setCurrentDesignId(newId);
+    setProjectName(newName);
+    toast({ title: "ডুপ্লিকেট সফল", description: `প্রজেক্টটির একটি কপি তৈরি করা হয়েছে। এখন এটি "${newName}" নামে সেভ করতে পারবেন।` });
+  }, [projectName, toast]);
+
+  const deleteProjectFromDb = async (id: string, name: string) => {
+    if (!confirm(`আপনি কি নিশ্চিত যে "${name}" প্রজেক্টটি ডিলিট করতে চান?`)) return;
+    try {
+      const { firestore } = initializeFirebase();
+      await deleteDoc(doc(firestore, 'designs', id));
+      toast({ title: "সফল", description: "প্রজেক্টটি মুছে ফেলা হয়েছে।" });
+      fetchSavedDesigns(); 
+    } catch (e) {
+      toast({ variant: "destructive", title: "ত্রুটি", description: "প্রজেক্টটি ডিলিট করা যায়নি।" });
+    }
+  };
 
   const handleNewPage = () => {
     setDesignObjects([]);
@@ -744,6 +764,7 @@ export default function EstimatorClient() {
         <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
+        <RibbonButton icon={<CopyPlus className="text-teal-500" />} label="Duplicate" onClick={duplicateProject} />
         <RibbonButton icon={<ImageIcon />} label="As Image" onClick={copyAsImage} />
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
@@ -906,9 +927,15 @@ export default function EstimatorClient() {
             <div className="grid gap-2">
               {savedDesigns.length > 0 ? (
                 savedDesigns.map((design) => (
-                  <div key={design.id} onClick={() => loadDesign(design.id)} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group">
-                    <div className="flex flex-col gap-0.5"><span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span><span className="text-[10px] text-slate-400">{design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}</span></div>
-                    <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500"><Search className="w-4 h-4" /></Button></div>
+                  <div key={design.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group">
+                    <div onClick={() => loadDesign(design.id)} className="flex flex-col gap-0.5 flex-1">
+                      <span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span>
+                      <span className="text-[10px] text-slate-400">{design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => loadDesign(design.id)}><Search className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); deleteProjectFromDb(design.id, design.name); }}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
                   </div>
                 ))
               ) : (<div className="p-8 text-center text-slate-400 italic">No saved designs</div>)}
@@ -1496,12 +1523,12 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
   const qty = Math.ceil(value);
   const subTotal = qty * price;
   return (
-    <div className="grid grid-cols-12 gap-4 items-center p-4 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
-      <div className="col-span-4 md:col-span-3">
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-4 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
+      <div className="md:col-span-3">
         <span className="text-[11px] md:text-xs font-black text-slate-700 block uppercase leading-tight mb-1">{label}</span>
         <span className="text-[10px] font-black text-slate-400 uppercase">{qty} {unit}</span>
       </div>
-      <div className="col-span-5 md:col-span-6 flex flex-col gap-1.5">
+      <div className="md:col-span-6 flex flex-col gap-1.5">
         <Label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Rate / Price (৳)</Label>
         <Input 
           type="number" 
@@ -1511,7 +1538,7 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
           placeholder="Enter Rate" 
         />
       </div>
-      <div className="col-span-3 md:col-span-3 text-right flex flex-col items-end">
+      <div className="md:col-span-3 text-right flex flex-col items-end">
         <span className="text-[9px] uppercase font-black text-slate-400 block tracking-tight mb-1">Sub-total</span>
         <span className="text-sm md:text-lg font-black text-emerald-600 leading-none">৳ {subTotal.toLocaleString('bn-BD')}</span>
       </div>
@@ -1537,7 +1564,7 @@ function PropField({ label, value, onChange, onBlur, disabled }: { label: string
         onChange={e => onChange(e.target.value)} 
         disabled={disabled} 
         onBlur={onBlur} 
-        onKeyDown={e => { if (e.key['Enter']) e.currentTarget.blur(); }} 
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} 
       />
     </div>
   );
