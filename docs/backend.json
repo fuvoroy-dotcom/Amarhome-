@@ -3,7 +3,7 @@
   "entities": {
     "Design": {
       "title": "Design",
-      "description": "Architectural design layout including walls, pillars, openings, and name.",
+      "description": "Architectural design layout including walls, pillars, openings, name, and saved estimations.",
       "type": "object",
       "properties": {
         "name": {
@@ -13,6 +13,14 @@
         "objects": {
           "type": "array",
           "description": "List of design objects on the canvas"
+        },
+        "estimations": {
+          "type": "object",
+          "description": "Saved calculation inputs for all sections"
+        },
+        "prices": {
+          "type": "object",
+          "description": "Saved unit prices and other expenses"
         },
         "updatedAt": {
           "type": "string",
@@ -27,7 +35,7 @@
   "firestore": {
     "designs/{designId}": {
       "schema": { "$ref": "#/backend/entities/Design" },
-      "description": "Collection of saved architectural designs"
+      "description": "Collection of saved architectural designs and estimations"
     }
   }
 }

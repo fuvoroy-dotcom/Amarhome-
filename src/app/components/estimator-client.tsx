@@ -118,6 +118,23 @@ export default function EstimatorClient() {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
 
+  // Estimation State (Lifted for Saving)
+  const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
+  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 5, rodFactor: 0.30, aggregateType: 'stone' }]);
+  const [stairs, setStairs] = useState([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
+  const [brickworks, setBrickworks] = useState([{ id: '1', len: 0, height: 0, thick: 5 }]);
+  const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
+  const [floorTiles, setFloorTiles] = useState([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+  const [wallTiles, setWallTiles] = useState([{ id: '1', len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+  const [septicTanks, setSepticTanks] = useState([{ id: '1', count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
+  const [soakWells, setSoakWells] = useState([{ id: '1', count: 0, dia: 0, depth: 0 }]);
+  const [prices, setPrices] = useState({
+    cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0,
+    electric: 0, fittings: 0, paint: 0, others: 0
+  });
+
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -267,14 +284,22 @@ export default function EstimatorClient() {
   const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
     const docRef = doc(firestore, 'designs', currentDesignId);
-    const data = { objects: designObjects, name: projectName, updatedAt: serverTimestamp() };
+    const data = { 
+      objects: designObjects, 
+      name: projectName, 
+      updatedAt: serverTimestamp(),
+      estimations: {
+        foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells
+      },
+      prices: prices
+    };
     setDoc(docRef, data, { merge: true }).then(() => {
-      toast({ title: "সফল", description: `"${projectName}" ডিজাইনটি সেভ করা হয়েছে।` });
+      toast({ title: "সফল", description: `"${projectName}" ডিজাইন এবং হিসাব সেভ করা হয়েছে।` });
     }).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
       errorEmitter.emit('permission-error', permissionError);
     });
-  }, [designObjects, projectName, currentDesignId, toast]);
+  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, toast]);
 
   const duplicateProject = useCallback(() => {
     const newId = Math.random().toString(36).substr(2, 9);
@@ -303,7 +328,23 @@ export default function EstimatorClient() {
     setHistory([[]]);
     setHistoryIndex(0);
     setSelectedObjectIds([]);
-    toast({ title: "নতুন পেজ", description: "ক্যানভাস পরিষ্কার করা হয়েছে।" });
+    // Reset estimations
+    setFoundations([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
+    setColumns([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    setBeams([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    setSlabs([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 5, rodFactor: 0.30, aggregateType: 'stone' }]);
+    setStairs([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
+    setBrickworks([{ id: '1', len: 0, height: 0, thick: 5 }]);
+    setPlasters([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
+    setFloorTiles([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+    setWallTiles([{ id: '1', len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
+    setSepticTanks([{ id: '1', count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
+    setSoakWells([{ id: '1', count: 0, dia: 0, depth: 0 }]);
+    setPrices({
+      cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0,
+      electric: 0, fittings: 0, paint: 0, others: 0
+    });
+    toast({ title: "নতুন পেজ", description: "ক্যানভাস এবং হিসাব পরিষ্কার করা হয়েছে।" });
   };
 
   const fetchSavedDesigns = async () => {
@@ -336,8 +377,26 @@ export default function EstimatorClient() {
         setCurrentDesignId(id);
         setHistory([data.objects || []]);
         setHistoryIndex(0);
+        
+        // Load Estimations
+        if (data.estimations) {
+          const est = data.estimations;
+          if (est.foundations) setFoundations(est.foundations);
+          if (est.columns) setColumns(est.columns);
+          if (est.beams) setBeams(est.beams);
+          if (est.slabs) setSlabs(est.slabs);
+          if (est.stairs) setStairs(est.stairs);
+          if (est.brickworks) setBrickworks(est.brickworks);
+          if (est.plasters) setPlasters(est.plasters);
+          if (est.floorTiles) setFloorTiles(est.floorTiles);
+          if (est.wallTiles) setWallTiles(est.wallTiles);
+          if (est.septicTanks) setSepticTanks(est.septicTanks);
+          if (est.soakWells) setSoakWells(est.soakWells);
+        }
+        if (data.prices) setPrices(data.prices);
+
         setIsOpenDialogOpen(false);
-        toast({ title: "সফল", description: "ডিজাইনটি লোড করা হয়েছে।" });
+        toast({ title: "সফল", description: "ডিজাইন এবং হিসাব লোড করা হয়েছে।" });
       }
     } catch (e) {
       toast({ variant: "destructive", title: "ত্রুটি", description: "ডিজাইন লোড করা যায়নি।" });
@@ -738,7 +797,24 @@ export default function EstimatorClient() {
   };
 
   if (viewMode === 'estimate') {
-    return <EstimationView designObjects={designObjects} onBack={() => setViewMode('design')} />;
+    return (
+      <EstimationView 
+        designObjects={designObjects} 
+        onBack={() => setViewMode('design')}
+        foundations={foundations} setFoundations={setFoundations}
+        columns={columns} setColumns={setColumns}
+        beams={beams} setBeams={setBeams}
+        slabs={slabs} setSlabs={setSlabs}
+        stairs={stairs} setStairs={setStairs}
+        brickworks={brickworks} setBrickworks={setBrickworks}
+        plasters={plasters} setPlasters={setPlasters}
+        floorTiles={floorTiles} setFloorTiles={setFloorTiles}
+        wallTiles={wallTiles} setWallTiles={setWallTiles}
+        septicTanks={septicTanks} setSepticTanks={setSepticTanks}
+        soakWells={soakWells} setSoakWells={setSoakWells}
+        prices={prices} setPrices={setPrices}
+      />
+    );
   }
 
   return (
@@ -947,27 +1023,43 @@ export default function EstimatorClient() {
   );
 }
 
-function EstimationView({ designObjects, onBack }: { designObjects: DesignObject[], onBack: () => void }) {
+// -------------------------------------------------------------------------------------------------
+// Estimation View Component
+// -------------------------------------------------------------------------------------------------
+
+function EstimationView({ 
+  designObjects, onBack,
+  foundations, setFoundations,
+  columns, setColumns,
+  beams, setBeams,
+  slabs, setSlabs,
+  stairs, setStairs,
+  brickworks, setBrickworks,
+  plasters, setPlasters,
+  floorTiles, setFloorTiles,
+  wallTiles, setWallTiles,
+  septicTanks, setSepticTanks,
+  soakWells, setSoakWells,
+  prices, setPrices
+}: { 
+  designObjects: DesignObject[], 
+  onBack: () => void,
+  foundations: any[], setFoundations: (v: any[]) => void,
+  columns: any[], setColumns: (v: any[]) => void,
+  beams: any[], setBeams: (v: any[]) => void,
+  slabs: any[], setSlabs: (v: any[]) => void,
+  stairs: any[], setStairs: (v: any[]) => void,
+  brickworks: any[], setBrickworks: (v: any[]) => void,
+  plasters: any[], setPlasters: (v: any[]) => void,
+  floorTiles: any[], setFloorTiles: (v: any[]) => void,
+  wallTiles: any[], setWallTiles: (v: any[]) => void,
+  septicTanks: any[], setSepticTanks: (v: any[]) => void,
+  soakWells: any[], setSoakWells: (v: any[]) => void,
+  prices: any, setPrices: (v: any) => void
+}) {
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
-  
-  const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
-  const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
-  const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
-  const [slabs, setSlabs] = useState([{ id: '1', len: 0, wid: 0, thick: 0, rodGap: 5, rodFactor: 0.30, aggregateType: 'stone' }]);
-  const [stairs, setStairs] = useState([{ id: '1', count: 0, wLen: 0, wid: 0, thick: 5, steps: 10, riser: 6, tread: 10, lLen: 0, lWid: 0, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
-  const [brickworks, setBrickworks] = useState([{ id: '1', len: 0, height: 0, thick: 5 }]);
-  const [plasters, setPlasters] = useState([{ id: '1', len: 0, height: 0, thick: 0.5, sides: 1 }]);
-  const [floorTiles, setFloorTiles] = useState([{ id: '1', len: 0, wid: 0, tLen: 0, tWid: 0, wastage: 10 }]);
-  const [wallTiles, setWallTiles] = useState([{ id: '1', len: 0, height: 0, tLen: 0, tWid: 0, wastage: 10 }]);
-  const [septicTanks, setSepticTanks] = useState([{ id: '1', count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
-  const [soakWells, setSoakWells] = useState([{ id: '1', count: 0, dia: 0, depth: 0 }]);
-
-  const [prices, setPrices] = useState({
-    cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0,
-    electric: 0, fittings: 0, paint: 0, others: 0
-  });
 
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -1476,6 +1568,10 @@ function EstimationView({ designObjects, onBack }: { designObjects: DesignObject
     </div>
   );
 }
+
+// -------------------------------------------------------------------------------------------------
+// Helper Components
+// -------------------------------------------------------------------------------------------------
 
 function InputField({ label, value, onChange }: { label: string, value: number, onChange: (v: string) => void }) {
   return (
