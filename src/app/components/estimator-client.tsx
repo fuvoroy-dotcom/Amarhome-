@@ -118,7 +118,7 @@ export default function EstimatorClient() {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
 
-  // Estimation State (Lifted for Saving)
+  // Estimation State
   const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
   const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
   const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
@@ -328,7 +328,6 @@ export default function EstimatorClient() {
     setHistory([[]]);
     setHistoryIndex(0);
     setSelectedObjectIds([]);
-    // Reset estimations
     setFoundations([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
     setColumns([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
     setBeams([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
@@ -377,8 +376,6 @@ export default function EstimatorClient() {
         setCurrentDesignId(id);
         setHistory([data.objects || []]);
         setHistoryIndex(0);
-        
-        // Load Estimations
         if (data.estimations) {
           const est = data.estimations;
           if (est.foundations) setFoundations(est.foundations);
@@ -394,7 +391,6 @@ export default function EstimatorClient() {
           if (est.soakWells) setSoakWells(est.soakWells);
         }
         if (data.prices) setPrices(data.prices);
-
         setIsOpenDialogOpen(false);
         toast({ title: "সফল", description: "ডিজাইন এবং হিসাব লোড করা হয়েছে।" });
       }
@@ -449,7 +445,6 @@ export default function EstimatorClient() {
     if (subType === 'window') { newObj.w = 4; newObj.h = currentWallThickness; }
     if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
     if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
-
     const next = [...designObjects, newObj];
     setDesignObjects(next);
     setSelectedObjectIds([newObj.id]);
@@ -485,6 +480,10 @@ export default function EstimatorClient() {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -5 : 5; 
         setZoom(prev => Math.min(250, Math.max(0, prev + delta)));
+      } else {
+        // Scroll vertically and horizontally based on wheel movement
+        container.scrollTop += e.deltaY;
+        container.scrollLeft += e.deltaX;
       }
     };
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
@@ -530,14 +529,12 @@ export default function EstimatorClient() {
     const { x: curX, y: curY, rawX, rawY } = coords;
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
-
     if (selectedTool === 'move') {
       setInteractionMode('panning');
       setLastPanPos({ x: rawX, y: rawY });
       if (e.cancelable) e.preventDefault();
       return;
     }
-
     if (interactionMode === 'pasting' && clipboard.length > 0) {
       const minX = Math.min(...clipboard.map(obj => obj.x));
       const minY = Math.min(...clipboard.map(obj => obj.y));
@@ -552,7 +549,6 @@ export default function EstimatorClient() {
       saveToHistory(next); setInteractionMode('none');
       return;
     }
-
     if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
         if (selectedTool === 'wall') { const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return; }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
@@ -569,7 +565,6 @@ export default function EstimatorClient() {
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
         setSelectedTool('select'); return;
     }
-
     if (id) {
       if (typeof e.stopPropagation === 'function') e.stopPropagation();
       const obj = designObjects.find(o => o.id === id);
@@ -593,7 +588,6 @@ export default function EstimatorClient() {
     const coords = getCoords(e);
     if (!coords) return;
     const { x: curX, y: curY, rawX, rawY } = coords;
-
     if (interactionMode === 'panning' && lastPanPos && canvasRef.current) {
       if (e.cancelable) e.preventDefault();
       const dx = (rawX - lastPanPos.x) * 1.5;
@@ -603,7 +597,6 @@ export default function EstimatorClient() {
       setLastPanPos({ x: rawX, y: rawY });
       return;
     }
-
     if (interactionMode === 'drawing' && drawStart) {
       if (e.cancelable) e.preventDefault();
       let endX = curX, endY = curY;
@@ -731,7 +724,6 @@ export default function EstimatorClient() {
       const sCount = Math.floor(steps / 3);
       const stepH = midFlightH / sCount;
       const stepW = (obj.w - 2 * flightW) / sCount;
-
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
@@ -759,7 +751,6 @@ export default function EstimatorClient() {
       const midH = obj.h - landingH;
       const sCount = Math.floor(steps / 2);
       const stepH = midH / sCount;
-
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
@@ -784,9 +775,7 @@ export default function EstimatorClient() {
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
-    
     const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
-    
     return { 
       left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: isStructure ? obj.color : 'transparent',
@@ -928,24 +917,13 @@ export default function EstimatorClient() {
               <Slider value={[zoom]} max={250} min={0} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
               <div className="flex items-center gap-1 ml-1 md:ml-2">
-                <Input 
-                  type="number" 
-                  value={zoom} 
-                  onChange={(e) => setZoom(Math.min(250, Math.max(0, parseInt(e.target.value) || 0)))}
-                  className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white"
-                />
+                <Input type="number" value={zoom} onChange={(e) => setZoom(Math.min(250, Math.max(0, parseInt(e.target.value) || 0)))} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
                 <span className="text-[9px] font-black text-slate-400 uppercase">%</span>
               </div>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex items-center gap-1 md:gap-2">
-                <span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Pillar Line</span>
-                <Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75" />
-              </div>
-              <div className="flex items-center gap-1 md:gap-2">
-                <span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Dimensions</span>
-                <Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" />
-              </div>
+              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75" /></div>
+              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" /></div>
             </div>
           </div>
           <div className="h-16 bg-white/90 backdrop-blur-md border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
@@ -961,25 +939,9 @@ export default function EstimatorClient() {
                   {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                   {firstSelectedObject.type === 'text' && (
                     <>
-                      <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span>
-                        <Input 
-                          className="h-10 w-full text-xs md:text-sm font-black border-slate-400 bg-white shadow-sm" 
-                          value={localPropText} 
-                          onChange={e => setLocalPropText(e.target.value)} 
-                          onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)}
-                          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                        />
-                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-10 w-full text-xs md:text-sm font-black border-slate-400 bg-white shadow-sm" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
                       <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
-                      <Button 
-                        variant={firstSelectedObject.isBold ? "default" : "outline"} 
-                        size="icon" 
-                        className="h-10 w-10 ml-1 border-slate-400" 
-                        onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}
-                      >
-                        <BoldIcon className="w-4 h-4" />
-                      </Button>
+                      <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-400" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
                     </>
                   )}
                   <div className="flex items-center gap-1 border-l pl-2">
@@ -997,22 +959,14 @@ export default function EstimatorClient() {
       </div>
       <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
         <DialogContent className="max-w-md bg-white p-0 overflow-hidden rounded-xl border shadow-2xl">
-          <DialogHeader className="p-6 bg-slate-50 border-b">
-            <DialogTitle className="flex items-center gap-2 text-slate-800"><FolderOpen className="w-5 h-5 text-amber-500" />Saved Designs</DialogTitle>
-          </DialogHeader>
+          <DialogHeader className="p-6 bg-slate-50 border-b"><DialogTitle className="flex items-center gap-2 text-slate-800"><FolderOpen className="w-5 h-5 text-amber-500" />Saved Designs</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[60vh] p-4">
             <div className="grid gap-2">
               {savedDesigns.length > 0 ? (
                 savedDesigns.map((design) => (
                   <div key={design.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group">
-                    <div onClick={() => loadDesign(design.id)} className="flex flex-col gap-0.5 flex-1">
-                      <span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span>
-                      <span className="text-[10px] text-slate-400">{design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => loadDesign(design.id)}><Search className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); deleteProjectFromDb(design.id, design.name); }}><Trash2 className="w-4 h-4" /></Button>
-                    </div>
+                    <div onClick={() => loadDesign(design.id)} className="flex flex-col gap-0.5 flex-1"><span className="font-bold text-sm text-slate-700 group-hover:text-blue-600">{design.name}</span><span className="text-[10px] text-slate-400">{design.updatedAt ? new Date(design.updatedAt.seconds * 1000).toLocaleString('bn-BD') : "তারিখ অজানা"}</span></div>
+                    <div className="flex items-center gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => loadDesign(design.id)}><Search className="w-4 h-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); deleteProjectFromDb(design.id, design.name); }}><Trash2 className="w-4 h-4" /></Button></div>
                   </div>
                 ))
               ) : (<div className="p-8 text-center text-slate-400 italic">No saved designs</div>)}
@@ -1023,10 +977,6 @@ export default function EstimatorClient() {
     </div>
   );
 }
-
-// -------------------------------------------------------------------------------------------------
-// Estimation View Component
-// -------------------------------------------------------------------------------------------------
 
 function EstimationView({ 
   designObjects, onBack, onSave,
@@ -1062,7 +1012,6 @@ function EstimationView({
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
-
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
@@ -1077,7 +1026,6 @@ function EstimationView({
     if (type === 'septicTank') setSepticTanks([...septicTanks, { id, count: 0, len: 0, wid: 0, depth: 0, aggregateType: 'stone' }]);
     if (type === 'soakWell') setSoakWells([...soakWells, { id, count: 0, dia: 0, depth: 0 }]);
   };
-
   const removeItem = (type: string, id: string) => {
     if (type === 'foundation') setFoundations(foundations.filter(f => f.id !== id));
     if (type === 'column') setColumns(columns.filter(f => f.id !== id));
@@ -1091,11 +1039,9 @@ function EstimationView({
     if (type === 'septicTank') setSepticTanks(septicTanks.filter(f => f.id !== id));
     if (type === 'soakWell') setSoakWells(soakWells.filter(f => f.id !== id));
   };
-
   const updateItem = (type: string, id: string, field: string, val: any) => {
     const textFields = ['aggregateType'];
     const value = textFields.includes(field) ? val : (parseFloat(val) || 0);
-    
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
     if (type === 'beam') setBeams(beams.map(b => b.id === id ? { ...b, [field]: value } : b));
@@ -1108,139 +1054,53 @@ function EstimationView({
     if (type === 'septicTank') setSepticTanks(septicTanks.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'soakWell') setSoakWells(soakWells.map(f => f.id === id ? { ...f, [field]: value } : f));
   };
-
   const calcAll = () => {
     const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 };
     const sectionTotals: any = {};
-
     const processSection = (items: any[], type: string) => {
       let res = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
       items.forEach(item => {
-        let vol = 0;
-        let rodWeight = 0;
-
-        if (type === 'foundation') {
-            vol = item.count * item.len * item.wid * (item.thick / 12);
-            rodWeight = (item.rodLong * item.wid + item.rodWidth * item.len) * item.count * item.rodFactor;
-        } else if (type === 'column') {
-            vol = item.count * (item.len/12) * (item.wid/12) * item.height;
-            const mainRodLen = item.rods * item.height * item.count;
-            const ringsCount = (item.height * 12) / item.ringGap;
-            const ringLen = 2 * (item.len + item.wid) / 12;
-            rodWeight = (mainRodLen * item.rodFactor) + (ringsCount * ringLen * item.count * item.ringRodFactor);
-        } else if (type === 'beam') {
-            vol = item.len * (item.wid/12) * (item.height/12);
-            const mainRodLen = item.rods * item.len;
-            const ringsCount = (item.len * 12) / item.ringGap;
-            const ringLen = 2 * (item.height + item.wid) / 12;
-            rodWeight = (mainRodLen * item.rodFactor) + (ringsCount * ringLen * item.ringRodFactor);
-        } else if (type === 'slab') {
-            vol = item.len * item.wid * (item.thick/12);
-            const gapFt = item.rodGap / 12;
-            const rodsLen = (item.len / gapFt * item.wid) + (item.wid / gapFt * item.len);
-            rodWeight = rodsLen * item.rodFactor;
-        } else if (type === 'stair') {
-            const flightVol = (item.wLen * item.wid * (item.thick / 12));
-            const stepsVol = (0.5 * (item.riser / 12) * (item.tread / 12) * item.wid) * item.steps;
-            const landingVol = (item.lLen * item.lWid * (item.thick / 12));
-            vol = (flightVol + stepsVol + landingVol) * item.count;
-            const mainRods = (item.wid / (item.mainGap/12)) * item.wLen;
-            const distRods = (item.wLen / (item.distGap/12)) * item.wid;
-            rodWeight = (mainRods * item.mainFactor + distRods * item.distFactor) * item.count;
-        } else if (type === 'septicTank') {
-            const wallPerimeter = 2 * (item.len + item.wid);
-            const brickVol = wallPerimeter * item.depth * (10/12);
-            res.bricks += Math.ceil(brickVol * 10 * item.count);
-            vol = (item.len * item.wid * (3/12) + item.len * item.wid * (4/12)) * item.count;
-            rodWeight = (item.len * item.wid * 0.5) * item.count; 
-        }
-
-        if (vol > 0) {
-            const dry = vol * 1.54;
-            const aggr = (dry / 5.5) * 3;
-            res.cement += (dry / 5.5) / 1.25;
-            res.sand += (dry / 5.5) * 1.5;
-            if (item.aggregateType === 'chips') res.chips += aggr; else res.stone += aggr;
-        }
+        let vol = 0; let rodWeight = 0;
+        if (type === 'foundation') { vol = item.count * item.len * item.wid * (item.thick / 12); rodWeight = (item.rodLong * item.wid + item.rodWidth * item.len) * item.count * item.rodFactor; }
+        else if (type === 'column') { vol = item.count * (item.len/12) * (item.wid/12) * item.height; const mainRodLen = item.rods * item.height * item.count; const ringsCount = (item.height * 12) / item.ringGap; const ringLen = 2 * (item.len + item.wid) / 12; rodWeight = (mainRodLen * item.rodFactor) + (ringsCount * ringLen * item.count * item.ringRodFactor); }
+        else if (type === 'beam') { vol = item.len * (item.wid/12) * (item.height/12); const mainRodLen = item.rods * item.len; const ringsCount = (item.len * 12) / item.ringGap; const ringLen = 2 * (item.height + item.wid) / 12; rodWeight = (mainRodLen * item.rodFactor) + (ringsCount * ringLen * item.ringRodFactor); }
+        else if (type === 'slab') { vol = item.len * item.wid * (item.thick/12); const gapFt = item.rodGap / 12; const rodsLen = (item.len / gapFt * item.wid) + (item.wid / gapFt * item.len); rodWeight = rodsLen * item.rodFactor; }
+        else if (type === 'stair') { const flightVol = (item.wLen * item.wid * (item.thick / 12)); const stepsVol = (0.5 * (item.riser / 12) * (item.tread / 12) * item.wid) * item.steps; const landingVol = (item.lLen * item.lWid * (item.thick / 12)); vol = (flightVol + stepsVol + landingVol) * item.count; const mainRods = (item.wid / (item.mainGap/12)) * item.wLen; const distRods = (item.wLen / (item.distGap/12)) * item.wid; rodWeight = (mainRods * item.mainFactor + distRods * item.distFactor) * item.count; }
+        else if (type === 'septicTank') { const wallPerimeter = 2 * (item.len + item.wid); const brickVol = wallPerimeter * item.depth * (10/12); res.bricks += Math.ceil(brickVol * 10 * item.count); vol = (item.len * item.wid * (3/12) + item.len * item.wid * (4/12)) * item.count; rodWeight = (item.len * item.wid * 0.5) * item.count; }
+        if (vol > 0) { const dry = vol * 1.54; const aggr = (dry / 5.5) * 3; res.cement += (dry / 5.5) / 1.25; res.sand += (dry / 5.5) * 1.5; if (item.aggregateType === 'chips') res.chips += aggr; else res.stone += aggr; }
         res.rod += rodWeight;
       });
       return res;
     };
-
     sectionTotals.foundation = processSection(foundations, 'foundation');
     sectionTotals.column = processSection(columns, 'column');
     sectionTotals.beam = processSection(beams, 'beam');
     sectionTotals.slab = processSection(slabs, 'slab');
     sectionTotals.stair = processSection(stairs, 'stair');
     sectionTotals.septicTank = processSection(septicTanks, 'septicTank');
-    
     let brRes = { cement: 0, sand: 0, bricks: 0 };
-    brickworks.forEach(b => {
-      const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10));
-      brRes.bricks += count;
-      const vol = (b.len * b.height * (b.thick / 12));
-      const dry = vol * 0.35; 
-      brRes.cement += (dry / 5) / 1.25; brRes.sand += (dry / 5) * 4;
-    });
+    brickworks.forEach(b => { const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10)); brRes.bricks += count; const vol = (b.len * b.height * (b.thick / 12)); const dry = vol * 0.35; brRes.cement += (dry / 5) / 1.25; brRes.sand += (dry / 5) * 4; });
     sectionTotals.brickwork = brRes;
-
     let pRes = { cement: 0, sand: 0 };
-    plasters.forEach(p => {
-      const area = p.len * p.height;
-      const vol = (area * (p.thick / 12)) * p.sides;
-      const dry = vol * 1.54;
-      pRes.cement += (dry / 5) / 1.25; pRes.sand += (dry / 5) * 4;
-    });
+    plasters.forEach(p => { const area = p.len * p.height; const vol = (area * (p.thick / 12)) * p.sides; const dry = vol * 1.54; pRes.cement += (dry / 5) / 1.25; pRes.sand += (dry / 5) * 4; });
     sectionTotals.plaster = pRes;
-
     let ftRes = { floorTiles: 0, cement: 0, sand: 0 };
-    floorTiles.forEach(f => {
-      const area = f.len * f.wid;
-      if (area > 0 && f.tLen > 0 && f.tWid > 0) {
-        ftRes.floorTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100));
-        const dry = area * (1/12) * 1.54;
-        ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4;
-      }
-    });
+    floorTiles.forEach(f => { const area = f.len * f.wid; if (area > 0 && f.tLen > 0 && f.tWid > 0) { ftRes.floorTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (1/12) * 1.54; ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4; } });
     sectionTotals.floorTiles = ftRes;
-
     let wtRes = { wallTiles: 0, cement: 0, sand: 0 };
-    wallTiles.forEach(f => {
-      const area = f.len * f.height;
-      if (area > 0 && f.tLen > 0 && f.tWid > 0) {
-        wtRes.wallTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100));
-        const dry = area * (0.5/12) * 1.54;
-        wtRes.cement += (dry / 5) / 1.25; wtRes.sand += (dry / 5) * 4;
-      }
-    });
+    wallTiles.forEach(f => { const area = f.len * f.height; if (area > 0 && f.tLen > 0 && f.tWid > 0) { wtRes.wallTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (0.5/12) * 1.54; wtRes.cement += (dry / 5) / 1.25; wtRes.sand += (dry / 5) * 4; } });
     sectionTotals.wallTiles = wtRes;
-
     let swRes = { bricks: 0, cement: 0, sand: 0 };
-    soakWells.forEach(s => {
-      const brickVol = (Math.PI * s.dia) * s.depth * (5/12);
-      swRes.bricks += Math.ceil(brickVol * 5 * s.count);
-      const dry = brickVol * 0.35 * s.count;
-      swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4;
-    });
+    soakWells.forEach(s => { const brickVol = (Math.PI * s.dia) * s.depth * (5/12); swRes.bricks += Math.ceil(brickVol * 5 * s.count); const dry = brickVol * 0.35 * s.count; swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4; });
     sectionTotals.soakWell = swRes;
-
-    Object.values(sectionTotals).forEach((res: any) => {
-      total.cement += res.cement || 0; total.sand += res.sand || 0; 
-      total.stone += res.stone || 0; total.chips += res.chips || 0;
-      total.rod += res.rod || 0; total.bricks += res.bricks || 0;
-      total.floorTiles += (res.floorTiles || 0); total.wallTiles += (res.wallTiles || 0);
-    });
-
+    Object.values(sectionTotals).forEach((res: any) => { total.cement += res.cement || 0; total.sand += res.sand || 0; total.stone += res.stone || 0; total.chips += res.chips || 0; total.rod += res.rod || 0; total.bricks += res.bricks || 0; total.floorTiles += (res.floorTiles || 0); total.wallTiles += (res.wallTiles || 0); });
     total.labor = slabs.reduce((acc, s) => acc + (s.len * s.wid), 0);
     total.doors = designObjects.filter(o => o.type === 'opening' && o.subType.includes('door')).length;
     total.windows = designObjects.filter(o => o.type === 'opening' && o.subType === 'window').length;
-
     return { total, sectionTotals };
   };
-
   const { total, sectionTotals } = calcAll();
   const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
-
   const grandTotalCost = useMemo(() => {
     return (
       Math.ceil(total.cement) * prices.cement +
@@ -1257,7 +1117,6 @@ function EstimationView({
       prices.electric + prices.fittings + prices.paint + prices.others
     );
   }, [total, prices]);
-
   const getAdvice = async () => {
     setLoadingAdvice(true);
     const result = await getConstructionAdvice({
@@ -1272,22 +1131,15 @@ function EstimationView({
     if (result && 'advice' in result) setAdvice(result.advice);
     setLoadingAdvice(false);
   };
-
   return (
     <div className="flex flex-col h-[100svh] w-full bg-slate-50 overflow-hidden">
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
-          <h2 className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2>
-        </div>
+        <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button><h2 className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2></div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-10 md:h-12 text-[10px] md:text-sm hover:bg-slate-100 font-black gap-2 border-slate-300" onClick={onSave}><Save className="w-4 h-4 text-green-600"/> SAVE</Button>
-          <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 md:h-12 text-[10px] md:text-xs font-black">
-            {loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice 
-          </Button>
+          <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 md:h-12 text-[10px] md:text-xs font-black">{loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice </Button>
         </div>
       </div>
-
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-4 md:p-6 pb-24">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1307,7 +1159,6 @@ function EstimationView({
                   <TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Soak Well</TabsTrigger>
                   <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-black">Total Materials</TabsTrigger>
                 </TabsList>
-
                 <TabsContent value="foundation" className="space-y-6 m-0">
                   {foundations.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1327,7 +1178,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new base </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="column" className="space-y-6 m-0">
                   {columns.map((c, idx) => (
                     <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1348,7 +1198,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="beam" className="space-y-6 m-0">
                   {beams.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1368,7 +1217,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new beam </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="slab" className="space-y-6 m-0">
                   {slabs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1386,7 +1234,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new roof </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="stair" className="space-y-6 m-0">
                   {stairs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1412,7 +1259,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new stair </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="brickwork" className="space-y-6 m-0">
                   {brickworks.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1427,7 +1273,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new brickwork </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="plaster" className="space-y-6 m-0">
                   {plasters.map((p, idx) => (
                     <div key={p.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1443,7 +1288,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new plaster </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="floorTiles" className="space-y-6 m-0">
                   {floorTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1460,7 +1304,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new floor tiles </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="wallTiles" className="space-y-6 m-0">
                   {wallTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1477,7 +1320,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new wall tiles </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="septicTank" className="space-y-6 m-0">
                   {septicTanks.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1494,7 +1336,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new tank </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="soakWell" className="space-y-6 m-0">
                   {soakWells.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1509,7 +1350,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new soak well </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-
                 <TabsContent value="total" className="space-y-6 m-0">
                   <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-6">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-100 pb-4 gap-4">
@@ -1519,7 +1359,6 @@ function EstimationView({
                         <span className="text-xl font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
                       </div>
                     </div>
-                    
                     <div className="space-y-4">
                       <CostRow label="Cement" value={total.cement} unit="bag" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} />
                       <CostRow label="Sand" value={total.sand} unit="CFT" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} />
@@ -1532,7 +1371,6 @@ function EstimationView({
                       <CostRow label="Labor Cost (Slab Area)" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
                       <CostRow label="Doors (from design)" value={total.doors} unit="pcs" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
                       <CostRow label="Windows (from design)" value={total.windows} unit="pcs" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
-                      
                       <div className="pt-4 mt-6 border-t border-emerald-200 space-y-4">
                         <h4 className="text-[12px] font-black text-emerald-800 uppercase tracking-widest mb-2 flex items-center gap-2"><Plus className="w-4 h-4" /> Other Expenses</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1546,15 +1384,8 @@ function EstimationView({
                   </div>
                 </TabsContent>
               </Tabs>
-
-              {advice && (
-                <div className="bg-white p-5 rounded-xl border shadow-sm">
-                  <h3 className="text-md font-black text-emerald-700 mb-3 flex items-center gap-2 uppercase">⭐ AI Specialist Advice</h3>
-                  <div className="text-[12px] md:text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div>
-                </div>
-              )}
+              {advice && (<div className="bg-white p-5 rounded-xl border shadow-sm"><h3 className="text-md font-black text-emerald-700 mb-3 flex items-center gap-2 uppercase">⭐ AI Specialist Advice</h3><div className="text-[12px] md:text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div></div>)}
             </div>
-
             <div className="space-y-6">
               <div className="bg-slate-800 text-white p-5 rounded-xl shadow-lg sticky top-6">
                 <h3 className="text-md font-black mb-4 border-b border-white/20 pb-2 flex items-center gap-2 uppercase"><Calculator className="w-4 h-4" /> Instant Summary </h3>
@@ -1574,17 +1405,8 @@ function EstimationView({
   );
 }
 
-// -------------------------------------------------------------------------------------------------
-// Helper Components
-// -------------------------------------------------------------------------------------------------
-
 function InputField({ label, value, onChange }: { label: string, value: number, onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-[11px] font-black text-slate-600 uppercase tracking-tight">{label}</Label>
-      <Input type="number" value={value === 0 ? "" : value} onChange={e => onChange(e.target.value)} placeholder="0" className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm" />
-    </div>
-  );
+  return (<div className="space-y-1.5"><Label className="text-[11px] font-black text-slate-600 uppercase tracking-tight">{label}</Label><Input type="number" value={value === 0 ? "" : value} onChange={e => onChange(e.target.value)} placeholder="0" className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm" /></div>);
 }
 
 function SectionResult({ res }: { res: any }) {
@@ -1609,11 +1431,7 @@ function SectionResult({ res }: { res: any }) {
 
 function ResultRow({ label, value, unit, small, dark }: { label: string, value: number, unit: string, small?: boolean, dark?: boolean }) {
   return (
-    <div className={cn(
-      "flex justify-between items-center rounded-lg border shadow-sm",
-      small ? "p-2 bg-white" : "p-3 bg-white/10",
-      dark ? "bg-white border-emerald-100" : "border-slate-100"
-    )}>
+    <div className={cn("flex justify-between items-center rounded-lg border shadow-sm", small ? "p-2 bg-white" : "p-3 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
       <span className={cn("font-black uppercase", small ? "text-[10px]" : "text-[12px]", dark ? "text-emerald-900" : "text-slate-600")}>{label}</span>
       <span className={cn("font-black", small ? "text-[11px]" : "text-[14px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
     </div>
@@ -1621,28 +1439,12 @@ function ResultRow({ label, value, unit, small, dark }: { label: string, value: 
 }
 
 function CostRow({ label, value, unit, price, onPriceChange }: { label: string, value: number, unit: string, price: number, onPriceChange: (v: number) => void }) {
-  const qty = Math.ceil(value);
-  const subTotal = qty * price;
+  const qty = Math.ceil(value); const subTotal = qty * price;
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-4 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
-      <div className="md:col-span-3">
-        <span className="text-[11px] md:text-xs font-black text-slate-700 block uppercase leading-tight mb-1">{label}</span>
-        <span className="text-[10px] font-black text-slate-400 uppercase">{qty} {unit}</span>
-      </div>
-      <div className="md:col-span-6 flex flex-col gap-1.5">
-        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Rate / Price (৳)</Label>
-        <Input 
-          type="number" 
-          value={price === 0 ? "" : price} 
-          onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} 
-          className="h-12 w-full text-sm md:text-base font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-          placeholder="Enter Rate" 
-        />
-      </div>
-      <div className="md:col-span-3 text-right flex flex-col items-end">
-        <span className="text-[9px] uppercase font-black text-slate-400 block tracking-tight mb-1">Sub-total</span>
-        <span className="text-sm md:text-lg font-black text-emerald-600 leading-none">৳ {subTotal.toLocaleString('bn-BD')}</span>
-      </div>
+      <div className="md:col-span-3"><span className="text-[11px] md:text-xs font-black text-slate-700 block uppercase leading-tight mb-1">{label}</span><span className="text-[10px] font-black text-slate-400 uppercase">{qty} {unit}</span></div>
+      <div className="md:col-span-6 flex flex-col gap-1.5"><Label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Rate / Price (৳)</Label><Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-12 w-full text-sm md:text-base font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="Enter Rate" /></div>
+      <div className="md:col-span-3 text-right flex flex-col items-end"><span className="text-[9px] uppercase font-black text-slate-400 block tracking-tight mb-1">Sub-total</span><span className="text-sm md:text-lg font-black text-emerald-600 leading-none">৳ {subTotal.toLocaleString('bn-BD')}</span></div>
     </div>
   );
 }
@@ -1656,17 +1458,7 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span>
-      <Input 
-        className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" 
-        value={value} 
-        onChange={e => onChange(e.target.value)} 
-        disabled={disabled} 
-        onBlur={onBlur} 
-        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} 
-      />
-    </div>
-  );
+  return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
+    
