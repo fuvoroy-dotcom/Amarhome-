@@ -95,6 +95,7 @@ const ROD_OPTIONS = [
 export default function EstimatorClient() {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement>(null);
+  const bottomBarRef = useRef<HTMLDivElement>(null);
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<DesignObject[]>([]);
@@ -469,6 +470,13 @@ export default function EstimatorClient() {
   const scrollCanvas = (dx: number, dy: number) => {
     if (canvasRef.current) {
       canvasRef.current.scrollBy({ left: dx, top: dy, behavior: 'smooth' });
+    }
+  };
+
+  const scrollBottomBar = (direction: 'left' | 'right') => {
+    if (bottomBarRef.current) {
+      const scrollAmount = 300;
+      bottomBarRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
     }
   };
 
@@ -926,40 +934,63 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-20 w-full bg-white/90 backdrop-blur-md border-t flex items-center shrink-0 z-40 overflow-x-auto no-scrollbar select-none">
-            <div className="flex items-center px-4 gap-4 md:gap-6 min-w-max h-full">
-              {firstSelectedObject ? (
-                <div className="flex items-center gap-4 md:gap-6 flex-nowrap py-1">
-                  <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase">সংযুক্ত</span></div>
-                  <div className="flex items-center gap-2 md:gap-3 flex-nowrap">
-                    <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
-                    <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
-                    <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
-                    <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
-                    <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
-                    {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
-                    {firstSelectedObject.type === 'text' && (
-                      <>
-                        <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-10 w-full text-xs md:text-sm font-black border-slate-400 bg-white shadow-sm" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
-                        <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
-                        <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-400" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
-                      </>
-                    )}
-                    <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
-                      <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
-                      <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-4 h-4 text-blue-500" /></Button>
+          <div className="h-20 w-full bg-white/90 backdrop-blur-md border-t flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute left-0 h-full w-8 z-50 bg-white/40 border-r opacity-0 group-hover/bbar:opacity-100 transition-opacity"
+              onClick={() => scrollBottomBar('left')}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            <div 
+              ref={bottomBarRef} 
+              className="flex-1 h-full overflow-x-auto no-scrollbar select-none"
+            >
+              <div className="flex items-center px-4 gap-4 md:gap-6 min-w-max h-full">
+                {firstSelectedObject ? (
+                  <div className="flex items-center gap-4 md:gap-6 flex-nowrap py-1">
+                    <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase">সংযুক্ত</span></div>
+                    <div className="flex items-center gap-2 md:gap-3 flex-nowrap">
+                      <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
+                      {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
+                      {firstSelectedObject.type === 'text' && (
+                        <>
+                          <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-10 w-full text-xs md:text-sm font-black border-slate-400 bg-white shadow-sm" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
+                          <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
+                          <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-400" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
+                        </>
+                      )}
+                      <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-4 h-4 text-blue-500" /></Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
+                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
-                    {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
+                ) : (
+                  <div className="w-full flex items-center justify-center text-slate-300 italic text-[10px] md:text-[12px] uppercase tracking-widest font-black">
+                    Select Object to View Properties
                   </div>
-                </div>
-              ) : (
-                <div className="w-full flex items-center justify-center text-slate-300 italic text-[10px] md:text-[12px] uppercase tracking-widest font-black">
-                  Select Object to View Properties
-                </div>
-              )}
+                )}
+              </div>
             </div>
+
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute right-0 h-full w-8 z-50 bg-white/40 border-l opacity-0 group-hover/bbar:opacity-100 transition-opacity"
+              onClick={() => scrollBottomBar('right')}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -1138,7 +1169,7 @@ function EstimationView({
     setLoadingAdvice(false);
   };
   return (
-    <div className="flex flex-col h-[100svh] w-full bg-slate-50 overflow-hidden">
+    <div className="flex-col h-[100svh] w-full bg-slate-50 overflow-hidden flex">
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
         <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button><h2 className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2></div>
         <div className="flex items-center gap-2">
@@ -1466,4 +1497,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
