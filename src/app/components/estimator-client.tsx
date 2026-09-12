@@ -481,7 +481,6 @@ export default function EstimatorClient() {
         const delta = e.deltaY > 0 ? -5 : 5; 
         setZoom(prev => Math.min(250, Math.max(0, prev + delta)));
       } else {
-        // Scroll vertically and horizontally based on wheel movement
         container.scrollTop += e.deltaY;
         container.scrollLeft += e.deltaX;
       }
@@ -926,11 +925,11 @@ export default function EstimatorClient() {
               <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" /></div>
             </div>
           </div>
-          <div className="h-16 bg-white/90 backdrop-blur-md border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
+          <div className="h-20 bg-white/90 backdrop-blur-md border-t flex items-center px-4 gap-4 md:gap-6 shrink-0 z-40 overflow-x-auto no-scrollbar">
             {firstSelectedObject ? (
-              <div className="flex items-center gap-4 md:gap-6 min-w-max">
+              <div className="flex items-center gap-4 md:gap-6 min-w-max flex-nowrap py-2">
                 <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase">সংযুক্ত</span></div>
-                <div className="flex items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 md:gap-3 flex-nowrap">
                   <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
                   <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
@@ -944,13 +943,13 @@ export default function EstimatorClient() {
                       <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-400" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
                     </>
                   )}
-                  <div className="flex items-center gap-1 border-l pl-2">
+                  <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
                     <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
                     <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-4 h-4 text-blue-500" /></Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4">
-                  {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
+                <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
+                  {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
                 </div>
               </div>
             ) : <div className="flex items-center justify-center w-full text-slate-300 italic text-[10px] md:text-[12px] uppercase tracking-widest font-black">Select Object to View Properties</div>}
@@ -1460,5 +1459,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
-    
