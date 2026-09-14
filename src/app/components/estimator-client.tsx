@@ -15,7 +15,8 @@ import {
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
   Layers, Boxes, Plus, X, Droplets,
-  ArrowUpToLine, ArrowDownToLine, CopyPlus
+  ArrowUpToLine, ArrowDownToLine, CopyPlus,
+  Download, FileText
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,8 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-  DialogClose
+  DialogClose,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { 
   Tabs, 
@@ -118,6 +120,14 @@ export default function EstimatorClient() {
   const [currentDesignId, setCurrentDesignId] = useState(Math.random().toString(36).substr(2, 9));
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
+
+  // Export State
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportSettings, setExportSettings] = useState({
+    format: 'png' as 'png' | 'pdf',
+    area: 'all' as 'all' | 'custom',
+    x: 0, y: 0, w: 20, h: 20
+  });
 
   // Estimation State
   const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
@@ -229,23 +239,52 @@ export default function EstimatorClient() {
     }
   }, [designObjects, selectedObjectIds, toast]);
 
-  const copyAsImage = async () => {
+  const handleExport = async () => {
     const workspace = document.getElementById('canvas-workspace-inner');
     if (!workspace) return;
     try {
-      const capture = await html2canvas(workspace, { backgroundColor: '#ffffff', scale: 2 });
-      capture.toBlob(async (blob) => {
-        if (blob) {
-          try {
-            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-            toast({ title: "ইমেজ কপি সফল", description: "ডিজাইনটি ইমেজ হিসেবে ক্লিপবোর্ডে কপি হয়েছে।" });
-          } catch (err) {
-            toast({ variant: "destructive", title: "ত্রুটি", description: "ক্লিপবোর্ডে ইমেজ রাইট করার অনুমতি নেই।" });
-          }
+      const scale = 2;
+      const capture = await html2canvas(workspace, { backgroundColor: '#ffffff', scale: scale, useCORS: true });
+      
+      let finalCanvas = capture;
+      
+      if (exportSettings.area === 'custom') {
+        const cropX = (CANVAS_OFFSET + exportSettings.x * zoom) * scale;
+        const cropY = (CANVAS_OFFSET + exportSettings.y * zoom) * scale;
+        const cropW = (exportSettings.w * zoom) * scale;
+        const cropH = (exportSettings.h * zoom) * scale;
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = cropW;
+        tempCanvas.height = cropH;
+        const ctx = tempCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(capture, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          finalCanvas = tempCanvas;
         }
-      });
+      }
+
+      if (exportSettings.format === 'png') {
+        const link = document.createElement('a');
+        link.download = `${projectName || 'design'}.png`;
+        link.href = finalCanvas.toDataURL('image/png');
+        link.click();
+        toast({ title: "সফল", description: "ইমেজটি ডাউনলোড করা হয়েছে।" });
+      } else {
+        const { jsPDF } = await import('jspdf');
+        const pdf = new jsPDF({
+          orientation: finalCanvas.width > finalCanvas.height ? 'l' : 'p',
+          unit: 'px',
+          format: [finalCanvas.width, finalCanvas.height]
+        });
+        pdf.addImage(finalCanvas.toDataURL('image/png'), 'PNG', 0, 0, finalCanvas.width, finalCanvas.height);
+        pdf.save(`${projectName || 'design'}.pdf`);
+        toast({ title: "সফল", description: "পিডিএফটি ডাউনলোড করা হয়েছে।" });
+      }
+      setIsExportDialogOpen(false);
     } catch (e) {
-      toast({ variant: "destructive", title: "ত্রুটি", description: "ইমেজ তৈরি করতে সমস্যা হয়েছে।" });
+      console.error(e);
+      toast({ variant: "destructive", title: "ত্রুটি", description: "এক্সপোর্ট করতে সমস্যা হয়েছে।" });
     }
   };
 
@@ -838,7 +877,7 @@ export default function EstimatorClient() {
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
         <RibbonButton icon={<CopyPlus className="text-teal-500" />} label="Duplicate" onClick={duplicateProject} />
-        <RibbonButton icon={<ImageIcon />} label="As Image" onClick={copyAsImage} />
+        <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} />
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setViewMode('estimate')} />
@@ -934,14 +973,14 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-20 w-full bg-white/90 backdrop-blur-md border-t flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-24 w-full bg-white/90 backdrop-blur-md border-t flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
-              variant="ghost" 
+              variant="secondary" 
               size="icon" 
-              className="absolute left-0 h-full w-8 z-50 bg-white/40 border-r opacity-0 group-hover/bbar:opacity-100 transition-opacity"
+              className="absolute left-0 h-full w-10 z-50 rounded-none border-r opacity-60 hover:opacity-100 transition-opacity bg-slate-100"
               onClick={() => scrollBottomBar('left')}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </Button>
             
             <div 
@@ -968,7 +1007,7 @@ export default function EstimatorClient() {
                       )}
                       <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
                         <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-4 h-4 text-blue-500" /></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
@@ -984,16 +1023,17 @@ export default function EstimatorClient() {
             </div>
 
             <Button 
-              variant="ghost" 
+              variant="secondary" 
               size="icon" 
-              className="absolute right-0 h-full w-8 z-50 bg-white/40 border-l opacity-0 group-hover/bbar:opacity-100 transition-opacity"
+              className="absolute right-0 h-full w-10 z-50 rounded-none border-l opacity-60 hover:opacity-100 transition-opacity bg-slate-100"
               onClick={() => scrollBottomBar('right')}
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
         </div>
       </div>
+
       <Dialog open={isOpenDialogOpen} onOpenChange={setIsOpenDialogOpen}>
         <DialogContent className="max-w-md bg-white p-0 overflow-hidden rounded-xl border shadow-2xl">
           <DialogHeader className="p-6 bg-slate-50 border-b"><DialogTitle className="flex items-center gap-2 text-slate-800"><FolderOpen className="w-5 h-5 text-amber-500" />Saved Designs</DialogTitle></DialogHeader>
@@ -1009,6 +1049,68 @@ export default function EstimatorClient() {
               ) : (<div className="p-8 text-center text-slate-400 italic">No saved designs</div>)}
             </div>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="max-w-md bg-white rounded-xl border shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Download className="w-5 h-5 text-blue-500" /> Export Design</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="font-black text-slate-700 uppercase text-[10px]">Export Format</Label>
+              <Select value={exportSettings.format} onValueChange={(v: any) => setExportSettings({...exportSettings, format: v})}>
+                <SelectTrigger className="font-black">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="png" className="font-black">Image (PNG)</SelectItem>
+                  <SelectItem value="pdf" className="font-black">Document (PDF)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-black text-slate-700 uppercase text-[10px]">Select Area</Label>
+              <Select value={exportSettings.area} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}>
+                <SelectTrigger className="font-black">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="font-black">Full Workspace</SelectItem>
+                  <SelectItem value="custom" className="font-black">Custom Selection</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {exportSettings.area === 'custom' && (
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="space-y-1">
+                  <Label className="text-[9px] font-black uppercase text-slate-400">X Position (ft)</Label>
+                  <Input type="number" value={exportSettings.x} onChange={e => setExportSettings({...exportSettings, x: parseFloat(e.target.value) || 0})} className="font-black" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Y Position (ft)</Label>
+                  <Input type="number" value={exportSettings.y} onChange={e => setExportSettings({...exportSettings, y: parseFloat(e.target.value) || 0})} className="font-black" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Width (ft)</Label>
+                  <Input type="number" value={exportSettings.w} onChange={e => setExportSettings({...exportSettings, w: parseFloat(e.target.value) || 0})} className="font-black" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Height (ft)</Label>
+                  <Input type="number" value={exportSettings.h} onChange={e => setExportSettings({...exportSettings, h: parseFloat(e.target.value) || 0})} className="font-black" />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleExport} className="w-full bg-blue-600 hover:bg-blue-700 font-black gap-2">
+              {exportSettings.format === 'png' ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+              EXPORT {exportSettings.format.toUpperCase()}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
