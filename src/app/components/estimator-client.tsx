@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -108,7 +107,6 @@ export default function EstimatorClient() {
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
   
-  // Adjusted zoom so that at 40 zoom, 20ft is visible (scale factor 0.4)
   const [zoom, setZoom] = useState(40);
   const displayZoom = useMemo(() => zoom * 0.4, [zoom]);
 
@@ -125,14 +123,12 @@ export default function EstimatorClient() {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
 
-  // Dynamic Grid Config based on Zoom (LOD logic)
   const gridConfig = useMemo(() => {
     if (zoom < 10) return { interval: 20, minor: 5, labelScale: 0.8 };
     if (zoom < 25) return { interval: 10, minor: 2, labelScale: 0.9 };
     return { interval: 4, minor: 1, labelScale: 1.0 };
   }, [zoom]);
 
-  // Export State
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportSettings, setExportSettings] = useState({
     format: 'png' as 'png' | 'pdf',
@@ -140,7 +136,6 @@ export default function EstimatorClient() {
     xStart: 0, xEnd: 20, yStart: 0, yEnd: 20
   });
 
-  // Estimation State
   const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
   const [columns, setColumns] = useState([{ id: '1', count: 0, len: 0, wid: 0, height: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
   const [beams, setBeams] = useState([{ id: '1', len: 0, height: 0, wid: 0, rods: 0, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
@@ -251,28 +246,130 @@ export default function EstimatorClient() {
   }, [designObjects, selectedObjectIds, toast]);
 
   const handleExport = async () => {
-    const workspace = document.getElementById('canvas-workspace-inner');
-    if (!workspace) return;
     try {
-      const scale = 2;
-      const capture = await html2canvas(workspace, { backgroundColor: '#ffffff', scale: scale, useCORS: true });
-      
-      let finalCanvas = capture;
-      
-      if (exportSettings.area === 'custom') {
-        const cropX = (CANVAS_OFFSET + exportSettings.xStart * displayZoom) * scale;
-        const cropY = (CANVAS_OFFSET + exportSettings.yStart * displayZoom) * scale;
-        const cropW = (Math.abs(exportSettings.xEnd - exportSettings.xStart) * displayZoom) * scale;
-        const cropH = (Math.abs(exportSettings.yEnd - exportSettings.yStart) * displayZoom) * scale;
+      let finalCanvas;
+
+      if (exportSettings.area === 'all') {
+        const workspace = document.getElementById('canvas-workspace-inner');
+        if (!workspace) return;
+        finalCanvas = await html2canvas(workspace, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
+      } else {
+        const xMin = Math.min(exportSettings.xStart, exportSettings.xEnd);
+        const xMax = Math.max(exportSettings.xStart, exportSettings.xEnd);
+        const yMin = Math.min(exportSettings.yStart, exportSettings.yEnd);
+        const yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
         
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = cropW;
-        tempCanvas.height = cropH;
-        const ctx = tempCanvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(capture, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-          finalCanvas = tempCanvas;
-        }
+        const wFt = xMax - xMin;
+        const hFt = yMax - yMin;
+        
+        const exportZoom = 50;
+        const pW = wFt * exportZoom;
+        const pH = hFt * exportZoom;
+        
+        const exportContainer = document.createElement('div');
+        exportContainer.style.position = 'absolute';
+        exportContainer.style.left = '-99999px';
+        exportContainer.style.top = '-99999px';
+        exportContainer.style.width = `${pW}px`;
+        exportContainer.style.height = `${pH}px`;
+        exportContainer.style.backgroundColor = '#ffffff';
+        exportContainer.style.overflow = 'hidden';
+        document.body.appendChild(exportContainer);
+
+        designObjects.forEach(obj => {
+          let ox = 0, oy = 0;
+          if (obj.rotation === 90) ox = obj.h;
+          else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; }
+          else if (obj.rotation === 270) oy = obj.w;
+
+          const leftPx = (obj.x - xMin + ox) * exportZoom;
+          const topPx = (obj.y - yMin + oy) * exportZoom;
+          const widthPx = obj.w * exportZoom;
+          const heightPx = obj.h * exportZoom;
+
+          const objDiv = document.createElement('div');
+          objDiv.style.position = 'absolute';
+          objDiv.style.left = `${leftPx}px`;
+          objDiv.style.top = `${topPx}px`;
+          objDiv.style.width = `${widthPx}px`;
+          objDiv.style.height = `${heightPx}px`;
+          objDiv.style.transformOrigin = '0 0';
+          objDiv.style.transform = `rotate(${obj.rotation}deg)`;
+          
+          const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
+          if (isStructure) {
+            objDiv.style.backgroundColor = obj.color;
+            objDiv.style.border = '1px solid rgba(0,0,0,0.5)';
+          }
+          
+          const sw = 1 / exportZoom;
+          let svgContent = '';
+          if (obj.type === 'opening') {
+            if (obj.subType === 'window') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 3}"/><line x1="0" y1="${obj.h * 0.25}" x2="${obj.w}" y2="${obj.h * 0.25}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/><line x1="0" y1="${obj.h * 0.75}" x2="${obj.w}" y2="${obj.h * 0.75}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/></svg>`;
+            } else if (obj.subType === 'door-1') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            } else if (obj.subType === 'door-2') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            } else if (obj.subType === 'door-3') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="0" x2="${obj.w}" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            } else if (obj.subType === 'door-4') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="0" x2="0" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            } else if (obj.subType === 'double-door') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            } else if (obj.subType === 'sliding-door') {
+              svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
+            }
+          } else if (obj.subType === 'stair-u') {
+            const steps = obj.stepCount || 15;
+            const landingH = obj.h * 0.25;
+            const flightW = obj.w * 0.3;
+            const midFlightH = obj.h - 2 * landingH;
+            const sCount = Math.floor(steps / 3);
+            const stepH = midFlightH / sCount;
+            const stepW = (obj.w - 2 * flightW) / sCount;
+            let stairLines = '';
+            for (let i = 0; i < sCount; i++) {
+              stairLines += `<line x1="0" y1="${obj.h - landingH - (i * stepH)}" x2="${flightW}" y2="${obj.h - landingH - (i * stepH)}" stroke="${obj.color}" stroke-width="${sw}"/>`;
+              stairLines += `<line x1="${flightW + (i * stepW)}" y1="${landingH}" x2="${flightW + (i * stepW)}" y2="0" stroke="${obj.color}" stroke-width="${sw}"/>`;
+              stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i * stepH)}" x2="${obj.w}" y2="${landingH + (i * stepH)}" stroke="${obj.color}" stroke-width="${sw}"/>`;
+            }
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          } else if (obj.subType === 'stair-dogleg') {
+            const steps = obj.stepCount || 10;
+            const landingH = obj.h * 0.2;
+            const railW = obj.w * 0.1;
+            const flightW = (obj.w - railW) / 2;
+            const midH = obj.h - landingH;
+            const sCount = Math.floor(steps / 2);
+            const stepH = midH / sCount;
+            let stairLines = '';
+            for (let i = 0; i < sCount; i++) {
+              stairLines += `<line x1="0" y1="${landingH + (i+1) * stepH}" x2="${flightW}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
+              stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i+1) * stepH}" x2="${obj.w}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
+            }
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          } else if (obj.type === 'text') {
+            objDiv.innerText = obj.textContent || obj.label;
+            objDiv.style.color = obj.color;
+            objDiv.style.display = 'flex';
+            objDiv.style.alignItems = 'center';
+            objDiv.style.justifyContent = 'center';
+            objDiv.style.padding = '4px';
+            objDiv.style.textAlign = 'center';
+            objDiv.style.fontFamily = 'Inter, sans-serif';
+            objDiv.style.fontWeight = obj.isBold ? '900' : 'normal';
+            objDiv.style.fontSize = `${(obj.fontSize || 14) * (exportZoom / 16)}px`;
+          }
+
+          if (svgContent) {
+            objDiv.innerHTML = svgContent;
+          }
+          exportContainer.appendChild(objDiv);
+        });
+
+        finalCanvas = await html2canvas(exportContainer, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
+        document.body.removeChild(exportContainer);
       }
 
       if (exportSettings.format === 'png') {
@@ -283,7 +380,6 @@ export default function EstimatorClient() {
         toast({ title: "সফল", description: "ইমেজটি ডাউনলোড করা হয়েছে।" });
       } else {
         const { jsPDF } = await import('jspdf');
-        // A4 dimension in points
         const pdf = new jsPDF({
           orientation: finalCanvas.width > finalCanvas.height ? 'l' : 'p',
           unit: 'mm',
@@ -543,7 +639,7 @@ export default function EstimatorClient() {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -5 : 5; 
-        setZoom(prev => Math.min(250, Math.max(0, prev + delta)));
+        setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
       } else {
         container.scrollTop += e.deltaY;
         container.scrollLeft += e.deltaX;
@@ -822,7 +918,7 @@ export default function EstimatorClient() {
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
           <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
+          <line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           {Array.from({ length: sCount }).map((_, i) => (
             <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
           ))}
@@ -983,7 +1079,7 @@ export default function EstimatorClient() {
               <Slider value={[zoom]} max={250} min={5} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
               <div className="flex items-center gap-1 ml-1 md:ml-2">
-                <Input type="number" value={zoom} onChange={(e) => setZoom(Math.min(250, Math.max(5, parseInt(e.target.value) || 5)))} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
+                <Input type="number" value={zoom} onChange={(e) => { const val = parseInt(e.target.value); if (!isNaN(val)) { setZoom(Math.min(250, val)); } else { setZoom(0); } }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
                 <span className="text-[9px] font-black text-slate-400 uppercase">%</span>
               </div>
             </div>
