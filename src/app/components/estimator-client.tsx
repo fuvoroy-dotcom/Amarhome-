@@ -121,6 +121,13 @@ export default function EstimatorClient() {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
 
+  // Dynamic Grid Config based on Zoom (LOD logic)
+  const gridConfig = useMemo(() => {
+    if (zoom < 10) return { interval: 20, minor: 5, labelScale: 0.8 };
+    if (zoom < 25) return { interval: 10, minor: 2, labelScale: 0.9 };
+    return { interval: 4, minor: 1, labelScale: 1.0 };
+  }, [zoom]);
+
   // Export State
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportSettings, setExportSettings] = useState({
@@ -702,7 +709,7 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
         if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * zoom + CANVAS_OFFSET, top: (c1y - 1.2) * zoom + CANVAS_OFFSET, width: dist * zoom }}>
-          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4">{formatFeetInches(dist)}</div></div>
+          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
         </div>);
       }
     });
@@ -714,7 +721,7 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
         if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center justify-center dimension-label" style={{ left: (c1x + 0.8) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom, width: 20 }}>
-          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4">{formatFeetInches(dist)}</div></div>
+          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
         </div>);
       }
     });
@@ -723,12 +730,15 @@ export default function EstimatorClient() {
 
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => (
     <div className={cn("bg-white/40 backdrop-blur-md border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
-      {Array.from({ length: 100 }).map((_, t) => (
-        <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: t * 4 * zoom + CANVAS_OFFSET, top: 0 } : { top: t * 4 * zoom + CANVAS_OFFSET, left: 0 }}>
-          <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
-          <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{t * 4}</span>
-        </div>
-      ))}
+      {Array.from({ length: Math.ceil(400 / gridConfig.interval) }).map((_, t) => {
+        const posValue = t * gridConfig.interval;
+        return (
+          <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * zoom + CANVAS_OFFSET, top: 0 } : { top: posValue * zoom + CANVAS_OFFSET, left: 0 }}>
+            <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
+            <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{posValue}</span>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -812,7 +822,7 @@ export default function EstimatorClient() {
         </svg>
       );
     }
-    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: (obj.fontSize || 14) * (zoom/40), fontWeight: obj.isBold ? 'black' : 'normal' }}>{obj.textContent || obj.label}</div>;
+    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (zoom/40)) + 'px', fontWeight: obj.isBold ? 'black' : 'normal' }}>{obj.textContent || obj.label}</div>;
     return null;
   };
 
@@ -924,7 +934,7 @@ export default function EstimatorClient() {
               className="flex-1 relative bg-white overflow-hidden cursor-crosshair" 
               onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchStart={(e) => handleMouseDown(e, null)} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
             >
-              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom}px ${zoom}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 10000, height: 10000 }}>
+              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom * gridConfig.minor}px ${zoom * gridConfig.minor}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 20000, height: 20000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
                   <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onTouchStart={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
@@ -934,8 +944,8 @@ export default function EstimatorClient() {
                     )}
                     {showDimensions && (
                       <>
-                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
-                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900">{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
+                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
+                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
                       </>
                     )}
                   </div>
@@ -959,11 +969,11 @@ export default function EstimatorClient() {
           </div>
           <div className="h-8 bg-white/80 backdrop-blur-md border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
-              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(0, z - 5))} />
-              <Slider value={[zoom]} max={250} min={0} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} />
+              <Slider value={[zoom]} max={250} min={5} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
               <div className="flex items-center gap-1 ml-1 md:ml-2">
-                <Input type="number" value={zoom} onChange={(e) => setZoom(Math.min(250, Math.max(0, parseInt(e.target.value) || 0)))} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
+                <Input type="number" value={zoom} onChange={(e) => setZoom(Math.min(250, Math.max(5, parseInt(e.target.value) || 5)))} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
                 <span className="text-[9px] font-black text-slate-400 uppercase">%</span>
               </div>
             </div>
@@ -1583,7 +1593,7 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-4 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
       <div className="md:col-span-3"><span className="text-[11px] md:text-xs font-black text-slate-700 block uppercase leading-tight mb-1">{label}</span><span className="text-[10px] font-black text-slate-400 uppercase">{qty} {unit}</span></div>
       <div className="md:col-span-6 flex flex-col gap-1.5"><Label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Rate / Price (৳)</Label><Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-12 w-full text-sm md:text-base font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="Enter Rate" /></div>
-      <div className="md:col-span-3 text-right flex flex-col items-end"><span className="text-[9px] uppercase font-black text-slate-400 block tracking-tight mb-1">Sub-total</span><span className="text-sm md:text-lg font-black text-emerald-600 leading-none">৳ {subTotal.toLocaleString('bn-BD')}</span></div>
+      <div className="md:col-span-3 text-right flex flex-col items-end"><span className="text-9px uppercase font-black text-slate-400 block tracking-tight mb-1">Sub-total</span><span className="text-sm md:text-lg font-black text-emerald-600 leading-none">৳ {subTotal.toLocaleString('bn-BD')}</span></div>
     </div>
   );
 }
