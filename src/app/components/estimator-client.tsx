@@ -107,7 +107,11 @@ export default function EstimatorClient() {
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
+  
+  // Adjusted zoom so that at 40 zoom, 20ft is visible (scale factor 0.4)
   const [zoom, setZoom] = useState(40);
+  const displayZoom = useMemo(() => zoom * 0.4, [zoom]);
+
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -133,7 +137,7 @@ export default function EstimatorClient() {
   const [exportSettings, setExportSettings] = useState({
     format: 'png' as 'png' | 'pdf',
     area: 'all' as 'all' | 'custom',
-    x: 0, y: 0, w: 20, h: 20
+    xStart: 0, xEnd: 20, yStart: 0, yEnd: 20
   });
 
   // Estimation State
@@ -256,10 +260,10 @@ export default function EstimatorClient() {
       let finalCanvas = capture;
       
       if (exportSettings.area === 'custom') {
-        const cropX = (CANVAS_OFFSET + exportSettings.x * zoom) * scale;
-        const cropY = (CANVAS_OFFSET + exportSettings.y * zoom) * scale;
-        const cropW = (exportSettings.w * zoom) * scale;
-        const cropH = (exportSettings.h * zoom) * scale;
+        const cropX = (CANVAS_OFFSET + exportSettings.xStart * displayZoom) * scale;
+        const cropY = (CANVAS_OFFSET + exportSettings.yStart * displayZoom) * scale;
+        const cropW = (Math.abs(exportSettings.xEnd - exportSettings.xStart) * displayZoom) * scale;
+        const cropH = (Math.abs(exportSettings.yEnd - exportSettings.yStart) * displayZoom) * scale;
         
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = cropW;
@@ -279,12 +283,18 @@ export default function EstimatorClient() {
         toast({ title: "সফল", description: "ইমেজটি ডাউনলোড করা হয়েছে।" });
       } else {
         const { jsPDF } = await import('jspdf');
+        // A4 dimension in points
         const pdf = new jsPDF({
           orientation: finalCanvas.width > finalCanvas.height ? 'l' : 'p',
-          unit: 'px',
-          format: [finalCanvas.width, finalCanvas.height]
+          unit: 'mm',
+          format: 'a4'
         });
-        pdf.addImage(finalCanvas.toDataURL('image/png'), 'PNG', 0, 0, finalCanvas.width, finalCanvas.height);
+        
+        const imgProps = pdf.getImageProperties(finalCanvas.toDataURL('image/png'));
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        pdf.addImage(finalCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`${projectName || 'design'}.pdf`);
         toast({ title: "সফল", description: "পিডিএফটি ডাউনলোড করা হয়েছে।" });
       }
@@ -571,8 +581,8 @@ export default function EstimatorClient() {
       if (e.touches.length === 1) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
       else return null;
     } else { clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY; }
-    const curX = (clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / zoom;
-    const curY = (clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / zoom;
+    const curX = (clientX - rect.left - (CANVAS_OFFSET - container.scrollLeft)) / displayZoom;
+    const curY = (clientY - rect.top - (CANVAS_OFFSET - container.scrollTop)) / displayZoom;
     return { x: curX, y: curY, rawX: clientX, rawY: clientY };
   };
 
@@ -708,7 +718,7 @@ export default function EstimatorClient() {
       for (let i = 0; i < sorted.length - 1; i++) {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
-        if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * zoom + CANVAS_OFFSET, top: (c1y - 1.2) * zoom + CANVAS_OFFSET, width: dist * zoom }}>
+        if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * displayZoom + CANVAS_OFFSET, top: (c1y - 1.2) * displayZoom + CANVAS_OFFSET, width: dist * displayZoom }}>
           <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
         </div>);
       }
@@ -720,7 +730,7 @@ export default function EstimatorClient() {
       for (let i = 0; i < sorted.length - 1; i++) {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
-        if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center justify-center dimension-label" style={{ left: (c1x + 0.8) * zoom + CANVAS_OFFSET, top: c1y * zoom + CANVAS_OFFSET, height: dist * zoom, width: 20 }}>
+        if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center justify-center dimension-label" style={{ left: (c1x + 0.8) * displayZoom + CANVAS_OFFSET, top: c1y * displayZoom + CANVAS_OFFSET, height: dist * displayZoom, width: 20 }}>
           <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
         </div>);
       }
@@ -733,7 +743,7 @@ export default function EstimatorClient() {
       {Array.from({ length: Math.ceil(400 / gridConfig.interval) }).map((_, t) => {
         const posValue = t * gridConfig.interval;
         return (
-          <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * zoom + CANVAS_OFFSET, top: 0 } : { top: posValue * zoom + CANVAS_OFFSET, left: 0 }}>
+          <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * displayZoom + CANVAS_OFFSET, top: 0 } : { top: posValue * displayZoom + CANVAS_OFFSET, left: 0 }}>
             <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
             <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{posValue}</span>
           </div>
@@ -743,7 +753,7 @@ export default function EstimatorClient() {
   );
 
   const renderObjectContent = (obj: DesignObject) => {
-    const sw = 1 / zoom;
+    const sw = 1 / displayZoom;
     if (obj.type === 'opening') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
@@ -822,7 +832,7 @@ export default function EstimatorClient() {
         </svg>
       );
     }
-    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (zoom/40)) + 'px', fontWeight: obj.isBold ? 'black' : 'normal' }}>{obj.textContent || obj.label}</div>;
+    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? 'black' : 'normal' }}>{obj.textContent || obj.label}</div>;
     return null;
   };
 
@@ -833,7 +843,7 @@ export default function EstimatorClient() {
     else if (obj.rotation === 270) oy = obj.w;
     const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
     return { 
-      left: (obj.x + ox) * zoom + CANVAS_OFFSET, top: (obj.y + oy) * zoom + CANVAS_OFFSET, width: obj.w * zoom, height: obj.h * zoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
+      left: (obj.x + ox) * displayZoom + CANVAS_OFFSET, top: (obj.y + oy) * displayZoom + CANVAS_OFFSET, width: obj.w * displayZoom, height: obj.h * displayZoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: isStructure ? obj.color : 'transparent',
       border: isStructure ? '1px solid rgba(0,0,0,0.5)' : 'none',
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10),
@@ -934,7 +944,7 @@ export default function EstimatorClient() {
               className="flex-1 relative bg-white overflow-hidden cursor-crosshair" 
               onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchStart={(e) => handleMouseDown(e, null)} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
             >
-              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${zoom * gridConfig.minor}px ${zoom * gridConfig.minor}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 20000, height: 20000 }}>
+              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${displayZoom * gridConfig.minor}px ${displayZoom * gridConfig.minor}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 20000, height: 20000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
                   <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onTouchStart={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
@@ -951,10 +961,10 @@ export default function EstimatorClient() {
                   </div>
                 ))}
                 {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                  <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * zoom + CANVAS_OFFSET, top: drawStart.y * zoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * zoom, height: currentWallThickness * zoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
+                  <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: currentWallThickness * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
                 )}
                 {interactionMode === 'selecting' && selectionBox && (
-                  <div className="absolute border-2 border-blue-500 bg-blue-500/10 z-[70]" style={{ left: Math.min(selectionBox.x1, selectionBox.x2) * zoom + CANVAS_OFFSET, top: Math.min(selectionBox.y1, selectionBox.y2) * zoom + CANVAS_OFFSET, width: Math.abs(selectionBox.x2 - selectionBox.x1) * zoom, height: Math.abs(selectionBox.y2 - selectionBox.y1) * zoom }} />
+                  <div className="absolute border-2 border-blue-500 bg-blue-500/10 z-[70]" style={{ left: Math.min(selectionBox.x1, selectionBox.x2) * displayZoom + CANVAS_OFFSET, top: Math.min(selectionBox.y1, selectionBox.y2) * displayZoom + CANVAS_OFFSET, width: Math.abs(selectionBox.x2 - selectionBox.x1) * displayZoom, height: Math.abs(selectionBox.y2 - selectionBox.y1) * displayZoom }} />
                 )}
               </div>
             </div>
@@ -1076,7 +1086,7 @@ export default function EstimatorClient() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="png" className="font-black">Image (PNG)</SelectItem>
-                  <SelectItem value="pdf" className="font-black">Document (PDF)</SelectItem>
+                  <SelectItem value="pdf" className="font-black">Document (PDF - A4)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1089,7 +1099,7 @@ export default function EstimatorClient() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="font-black">Full Workspace</SelectItem>
-                  <SelectItem value="custom" className="font-black">Custom Selection</SelectItem>
+                  <SelectItem value="custom" className="font-black">Custom Area Range</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1097,20 +1107,20 @@ export default function EstimatorClient() {
             {exportSettings.area === 'custom' && (
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">X Position (ft)</Label>
-                  <Input type="number" value={exportSettings.x} onChange={e => setExportSettings({...exportSettings, x: parseFloat(e.target.value) || 0})} className="font-black" />
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Length From (ft)</Label>
+                  <Input type="number" value={exportSettings.xStart} onChange={e => setExportSettings({...exportSettings, xStart: parseFloat(e.target.value) || 0})} className="font-black" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Y Position (ft)</Label>
-                  <Input type="number" value={exportSettings.y} onChange={e => setExportSettings({...exportSettings, y: parseFloat(e.target.value) || 0})} className="font-black" />
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Length To (ft)</Label>
+                  <Input type="number" value={exportSettings.xEnd} onChange={e => setExportSettings({...exportSettings, xEnd: parseFloat(e.target.value) || 0})} className="font-black" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Width (ft)</Label>
-                  <Input type="number" value={exportSettings.w} onChange={e => setExportSettings({...exportSettings, w: parseFloat(e.target.value) || 0})} className="font-black" />
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Width From (ft)</Label>
+                  <Input type="number" value={exportSettings.yStart} onChange={e => setExportSettings({...exportSettings, yStart: parseFloat(e.target.value) || 0})} className="font-black" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Height (ft)</Label>
-                  <Input type="number" value={exportSettings.h} onChange={e => setExportSettings({...exportSettings, h: parseFloat(e.target.value) || 0})} className="font-black" />
+                  <Label className="text-[9px] font-black uppercase text-slate-400">Width To (ft)</Label>
+                  <Input type="number" value={exportSettings.yEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" />
                 </div>
               </div>
             )}
