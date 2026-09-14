@@ -1185,7 +1185,7 @@ export default function EstimatorClient() {
                       )}
                       <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
                         <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-4 h-4 text-blue-500" /></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-4 h-4 text-blue-500" rotate={180} /></Button>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
