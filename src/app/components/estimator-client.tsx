@@ -419,26 +419,30 @@ export default function EstimatorClient() {
           format: 'a4'
         });
         
+        const margin = 12.7; // 0.5 inch in mm
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
-        const pageRatio = pdfWidth / pdfHeight;
+        const availableW = pdfWidth - (margin * 2);
+        const availableH = pdfHeight - (margin * 2);
+        
+        const pageRatio = availableW / availableH;
         const canvasRatio = finalCanvas.width / finalCanvas.height;
         
-        let printW = pdfWidth;
-        let printH = pdfHeight;
+        let printW = availableW;
+        let printH = availableH;
         
         if (canvasRatio > pageRatio) {
-          printH = pdfWidth / canvasRatio;
+          printH = availableW / canvasRatio;
         } else {
-          printW = pdfHeight * canvasRatio;
+          printW = availableH * canvasRatio;
         }
         
         pdf.addImage(
           finalCanvas.toDataURL('image/png'), 
           'PNG', 
-          (pdfWidth - printW) / 2, 
-          (pdfHeight - printH) / 2, 
+          margin + (availableW - printW) / 2, 
+          margin + (availableH - printH) / 2, 
           printW, 
           printH
         );
