@@ -340,7 +340,7 @@ export default function EstimatorClient() {
           } else if (obj.subType === 'double-door') {
             svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'sliding-door') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
           }
         } else if (obj.subType === 'stair-u') {
           const steps = obj.stepCount || 15;
@@ -574,7 +574,7 @@ export default function EstimatorClient() {
     try {
       const { firestore } = initializeFirebase();
       const docRef = doc(firestore, 'designs', id);
-      const snap = await getDoc(ref);
+      const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data();
         setDesignObjects(data.objects || []);
@@ -1422,7 +1422,7 @@ function EstimationView({
     floorTiles.forEach(f => { const area = f.len * f.wid; if (area > 0 && f.tLen > 0 && f.tWid > 0) { ftRes.floorTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (1/12) * 1.54; ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4; } });
     sectionTotals.floorTiles = ftRes;
     let wtRes = { wallTiles: 0, cement: 0, sand: 0 };
-    wallTiles.forEach(f => { const area = f.len * f.height; if (area > 0 && f.tLen > 0 && f.tWid > 0) { wtRes.wallTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (0.5/12) * 1.54; wtRes.cement += (dry / 5) / 1.25; wtRes.sand += (dry / 5) * 4; } });
+    wallTiles.forEach(f => { const area = f.len * f.height; if (area > 0 && f.tLen > 0 && f.tWid > 0) { wtRes.wallTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (0.5/12) * 1.54; wtRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4; } });
     sectionTotals.wallTiles = wtRes;
     let swRes = { bricks: 0, cement: 0, sand: 0 };
     soakWells.forEach(s => { const brickVol = (Math.PI * s.dia) * s.depth * (5/12); swRes.bricks += Math.ceil(brickVol * 5 * s.count); const dry = brickVol * 0.35 * s.count; swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4; });
