@@ -1374,7 +1374,7 @@ export default function EstimatorClient() {
       </Dialog>
 
       <Dialog open={isEstimationDialogOpen} onOpenChange={setIsEstimationDialogOpen}>
-        <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white">
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
           <EstimationView 
             designObjects={designObjects} 
             onBack={() => setIsEstimationDialogOpen(false)}
@@ -1554,7 +1554,12 @@ function EstimationView({
   return (
     <div className="flex-col h-full w-full bg-slate-50 overflow-hidden flex">
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
-        <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button><h2 className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2></div>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
+          <DialogTitle className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2">
+            <Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator 
+          </DialogTitle>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-10 md:h-12 text-[10px] md:text-sm hover:bg-slate-100 font-black gap-2 border-slate-300" onClick={onSave}><Save className="w-4 h-4 text-green-600"/> SAVE</Button>
           <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 md:h-12 text-[10px] md:text-xs font-black">{loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice </Button>
