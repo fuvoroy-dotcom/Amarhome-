@@ -134,7 +134,9 @@ export default function EstimatorClient() {
     format: 'png' as 'png' | 'pdf',
     area: 'all' as 'all' | 'custom',
     xStart: 0, xEnd: 60, yStart: 0, yEnd: 60,
-    targetProjectId: ''
+    targetProjectId: '',
+    showDimensions: true,
+    showPillars: true
   });
 
   const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
@@ -317,6 +319,7 @@ export default function EstimatorClient() {
         objDiv.style.height = `${heightPx}px`;
         objDiv.style.transformOrigin = '0 0';
         objDiv.style.transform = `rotate(${obj.rotation}deg)`;
+        objDiv.style.overflow = 'visible';
         
         const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
         if (isStructure) {
@@ -328,19 +331,19 @@ export default function EstimatorClient() {
         let svgContent = '';
         if (obj.type === 'opening') {
           if (obj.subType === 'window') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 3}"/><line x1="0" y1="${obj.h * 0.25}" x2="${obj.w}" y2="${obj.h * 0.25}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/><line x1="0" y1="${obj.h * 0.75}" x2="${obj.w}" y2="${obj.h * 0.75}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 3}"/><line x1="0" y1="${obj.h * 0.25}" x2="${obj.w}" y2="${obj.h * 0.25}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/><line x1="0" y1="${obj.h * 0.75}" x2="${obj.w}" y2="${obj.h * 0.75}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/></svg>`;
           } else if (obj.subType === 'door-1') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'door-2') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'door-3') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="0" x2="${obj.w}" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="0" x2="${obj.w}" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'door-4') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="0" x2="0" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="0" x2="0" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'double-door') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'sliding-door') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
           }
         } else if (obj.subType === 'stair-u') {
           const steps = obj.stepCount || 15;
@@ -356,7 +359,7 @@ export default function EstimatorClient() {
             stairLines += `<line x1="${flightW + (i * stepW)}" y1="${landingH}" x2="${flightW + (i * stepW)}" y2="0" stroke="${obj.color}" stroke-width="${sw}"/>`;
             stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i * stepH)}" x2="${obj.w}" y2="${landingH + (i * stepH)}" stroke="${obj.color}" stroke-width="${sw}"/>`;
           }
-          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.subType === 'stair-dogleg') {
           const steps = obj.stepCount || 10;
           const landingH = obj.h * 0.2;
@@ -370,7 +373,7 @@ export default function EstimatorClient() {
             stairLines += `<line x1="0" y1="${landingH + (i+1) * stepH}" x2="${flightW}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
             stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i+1) * stepH}" x2="${obj.w}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
           }
-          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.type === 'text') {
           objDiv.innerText = obj.textContent || obj.label;
           objDiv.style.color = obj.color;
@@ -389,6 +392,74 @@ export default function EstimatorClient() {
         }
         exportContainer.appendChild(objDiv);
       });
+
+      if (exportSettings.showDimensions) {
+        objectsToExport.forEach(obj => {
+          if (obj.x + obj.w < xMin || obj.x > xMax || obj.y + obj.h < yMin || obj.y > yMax) return;
+          const hLabel = document.createElement('div');
+          hLabel.style.position = 'absolute';
+          hLabel.style.left = `${(obj.x - xMin) * exportZoom}px`;
+          hLabel.style.top = `${(obj.y - yMin - 0.8) * exportZoom}px`;
+          hLabel.style.width = `${obj.w * exportZoom}px`;
+          hLabel.style.display = 'flex';
+          hLabel.style.justifyContent = 'center';
+          hLabel.style.pointerEvents = 'none';
+          hLabel.innerHTML = `<div style="background:white; border:1px solid #64748b; border-radius:2px; padding:0 4px; font-weight:900; color:#0f172a; font-size:${10 * (exportZoom/40)}px; white-space:nowrap;">${formatFeetInches(obj.w)}</div>`;
+          exportContainer.appendChild(hLabel);
+
+          const vLabel = document.createElement('div');
+          vLabel.style.position = 'absolute';
+          vLabel.style.left = `${(obj.x + obj.w - xMin + 0.8) * exportZoom}px`;
+          vLabel.style.top = `${(obj.y - yMin) * exportZoom}px`;
+          vLabel.style.height = `${obj.h * exportZoom}px`;
+          vLabel.style.display = 'flex';
+          vLabel.style.alignItems = 'center';
+          vLabel.style.pointerEvents = 'none';
+          vLabel.innerHTML = `<div style="background:white; border:1px solid #64748b; border-radius:2px; padding:0 4px; font-weight:900; color:#0f172a; font-size:${10 * (exportZoom/40)}px; white-space:nowrap; transform:rotate(90deg);">${formatFeetInches(obj.h)}</div>`;
+          exportContainer.appendChild(vLabel);
+        });
+      }
+
+      if (exportSettings.showPillars) {
+        const pillars = objectsToExport.filter(obj => obj.subType === 'pillar');
+        const TOL = 1.0;
+        const yGroups: { y: number, items: DesignObject[] }[] = [];
+        pillars.forEach(p => { let g = yGroups.find(gr => Math.abs(gr.y - p.y) < TOL); if (g) g.items.push(p); else yGroups.push({ y: p.y, items: [p] }); });
+        yGroups.forEach(g => {
+          const sorted = [...g.items].sort((a, b) => a.x - b.x);
+          for (let i = 0; i < sorted.length - 1; i++) {
+            const p1 = sorted[i], p2 = sorted[i+1];
+            const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
+            if (dist > 0.1) {
+              const pLine = document.createElement('div');
+              pLine.style.position = 'absolute';
+              pLine.style.left = `${(c1x - xMin) * exportZoom}px`;
+              pLine.style.top = `${(c1y - 1.2 - yMin) * exportZoom}px`;
+              pLine.style.width = `${dist * exportZoom}px`;
+              pLine.innerHTML = `<div style="width:100%; height:1px; background:#ef4444; position:relative; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; left:0; width:1px; height:10px; background:#ef4444;"></div><div style="position:absolute; right:0; width:1px; height:10px; background:#ef4444;"></div><div style="background:white; border:1px solid #ef4444; color:#ef4444; padding:0 4px; font-weight:bold; font-size:${9 * (exportZoom/40)}px; border-radius:2px; transform:translateY(-12px); white-space:nowrap;">${formatFeetInches(dist)}</div></div>`;
+              exportContainer.appendChild(pLine);
+            }
+          }
+        });
+        const xGroups: { x: number, items: DesignObject[] }[] = [];
+        pillars.forEach(p => { let g = xGroups.find(gr => Math.abs(gr.x - p.x) < TOL); if (g) g.items.push(p); else xGroups.push({ x: p.x, items: [p] }); });
+        xGroups.forEach(g => {
+          const sorted = [...g.items].sort((a, b) => a.y - b.y);
+          for (let i = 0; i < sorted.length - 1; i++) {
+            const p1 = sorted[i], p2 = sorted[i+1];
+            const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
+            if (dist > 0.1) {
+              const pLine = document.createElement('div');
+              pLine.style.position = 'absolute';
+              pLine.style.left = `${(c1x + 0.8 - xMin) * exportZoom}px`;
+              pLine.style.top = `${(c1y - yMin) * exportZoom}px`;
+              pLine.style.height = `${dist * exportZoom}px`;
+              pLine.innerHTML = `<div style="height:100%; width:1px; background:#ef4444; position:relative; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; top:0; height:1px; width:10px; background:#ef4444;"></div><div style="position:absolute; bottom:0; height:1px; width:10px; background:#ef4444;"></div><div style="background:white; border:1px solid #ef4444; color:#ef4444; padding:0 4px; font-weight:bold; font-size:${9 * (exportZoom/40)}px; border-radius:2px; transform:rotate(90deg) translateX(12px); white-space:nowrap;">${formatFeetInches(dist)}</div></div>`;
+              exportContainer.appendChild(pLine);
+            }
+          }
+        });
+      }
 
       const finalCanvas = await html2canvas(exportContainer, { 
         backgroundColor: '#ffffff', 
@@ -419,7 +490,7 @@ export default function EstimatorClient() {
           format: 'a4'
         });
         
-        const margin = 12.7; // 0.5 inch in mm
+        const margin = 12.7; 
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
@@ -1303,6 +1374,17 @@ export default function EstimatorClient() {
                 </div>
               </div>
             )}
+
+            <div className="flex items-center gap-6 py-2 border-t pt-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id="exp-dim" checked={exportSettings.showDimensions} onCheckedChange={(v) => setExportSettings({...exportSettings, showDimensions: !!v})} />
+                <Label htmlFor="exp-dim" className="text-[10px] font-black uppercase cursor-pointer">Show Dimensions</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="exp-pill" checked={exportSettings.showPillars} onCheckedChange={(v) => setExportSettings({...exportSettings, showPillars: !!v})} />
+                <Label htmlFor="exp-pill" className="text-[10px] font-black uppercase cursor-pointer">Pillar Lines</Label>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={handleExport} className="w-full bg-blue-600 hover:bg-blue-700 font-black gap-2 h-12">
