@@ -116,12 +116,12 @@ export default function EstimatorClient() {
   const [showDimensions, setShowDimensions] = useState(true);
   const [showPillarDistances, setShowPillarDistances] = useState(true);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
-  const [viewMode, setViewMode] = useState<'design' | 'estimate'>('design');
 
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
   const [currentDesignId, setCurrentDesignId] = useState(Math.random().toString(36).substr(2, 9));
   const [savedDesigns, setSavedDesigns] = useState<SavedDesignRef[]>([]);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
+  const [isEstimationDialogOpen, setIsEstimationDialogOpen] = useState(false);
 
   const gridConfig = useMemo(() => {
     if (zoom < 10) return { interval: 20, minor: 5, labelScale: 0.8 };
@@ -1075,28 +1075,6 @@ export default function EstimatorClient() {
     };
   };
 
-  if (viewMode === 'estimate') {
-    return (
-      <EstimationView 
-        designObjects={designObjects} 
-        onBack={() => setViewMode('design')}
-        onSave={saveToFirestore}
-        foundations={foundations} setFoundations={setFoundations}
-        columns={columns} setColumns={setColumns}
-        beams={beams} setBeams={setBeams}
-        slabs={slabs} setSlabs={setSlabs}
-        stairs={stairs} setStairs={setStairs}
-        brickworks={brickworks} setBrickworks={setBrickworks}
-        plasters={plasters} setPlasters={setPlasters}
-        floorTiles={floorTiles} setFloorTiles={setFloorTiles}
-        wallTiles={wallTiles} setWallTiles={setWallTiles}
-        septicTanks={septicTanks} setSepticTanks={setSepticTanks}
-        soakWells={soakWells} setSoakWells={setSoakWells}
-        prices={prices} setPrices={setPrices}
-      />
-    );
-  }
-
   return (
     <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
       <div className="h-10 bg-slate-800/90 backdrop-blur-md border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
@@ -1128,7 +1106,7 @@ export default function EstimatorClient() {
         <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} />
         <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setViewMode('estimate')} />
+        <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
         <Button variant="outline" size="sm" className="text-destructive h-12 flex flex-col items-center justify-center p-1 md:p-2 ml-auto" onClick={deleteSelected}>
@@ -1394,6 +1372,28 @@ export default function EstimatorClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isEstimationDialogOpen} onOpenChange={setIsEstimationDialogOpen}>
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white">
+          <EstimationView 
+            designObjects={designObjects} 
+            onBack={() => setIsEstimationDialogOpen(false)}
+            onSave={saveToFirestore}
+            foundations={foundations} setFoundations={setFoundations}
+            columns={columns} setColumns={setColumns}
+            beams={beams} setBeams={setBeams}
+            slabs={slabs} setSlabs={setSlabs}
+            stairs={stairs} setStairs={setStairs}
+            brickworks={brickworks} setBrickworks={setBrickworks}
+            plasters={plasters} setPlasters={setPlasters}
+            floorTiles={floorTiles} setFloorTiles={setFloorTiles}
+            wallTiles={wallTiles} setWallTiles={setWallTiles}
+            septicTanks={septicTanks} setSepticTanks={setSepticTanks}
+            soakWells={soakWells} setSoakWells={setSoakWells}
+            prices={prices} setPrices={setPrices}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1552,7 +1552,7 @@ function EstimationView({
     setLoadingAdvice(false);
   };
   return (
-    <div className="flex-col h-[100svh] w-full bg-slate-50 overflow-hidden flex">
+    <div className="flex-col h-full w-full bg-slate-50 overflow-hidden flex">
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
         <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button><h2 className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator </h2></div>
         <div className="flex items-center gap-2">
