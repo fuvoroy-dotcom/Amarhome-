@@ -133,7 +133,7 @@ export default function EstimatorClient() {
   const [exportSettings, setExportSettings] = useState({
     format: 'png' as 'png' | 'pdf',
     area: 'all' as 'all' | 'custom',
-    xStart: 0, xEnd: 20, yStart: 0, yEnd: 20,
+    xStart: 0, xEnd: 60, yStart: 0, yEnd: 40,
     targetProjectId: ''
   });
 
@@ -262,7 +262,7 @@ export default function EstimatorClient() {
         }
       }
 
-      let xMin, xMax, yMin, yMax;
+      let xMin = 0, xMax = 60, yMin = 0, yMax = 40;
       if (exportSettings.area === 'custom') {
         xMin = Math.min(exportSettings.xStart, exportSettings.xEnd);
         xMax = Math.max(exportSettings.xStart, exportSettings.xEnd);
@@ -270,7 +270,7 @@ export default function EstimatorClient() {
         yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
       } else {
         if (objectsToExport.length === 0) {
-          xMin = 0; xMax = 20; yMin = 0; yMax = 20;
+          xMin = 0; xMax = 60; yMin = 0; yMax = 40;
         } else {
           xMin = Math.min(...objectsToExport.map(o => o.x)) - 2;
           xMax = Math.max(...objectsToExport.map(o => o.x + (o.rotation % 180 === 0 ? o.w : o.h))) + 2;
@@ -281,21 +281,24 @@ export default function EstimatorClient() {
       
       const wFt = xMax - xMin;
       const hFt = yMax - yMin;
-      const exportZoom = 50;
+      const exportZoom = 50; 
       const pW = wFt * exportZoom;
       const pH = hFt * exportZoom;
       
       const exportContainer = document.createElement('div');
-      exportContainer.style.position = 'fixed';
-      exportContainer.style.left = '-99999px';
-      exportContainer.style.top = '-99999px';
+      exportContainer.style.position = 'absolute';
+      exportContainer.style.left = '0px';
+      exportContainer.style.top = '0px';
       exportContainer.style.width = `${pW}px`;
       exportContainer.style.height = `${pH}px`;
       exportContainer.style.backgroundColor = '#ffffff';
       exportContainer.style.overflow = 'hidden';
+      exportContainer.style.zIndex = '-99999';
       document.body.appendChild(exportContainer);
 
       objectsToExport.forEach(obj => {
+        if (obj.x + obj.w < xMin || obj.x > xMax || obj.y + obj.h < yMin || obj.y > yMax) return;
+
         let ox = 0, oy = 0;
         if (obj.rotation === 90) ox = obj.h;
         else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; }
@@ -393,8 +396,12 @@ export default function EstimatorClient() {
         useCORS: true,
         width: pW,
         height: pH,
-        windowWidth: pW,
-        windowHeight: pH
+        windowWidth: pW + 100,
+        windowHeight: pH + 100,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0
       });
       document.body.removeChild(exportContainer);
 
@@ -407,16 +414,34 @@ export default function EstimatorClient() {
       } else {
         const { jsPDF } = await import('jspdf');
         const pdf = new jsPDF({
-          orientation: finalCanvas.width > finalCanvas.height ? 'l' : 'p',
+          orientation: pW > pH ? 'l' : 'p',
           unit: 'mm',
           format: 'a4'
         });
         
-        const imgProps = pdf.getImageProperties(finalCanvas.toDataURL('image/png'));
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const pdfHeight = pdf.internal.pageSize.getHeight();
         
-        pdf.addImage(finalCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, pdfHeight);
+        const pageRatio = pdfWidth / pdfHeight;
+        const canvasRatio = finalCanvas.width / finalCanvas.height;
+        
+        let printW = pdfWidth;
+        let printH = pdfHeight;
+        
+        if (canvasRatio > pageRatio) {
+          printH = pdfWidth / canvasRatio;
+        } else {
+          printW = pdfHeight * canvasRatio;
+        }
+        
+        pdf.addImage(
+          finalCanvas.toDataURL('image/png'), 
+          'PNG', 
+          (pdfWidth - printW) / 2, 
+          (pdfHeight - printH) / 2, 
+          printW, 
+          printH
+        );
         pdf.save(`${nameToExport || 'design'}.pdf`);
         toast({ title: "সফল", description: "পিডিএফটি ডাউনলোড করা হয়েছে।" });
       }
@@ -1356,7 +1381,7 @@ function EstimationView({
     if (type === 'floorTiles') setFloorTiles(floorTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'wallTiles') setWallTiles(wallTiles.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'septicTank') setSepticTanks(septicTanks.map(f => f.id === id ? { ...f, [field]: value } : f));
-    if (type === 'soakWell') setSoakWells(soakWells.map(f => f.id === id ? { ...f, [field]: value } : f));
+    if (type === 'soakWell') setSoakWells(soakWells.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
   const calcAll = () => {
     const total = { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 };
@@ -1764,4 +1789,3 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
