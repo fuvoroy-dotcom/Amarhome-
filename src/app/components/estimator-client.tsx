@@ -133,7 +133,7 @@ export default function EstimatorClient() {
   const [exportSettings, setExportSettings] = useState({
     format: 'png' as 'png' | 'pdf',
     area: 'all' as 'all' | 'custom',
-    xStart: 0, xEnd: 60, yStart: 0, yEnd: 40,
+    xStart: 0, xEnd: 60, yStart: 0, yEnd: 60,
     targetProjectId: ''
   });
 
@@ -262,7 +262,7 @@ export default function EstimatorClient() {
         }
       }
 
-      let xMin = 0, xMax = 60, yMin = 0, yMax = 40;
+      let xMin = 0, xMax = 60, yMin = 0, yMax = 60;
       if (exportSettings.area === 'custom') {
         xMin = Math.min(exportSettings.xStart, exportSettings.xEnd);
         xMax = Math.max(exportSettings.xStart, exportSettings.xEnd);
@@ -270,7 +270,7 @@ export default function EstimatorClient() {
         yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
       } else {
         if (objectsToExport.length === 0) {
-          xMin = 0; xMax = 60; yMin = 0; yMax = 40;
+          xMin = 0; xMax = 60; yMin = 0; yMax = 60;
         } else {
           xMin = Math.min(...objectsToExport.map(o => o.x)) - 2;
           xMax = Math.max(...objectsToExport.map(o => o.x + (o.rotation % 180 === 0 ? o.w : o.h))) + 2;
@@ -370,7 +370,7 @@ export default function EstimatorClient() {
             stairLines += `<line x1="0" y1="${landingH + (i+1) * stepH}" x2="${flightW}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
             stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i+1) * stepH}" x2="${obj.w}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
           }
-          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.type === 'text') {
           objDiv.innerText = obj.textContent || obj.label;
           objDiv.style.color = obj.color;
@@ -574,7 +574,7 @@ export default function EstimatorClient() {
     try {
       const { firestore } = initializeFirebase();
       const docRef = doc(firestore, 'designs', id);
-      const snap = await getDoc(docRef);
+      const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data();
         setDesignObjects(data.objects || []);
@@ -1038,8 +1038,12 @@ export default function EstimatorClient() {
       </div>
 
       <div className="h-14 md:h-16 bg-white/70 backdrop-blur-lg border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
-        <RibbonButton icon={<FilePlus className="text-blue-500" />} label="New" onClick={handleNewPage} />
-        <RibbonButton icon={<FolderOpen className="text-amber-500" />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} />
+        <FilePlus className="text-blue-500 w-4 h-4 md:w-5 md:h-5 cursor-pointer mx-2" onClick={handleNewPage} />
+        <span className="text-[10px] md:text-xs font-black uppercase cursor-pointer mr-4" onClick={handleNewPage}>New</span>
+        
+        <FolderOpen className="text-amber-500 w-4 h-4 md:w-5 md:h-5 cursor-pointer mx-2" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} />
+        <span className="text-[10px] md:text-xs font-black uppercase cursor-pointer mr-4" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))}>Open</span>
+        
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} />
         <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
@@ -1146,17 +1150,18 @@ export default function EstimatorClient() {
             <Button 
               variant="secondary" 
               size="icon" 
-              className="absolute left-0 h-full w-10 z-50 rounded-none border-r opacity-60 hover:opacity-100 transition-opacity bg-slate-100"
+              className="absolute left-0 h-full w-10 z-50 rounded-none border-r opacity-100 bg-slate-100 flex items-center justify-center shadow-md"
               onClick={() => scrollBottomBar('left')}
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 text-slate-700" />
             </Button>
             
             <div 
               ref={bottomBarRef} 
-              className="flex-1 h-full overflow-x-auto no-scrollbar select-none"
+              className="flex-1 h-full overflow-x-auto overflow-y-hidden select-none"
+              style={{ scrollbarWidth: 'thin' }}
             >
-              <div className="flex items-center px-4 gap-4 md:gap-6 min-w-max h-full">
+              <div className="flex items-center px-12 gap-4 md:gap-6 min-w-max h-full">
                 {firstSelectedObject ? (
                   <div className="flex items-center gap-4 md:gap-6 flex-nowrap py-1">
                     <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase">সংযুক্ত</span></div>
@@ -1176,7 +1181,7 @@ export default function EstimatorClient() {
                       )}
                       <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
                         <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowDownToLine className="w-4 h-4 text-blue-500" /></Button>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
@@ -1194,10 +1199,10 @@ export default function EstimatorClient() {
             <Button 
               variant="secondary" 
               size="icon" 
-              className="absolute right-0 h-full w-10 z-50 rounded-none border-l opacity-60 hover:opacity-100 transition-opacity bg-slate-100"
+              className="absolute right-0 h-full w-10 z-50 rounded-none border-l opacity-100 bg-slate-100 flex items-center justify-center shadow-md"
               onClick={() => scrollBottomBar('right')}
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5 text-slate-700" />
             </Button>
           </div>
         </div>
