@@ -275,14 +275,8 @@ export default function EstimatorClient() {
         yMin = Math.min(exportSettings.yStart, exportSettings.yEnd);
         yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
       } else {
-        if (objectsToExport.length === 0) {
-          xMin = 0; xMax = 60; yMin = 0; yMax = 60;
-        } else {
-          xMin = Math.min(...objectsToExport.map(o => o.x)) - 2;
-          xMax = Math.max(...objectsToExport.map(o => o.x + (o.rotation % 180 === 0 ? o.w : o.h))) + 2;
-          yMin = Math.min(...objectsToExport.map(o => o.y)) - 2;
-          yMax = Math.max(...objectsToExport.map(o => o.y + (o.rotation % 180 === 0 ? o.h : o.w))) + 2;
-        }
+        // Strict 60x60 from version 29b7dab logic
+        xMin = 0; xMax = 60; yMin = 0; yMax = 60;
       }
       
       const wFt = xMax - xMin;
@@ -323,7 +317,7 @@ export default function EstimatorClient() {
         objDiv.style.height = `${heightPx}px`;
         objDiv.style.transformOrigin = '0 0';
         objDiv.style.transform = `rotate(${obj.rotation}deg)`;
-        objDiv.style.overflow = 'visible';
+        objDiv.style.overflow = 'visible'; // Door Swings visibility
         
         const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
         if (isStructure) {
@@ -345,7 +339,7 @@ export default function EstimatorClient() {
           } else if (obj.subType === 'door-4') {
             svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="0" x2="0" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'double-door') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2} " stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'sliding-door') {
             svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
           }
@@ -494,7 +488,7 @@ export default function EstimatorClient() {
           format: 'a4'
         });
         
-        const margin = 12.7; 
+        const margin = 12.7; // 0.5 inch in mm
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
@@ -700,7 +694,7 @@ export default function EstimatorClient() {
       const next = prev.map(o => {
         if (selectedObjectIds.includes(o.id) && !o.isJoined) {
           let dx = 0, dy = 0;
-          const step = 1/12; 
+          const step = 1/12; // 1 point = 1 inch
           if (key === 'ArrowUp') dy = -step;
           if (key === 'ArrowDown') dy = step;
           if (key === 'ArrowLeft') dx = -step;
@@ -770,7 +764,7 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -1 : 1; 
+        const delta = e.deltaY > 0 ? -1 : 1; // 1 point precision wheel zoom
         setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
       }
     };
@@ -1088,7 +1082,7 @@ export default function EstimatorClient() {
       left: (obj.x + ox) * displayZoom + CANVAS_OFFSET, top: (obj.y + oy) * displayZoom + CANVAS_OFFSET, width: obj.w * displayZoom, height: obj.h * displayZoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: isStructure ? obj.color : 'transparent',
       border: isStructure ? '1px solid rgba(0,0,0,0.5)' : 'none',
-      outline: selectedObjectIds.includes(obj.id) ? '2px solid #3b82f6' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10),
+      outline: selectedObjectIds.includes(obj.id) ? '2px solid #ef4444' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10),
       touchAction: 'none'
     };
   };
@@ -1127,7 +1121,7 @@ export default function EstimatorClient() {
         <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
         <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
-        <Button variant="outline" size="sm" className="text-destructive h-12 flex flex-col items-center justify-center p-1 md:p-2 ml-auto shadow-[0_4px_0_0_rgba(0,0,0,0.1),inset_0_1px_0_0_rgba(255,255,255,0.5)] active:shadow-none active:translate-y-[2px]" onClick={deleteSelected}>
+        <Button variant="outline" size="sm" className="text-destructive h-12 flex flex-col items-center justify-center p-1 md:p-2 ml-auto shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.4)] active:shadow-none active:translate-y-[2px]" onClick={deleteSelected}>
           <Trash2 className="w-4 h-4" />
           <span className="text-[8px] uppercase font-black mt-1">Delete</span>
         </Button>
@@ -1256,7 +1250,7 @@ export default function EstimatorClient() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
-                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-blue-500 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
+                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-red-600 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
                     </div>
                   </div>
                 ) : (
@@ -1366,7 +1360,7 @@ export default function EstimatorClient() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] font-black uppercase text-slate-400">Width To (ft)</Label>
-                  <Input type="number" value={exportSettings.xEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" />
+                  <Input type="number" value={exportSettings.yEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" />
                 </div>
               </div>
             )}
@@ -1391,7 +1385,7 @@ export default function EstimatorClient() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEstimationDialogOpen} onOpenChange={setIsEstimationDialogOpen}>
+      <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}>
         <DialogContent className="max-w-[45vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
           <EstimationView 
             designObjects={designObjects} 
