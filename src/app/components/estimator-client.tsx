@@ -1912,7 +1912,7 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
     teal: "bg-teal-500 hover:bg-teal-600 text-white border-teal-700",
     default: "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
   };
-  const activeClass = active ? "shadow-inner translate-y-[2px]" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.4)]";
+  const activeClass = active ? "shadow-inner translate-y-[2px] ring-2 ring-red-600 ring-offset-1" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.4)]";
 
   return (
     <Button 
@@ -1946,7 +1946,7 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
   };
   
   const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-white border-slate-300";
-  const activeClass = active ? "ring-2 ring-white ring-offset-2 scale-95 translate-y-[2px] shadow-none" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.3)]";
+  const activeClass = active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.3)]";
 
   return (
     <div 
