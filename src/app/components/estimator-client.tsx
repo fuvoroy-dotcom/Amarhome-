@@ -1775,16 +1775,16 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new soak well </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-                <TabsContent value="total" className="space-y-6 m-0">
-                  <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 space-y-6">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-100 pb-4 gap-4">
-                      <h3 className="font-black text-emerald-800 flex items-center gap-2 text-lg uppercase"><Boxes className="w-6 h-6" /> Materials & Cost Summary </h3>
-                      <div className="bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md text-right w-full md:w-auto">
-                        <span className="text-[10px] uppercase font-black opacity-80 block">Grand Total:</span>
-                        <span className="text-xl font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
+                <TabsContent value="total" className="space-y-4 m-0">
+                  <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-100 pb-2 gap-2">
+                      <h3 className="font-black text-emerald-800 flex items-center gap-2 text-sm uppercase"><Boxes className="w-5 h-5" /> Summary </h3>
+                      <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-md text-right w-full md:w-auto">
+                        <span className="text-[8px] uppercase font-black opacity-80 block">Grand Total:</span>
+                        <span className="text-sm font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
                       </div>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <CostRow label="Cement" value={total.cement} unit="bag" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} />
                       <CostRow label="Sand" value={total.sand} unit="CFT" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} />
                       <CostRow label="Stone" value={total.stone} unit="CFT" price={prices.stone} onPriceChange={(v) => setPrices({...prices, stone: v})} />
@@ -1793,33 +1793,33 @@ function EstimationView({
                       <CostRow label="Bricks" value={total.bricks} unit="pcs" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} />
                       <CostRow label="Floor Tiles" value={total.floorTiles} unit="pcs" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} />
                       <CostRow label="Wall Tiles" value={total.wallTiles} unit="pcs" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} />
-                      <CostRow label="Labor Cost (Slab Area)" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
-                      <CostRow label="Doors (from design)" value={total.doors} unit="pcs" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
-                      <CostRow label="Windows (from design)" value={total.windows} unit="pcs" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
-                      <div className="pt-4 mt-6 border-t border-emerald-200 space-y-4">
-                        <h4 className="text-[12px] font-black text-emerald-800 uppercase tracking-widest mb-2 flex items-center gap-2"><Plus className="w-4 h-4" /> Other Expenses</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-1.5"><Label className="text-[11px] font-black text-slate-500 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-12 text-sm font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1.5"><Label className="text-[11px] font-black text-slate-500 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-12 text-sm font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1.5"><Label className="text-[11px] font-black text-slate-500 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-12 text-sm font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1.5"><Label className="text-[11px] font-black text-slate-500 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-12 text-sm font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                      <CostRow label="Labor Cost" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
+                      <CostRow label="Doors" value={total.doors} unit="pcs" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
+                      <CostRow label="Windows" value={total.windows} unit="pcs" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
+                      <div className="pt-2 mt-4 border-t border-emerald-200 space-y-3">
+                        <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1 flex items-center gap-1"><Plus className="w-3 h-3" /> Other Expenses</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </TabsContent>
               </Tabs>
-              {advice && (<div className="bg-white p-5 rounded-xl border shadow-sm"><h3 className="text-md font-black text-emerald-700 mb-3 flex items-center gap-2 uppercase">⭐ AI Specialist Advice</h3><div className="text-[12px] md:text-sm leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div></div>)}
+              {advice && (<div className="bg-white p-4 rounded-xl border shadow-sm"><h3 className="text-xs font-black text-emerald-700 mb-2 flex items-center gap-1 uppercase">⭐ AI Advice</h3><div className="text-[10px] md:text-xs leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div></div>)}
             </div>
-            <div className="space-y-6">
-              <div className="bg-slate-800 text-white p-5 rounded-xl shadow-lg sticky top-6">
-                <h3 className="text-md font-black mb-4 border-b border-white/20 pb-2 flex items-center gap-2 uppercase"><Calculator className="w-4 h-4" /> Instant Summary </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-[11px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div>
-                  <div className="flex justify-between text-[11px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div>
-                  <div className="flex justify-between text-[11px] uppercase"><span className="opacity-70 font-black">Rod:</span><span className="font-black">{Math.ceil(total.rod)} KG</span></div>
-                  <div className="flex justify-between text-[11px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div>
-                  <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center"><span className="text-xs font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-lg font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
+            <div className="space-y-4">
+              <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg sticky top-6">
+                <h3 className="text-xs font-black mb-3 border-b border-white/20 pb-1 flex items-center gap-2 uppercase"><Calculator className="w-4 h-4" /> Summary </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div>
+                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div>
+                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Rod:</span><span className="font-black">{Math.ceil(total.rod)} KG</span></div>
+                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div>
+                  <div className="mt-2 pt-2 border-t border-white/20 flex flex-col gap-1"><span className="text-[9px] font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-sm font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
                 </div>
               </div>
             </div>
@@ -1831,16 +1831,16 @@ function EstimationView({
 }
 
 function InputField({ label, value, onChange }: { label: string, value: number, onChange: (v: string) => void }) {
-  return (<div className="space-y-1.5"><Label className="text-[11px] font-black text-slate-600 uppercase tracking-tight">{label}</Label><Input type="number" value={value === 0 ? "" : value} onChange={e => onChange(e.target.value)} placeholder="0" className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm" /></div>);
+  return (<div className="space-y-1"><Label className="text-[9px] font-black text-slate-600 uppercase tracking-tight">{label}</Label><Input type="number" value={value === 0 ? "" : value} onChange={e => onChange(e.target.value)} placeholder="0" className="h-9 bg-white border-slate-400 text-xs font-black shadow-sm" /></div>);
 }
 
 function SectionResult({ res }: { res: any }) {
   const hasValues = (res.cement || 0) > 0 || (res.rod || 0) > 0 || (res.bricks || 0) > 0 || (res.floorTiles || 0) > 0 || (res.wallTiles || 0) > 0;
-  if (!hasValues) return <div className="p-4 bg-slate-50 border border-dashed border-slate-400 rounded-lg text-center text-[10px] text-slate-400 uppercase font-black tracking-widest"> No inputs for this section </div>;
+  if (!hasValues) return <div className="p-3 bg-slate-50 border border-dashed border-slate-400 rounded-lg text-center text-[8px] text-slate-400 uppercase font-black tracking-widest"> No inputs </div>;
   return (
-    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 space-y-2">
-      <h4 className="text-[10px] font-black text-blue-700 uppercase tracking-widest"> Section Result </h4>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+    <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 space-y-2">
+      <h4 className="text-[8px] font-black text-blue-700 uppercase tracking-widest"> Result </h4>
+      <div className="grid grid-cols-2 gap-1.5">
         {(res.cement || 0) > 0 && <ResultRow label="Cement" value={res.cement} unit="bag" small />}
         {(res.sand || 0) > 0 && <ResultRow label="Sand" value={res.sand} unit="CFT" small />}
         {(res.stone || 0) > 0 && <ResultRow label="Stone" value={res.stone} unit="CFT" small />}
@@ -1856,9 +1856,9 @@ function SectionResult({ res }: { res: any }) {
 
 function ResultRow({ label, value, unit, small, dark }: { label: string, value: number, unit: string, small?: boolean, dark?: boolean }) {
   return (
-    <div className={cn("flex justify-between items-center rounded-lg border shadow-sm", small ? "p-2 bg-white" : "p-3 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
-      <span className={cn("font-black uppercase", small ? "text-[10px]" : "text-[12px]", dark ? "text-emerald-900" : "text-slate-600")}>{label}</span>
-      <span className={cn("font-black", small ? "text-[11px]" : "text-[14px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
+    <div className={cn("flex justify-between items-center rounded-lg border shadow-sm", small ? "p-1.5 bg-white" : "p-2 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
+      <span className={cn("font-black uppercase", small ? "text-[8px]" : "text-[10px]", dark ? "text-emerald-900" : "text-slate-600")}>{label}</span>
+      <span className={cn("font-black", small ? "text-[9px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
     </div>
   );
 }
@@ -1866,10 +1866,21 @@ function ResultRow({ label, value, unit, small, dark }: { label: string, value: 
 function CostRow({ label, value, unit, price, onPriceChange }: { label: string, value: number, unit: string, price: number, onPriceChange: (v: number) => void }) {
   const qty = Math.ceil(value); const subTotal = qty * price;
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-4 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
-      <div className="md:col-span-3"><span className="text-[11px] md:text-xs font-black text-slate-700 block uppercase leading-tight mb-1">{label}</span><span className="text-[10px] font-black text-slate-400 uppercase">{qty} {unit}</span></div>
-      <div className="md:col-span-6 flex flex-col gap-1.5"><Label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Rate / Price (৳)</Label><Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-12 w-full text-sm md:text-base font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="Enter Rate" /></div>
-      <div className="md:col-span-3 text-right flex flex-col items-end"><span className="text-9px uppercase font-black text-slate-400 block tracking-tight mb-1">Sub-total</span><span className="text-sm md:text-lg font-black text-emerald-600 leading-none">৳ {subTotal.toLocaleString('bn-BD')}</span></div>
+    <div className="flex flex-col gap-2 p-3 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{label}</span>
+          <span className="text-[8px] font-black text-slate-400 uppercase mt-1">{qty} {unit}</span>
+        </div>
+        <div className="text-right flex flex-col items-end">
+          <span className="text-[7px] uppercase font-black text-slate-400 tracking-tight">Sub-total</span>
+          <span className="text-xs font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Label className="text-[8px] font-black text-slate-400 uppercase shrink-0">Rate (৳)</Label>
+        <Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-8 w-full text-xs font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="0" />
+      </div>
     </div>
   );
 }
