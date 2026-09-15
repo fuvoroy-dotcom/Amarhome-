@@ -941,7 +941,7 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
         if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * displayZoom + CANVAS_OFFSET, top: (c1y - 1.2) * displayZoom + CANVAS_OFFSET, width: dist * displayZoom }}>
-          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.make(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
+          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
         </div>);
       }
     });
@@ -1083,7 +1083,7 @@ export default function EstimatorClient() {
   };
 
   return (
-    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
+    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative pb-12">
       <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
@@ -1221,7 +1221,7 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-6 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-12 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
@@ -1623,6 +1623,26 @@ function EstimationView({
                     </div>
                   ))}
                   <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new base </Button>
+                  <SectionResult res={currentRes} />
+                </TabsContent>
+                <TabsContent value="column" className="space-y-6 m-0">
+                  {columns.map((c, idx) => (
+                    <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
+                      <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Column #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField label="Column Count" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} />
+                        <InputField label="Length (in)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} />
+                        <InputField label="Width (in)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} />
+                        <InputField label="Height (ft)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} />
+                        <InputField label="Main Rods (count)" value={c.rods} onChange={v => updateItem('column', c.id, 'rods', v)} />
+                        <InputField label="Ring Gap (in)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} />
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={c.rodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Ring Rod size</Label><Select value={c.ringRodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'ringRodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="column" className="space-y-6 m-0">
