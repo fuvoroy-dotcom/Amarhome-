@@ -112,8 +112,6 @@ export default function EstimatorClient() {
   const [scrollX, setScrollX] = useState(0);
   const [scrollY, setScrollY] = useState(0);
 
-  // Adjusted multiplier so at 40% zoom, the display scale is 20px per foot.
-  // This means 40 feet = 800 pixels, matching a typical vertical viewport.
   const displayZoom = useMemo(() => zoom * 0.5, [zoom]);
 
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
@@ -1118,44 +1116,44 @@ export default function EstimatorClient() {
         <span className="text-[10px] md:text-xs font-black uppercase cursor-pointer mr-4" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))}>Open</span>
         
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} />
-        <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} />
+        <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
+        <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} />
-        <RibbonButton icon={<CopyPlus className="text-teal-500" />} label="Duplicate" onClick={duplicateProject} />
-        <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} />
-        <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} />
+        <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
+        <RibbonButton icon={<CopyPlus className="text-teal-500" />} label="Duplicate" onClick={duplicateProject} color="teal" />
+        <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
+        <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} />
+        <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
         <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} />
-        <Button variant="outline" size="sm" className="text-destructive h-12 flex flex-col items-center justify-center p-1 md:p-2 ml-auto" onClick={deleteSelected}>
+        <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
+        <Button variant="outline" size="sm" className="text-destructive h-12 flex flex-col items-center justify-center p-1 md:p-2 ml-auto shadow-[0_4px_0_0_rgba(0,0,0,0.1),inset_0_1px_0_0_rgba(255,255,255,0.5)] active:shadow-none active:translate-y-[2px]" onClick={deleteSelected}>
           <Trash2 className="w-4 h-4" />
           <span className="text-[8px] uppercase font-black mt-1">Delete</span>
         </Button>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[200px] bg-slate-50/80 backdrop-blur-md border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[120px] bg-slate-50/80 backdrop-blur-md border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-2 p-2 md:p-3 items-center md:items-stretch min-w-max md:min-w-0">
-              <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} />
-              <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} />
-              <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} />
-              <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} />
-              <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} />
-              <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} />
-              <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} />
-              <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} />
+              <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
+              <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} color="amber" />
+              <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
+              <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} color="indigo" />
+              <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} color="slate" />
+              <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
+              <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
+              <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} color="cyan" />
               <div className="w-px h-8 bg-slate-200 mx-1 md:hidden" />
               <div className="flex md:flex-col gap-2 items-center md:items-stretch">
-                <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="Door 1" onClick={() => setSelectedTool('door-1')} />
-                <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="Door 2" onClick={() => setSelectedTool('door-2')} />
-                <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="Door 3" onClick={() => setSelectedTool('door-3')} />
-                <SymbolButton active={selectedTool === 'door-4'} icon={<DoorOpen />} label="Door 4" onClick={() => setSelectedTool('door-4')} />
-                <SymbolButton active={selectedTool === 'double-door'} icon={<LayoutGrid />} label="Double" onClick={() => setSelectedTool('double-door')} />
-                <SymbolButton active={selectedTool === 'sliding-door'} icon={<RectangleHorizontal />} label="Sliding" onClick={() => setSelectedTool('sliding-door')} />
-                <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="Window" onClick={() => setSelectedTool('window')} />
+                <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="D1" onClick={() => setSelectedTool('door-1')} color="teal" />
+                <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="D2" onClick={() => setSelectedTool('door-2')} color="teal" />
+                <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="D3" onClick={() => setSelectedTool('door-3')} color="teal" />
+                <SymbolButton active={selectedTool === 'door-4'} icon={<DoorOpen />} label="D4" onClick={() => setSelectedTool('door-4')} color="teal" />
+                <SymbolButton active={selectedTool === 'double-door'} icon={<LayoutGrid />} label="DBL" onClick={() => setSelectedTool('double-door')} color="pink" />
+                <SymbolButton active={selectedTool === 'sliding-door'} icon={<RectangleHorizontal />} label="SLD" onClick={() => setSelectedTool('sliding-door')} color="pink" />
+                <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="WIN" onClick={() => setSelectedTool('window')} color="sky" />
               </div>
             </div>
           </ScrollArea>
@@ -1368,7 +1366,7 @@ export default function EstimatorClient() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] font-black uppercase text-slate-400">Width To (ft)</Label>
-                  <Input type="number" value={exportSettings.yEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" />
+                  <Input type="number" value={exportSettings.xEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" />
                 </div>
               </div>
             )}
@@ -1905,15 +1903,69 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
   );
 }
 
-function RibbonButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
-  return <Button variant="ghost" className={cn("h-12 md:h-14 flex flex-col gap-0.5 md:gap-1 px-2 md:px-3", active && "bg-slate-100 text-blue-600")} onClick={onClick}>{React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}<span className="text-[8px] md:text-[9px] uppercase font-black tracking-tight">{label}</span></Button>;
+function RibbonButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
+  const colorClasses = {
+    blue: "bg-blue-500 hover:bg-blue-600 text-white border-blue-700",
+    amber: "bg-amber-500 hover:bg-amber-600 text-white border-amber-700",
+    emerald: "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-700",
+    indigo: "bg-indigo-500 hover:bg-indigo-600 text-white border-indigo-700",
+    teal: "bg-teal-500 hover:bg-teal-600 text-white border-teal-700",
+    default: "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+  };
+  const activeClass = active ? "shadow-inner translate-y-[2px]" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.4)]";
+
+  return (
+    <Button 
+      variant="ghost" 
+      className={cn(
+        "h-12 md:h-14 flex flex-col gap-0.5 md:gap-1 px-2 md:px-3 border-2 transition-all active:translate-y-[2px] active:shadow-none",
+        color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
+        activeClass
+      )} 
+      onClick={onClick}
+    >
+      {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}
+      <span className="text-[8px] md:text-[9px] uppercase font-black tracking-tight">{label}</span>
+    </Button>
+  );
 }
 
-function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }) {
-  return <div onClick={onClick} className={cn("flex items-center gap-2 p-1.5 md:p-2 rounded-md cursor-pointer border-2 transition-all", active ? "bg-blue-600 text-white border-blue-600 shadow-md" : "bg-white text-slate-500 border-slate-300 hover:bg-slate-50")}><div className="shrink-0 scale-75 md:scale-100">{icon}</div><span className="text-[8px] md:text-[10px] font-black uppercase whitespace-nowrap">{label}</span></div>;
+function SymbolButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
+  const colorMap = {
+    blue: "bg-blue-500 border-blue-700",
+    amber: "bg-amber-500 border-amber-700",
+    emerald: "bg-emerald-500 border-emerald-700",
+    indigo: "bg-indigo-500 border-indigo-700",
+    slate: "bg-slate-700 border-slate-900",
+    violet: "bg-violet-500 border-violet-700",
+    purple: "bg-purple-500 border-purple-700",
+    cyan: "bg-cyan-500 border-cyan-700",
+    teal: "bg-teal-500 border-teal-700",
+    pink: "bg-pink-500 border-pink-700",
+    sky: "bg-sky-500 border-sky-700",
+  };
+  
+  const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-white border-slate-300";
+  const activeClass = active ? "ring-2 ring-white ring-offset-2 scale-95 translate-y-[2px] shadow-none" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.3)]";
+
+  return (
+    <div 
+      onClick={onClick} 
+      className={cn(
+        "flex flex-col items-center justify-center p-1 md:p-1.5 rounded-lg cursor-pointer border-2 transition-all active:translate-y-[2px] active:shadow-none",
+        baseColor,
+        activeClass,
+        "h-12 md:h-14 w-full md:w-[80%] mx-auto" 
+      )}
+    >
+      <div className={cn("shrink-0", active ? "text-white" : "text-white/90")}>
+        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}
+      </div>
+      <span className="text-[7px] md:text-[8px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
+    </div>
+  );
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
