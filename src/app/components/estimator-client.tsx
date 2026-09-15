@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -1083,57 +1084,37 @@ export default function EstimatorClient() {
   };
 
   return (
-    <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative pb-12">
-      <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between shrink-0 text-white z-50">
-        <div className="flex items-center gap-2 md:gap-6">
+    <div className="w-full h-[100svh] bg-slate-900 flex flex-col overflow-hidden font-body text-slate-200 select-none relative pb-12">
+      <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50">
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
           <div className="flex items-center gap-2">
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-40 md:w-80 bg-slate-800 border-slate-700 text-[12px] md:text-sm text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-32 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
           </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm hover:bg-slate-800 font-black text-white" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
-          <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
-        </div>
-      </div>
-
-      <div className="h-[44px] bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1">
+        
+        <div className="flex-1 flex items-center justify-center gap-1 mx-2 overflow-x-auto no-scrollbar">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
-        </div>
-        
-        <div className="w-px h-6 bg-slate-800 mx-0.5" />
-        
-        <div className="flex items-center gap-1">
+          <div className="w-px h-6 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
-        </div>
-        
-        <div className="w-px h-6 bg-slate-800 mx-0.5" />
-        
-        <div className="flex items-center gap-1">
+          <div className="w-px h-6 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
           <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
-        </div>
-        
-        <div className="w-px h-6 bg-slate-800 mx-0.5" />
-        
-        <div className="flex items-center gap-1">
+          <div className="w-px h-6 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
-        </div>
-        
-        <div className="w-px h-6 bg-slate-800 mx-0.5" />
-        
-        <div className="flex items-center gap-1">
+          <div className="w-px h-6 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" />
+          <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" />
         </div>
 
-        <div className="ml-auto">
-          <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" />
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
+          <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm hover:bg-slate-800 font-black text-white" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
+          <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
         </div>
       </div>
 
@@ -1221,7 +1202,7 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-12 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-6 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
@@ -1645,26 +1626,6 @@ function EstimationView({
                   <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button>
                   <SectionResult res={currentRes} />
                 </TabsContent>
-                <TabsContent value="column" className="space-y-6 m-0">
-                  {columns.map((c, idx) => (
-                    <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
-                      <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Column #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Column Count" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} />
-                        <InputField label="Length (in)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} />
-                        <InputField label="Width (in)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} />
-                        <InputField label="Height (ft)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} />
-                        <InputField label="Main Rods (count)" value={c.rods} onChange={v => updateItem('column', c.id, 'rods', v)} />
-                        <InputField label="Ring Gap (in)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={c.rodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Ring Rod size</Label><Select value={c.ringRodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'ringRodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button>
-                  <SectionResult res={currentRes} />
-                </TabsContent>
                 <TabsContent value="beam" className="space-y-6 m-0">
                   {beams.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
@@ -1942,16 +1903,16 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center px-1.5 py-0.5 rounded-md font-black text-[10px] transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 min-w-[50px]",
+        "flex flex-col items-center justify-center px-1 md:px-1.5 py-0.5 rounded-md font-black text-[10px] transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 min-w-[32px] md:min-w-[40px]",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )} 
       onClick={onClick}
     >
       <div className="shrink-0 text-white">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5" })}
+        {React.cloneElement(icon as React.ReactElement, { className: "w-3 md:w-3.5 h-3 md:h-3.5" })}
       </div>
-      <span className="text-[7px] md:text-[8px] uppercase font-black mt-0.5 leading-none tracking-tight text-white">
+      <span className="text-[6px] md:text-[7px] uppercase font-black mt-0.5 leading-none tracking-tight text-white">
         {label}
       </span>
     </Button>
@@ -1979,15 +1940,15 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 w-full md:w-[90%] mx-auto",
+        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[24px] md:w-[28px] mx-auto",
         baseColor,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )}
     >
       <div className="shrink-0 text-white">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5" })}
+        {React.cloneElement(icon as React.ReactElement, { className: "w-2.5 md:w-3 h-2.5 md:h-3" })}
       </div>
-      <span className="text-[6.5px] md:text-[7.5px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
+      <span className="text-[5px] md:text-[6px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
     </div>
   );
 }
@@ -1995,3 +1956,4 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-5 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
