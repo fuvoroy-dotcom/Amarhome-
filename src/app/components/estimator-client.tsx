@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -356,7 +355,7 @@ export default function EstimatorClient() {
             stairLines += `<line x1="${flightW + (i * stepW)}" y1="${landingH}" x2="${flightW + (i * stepW)}" y2="0" stroke="${obj.color}" stroke-width="${sw}"/>`;
             stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i * stepH)}" x2="${obj.w}" y2="${landingH + (i * stepH)}" stroke="${obj.color}" stroke-width="${sw}"/>`;
           }
-          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"|>${stairLines}</svg>`;
         } else if (obj.subType === 'stair-dogleg') {
           const steps = obj.stepCount || 10;
           const landingH = obj.h * 0.2;
@@ -1101,27 +1100,27 @@ export default function EstimatorClient() {
         </div>
       </div>
 
-      <div className="h-14 md:h-16 bg-[#f8f9fa] border-b flex items-center px-2 md:px-4 gap-2 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
+      <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 gap-2 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
         </div>
         
-        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
         
         <div className="flex items-center gap-2">
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
         </div>
         
-        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
         
         <div className="flex items-center gap-2">
           <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
           <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
         </div>
         
-        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
         
         <div className="flex items-center gap-2">
           <RibbonButton icon={<CopyPlus />} label="Duplicate" onClick={duplicateProject} color="emerald" />
@@ -1129,7 +1128,7 @@ export default function EstimatorClient() {
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
         </div>
         
-        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
         
         <div className="flex items-center gap-2">
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
@@ -1142,7 +1141,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[120px] bg-slate-50/80 backdrop-blur-md border-b md:border-b-0 md:border-r z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[120px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-2 p-2 md:p-3 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
@@ -1153,7 +1152,7 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
               <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} color="cyan" />
-              <div className="w-px h-8 bg-slate-200 mx-1 md:hidden" />
+              <div className="w-px h-8 bg-slate-800 mx-1 md:hidden" />
               <div className="flex md:flex-col gap-2 items-center md:items-stretch">
                 <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="D1" onClick={() => setSelectedTool('door-1')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="D2" onClick={() => setSelectedTool('door-2')} color="teal" />
@@ -1209,30 +1208,30 @@ export default function EstimatorClient() {
               </div>
             </div>
           </div>
-          <div className="h-8 bg-white/80 backdrop-blur-md border-t flex items-center px-4 justify-between shrink-0 z-40">
+          <div className="h-8 bg-slate-900 border-t border-slate-800 flex items-center px-4 justify-between shrink-0 z-40 text-white">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 1))} />
               <Slider value={[zoom]} max={250} min={0} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 1))} />
               <div className="flex items-center gap-1 ml-1 md:ml-2">
-                <Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
+                <Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-700 bg-slate-800 text-white" />
                 <span className="text-[9px] font-black text-slate-400 uppercase">%</span>
               </div>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75" /></div>
-              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75" /></div>
+              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
+              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
             </div>
           </div>
           
-          <div className="h-24 w-full bg-white/90 backdrop-blur-md border-t flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-24 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
-              className="absolute left-0 h-full w-10 z-50 rounded-none border-r opacity-100 bg-slate-100 flex items-center justify-center shadow-md"
+              className="absolute left-0 h-full w-10 z-50 rounded-none border-r border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md"
               onClick={() => scrollBottomBar('left')}
             >
-              <ChevronLeft className="w-5 h-5 text-slate-700" />
+              <ChevronLeft className="w-5 h-5 text-white" />
             </Button>
             
             <div 
@@ -1243,7 +1242,7 @@ export default function EstimatorClient() {
               <div className="flex items-center px-12 gap-4 md:gap-6 min-w-max h-full">
                 {firstSelectedObject ? (
                   <div className="flex items-center gap-4 md:gap-6 flex-nowrap py-1">
-                    <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase">সংযুক্ত</span></div>
+                    <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r border-slate-800"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase">সংযুক্ত</span></div>
                     <div className="flex items-center gap-2 md:gap-3 flex-nowrap">
                       <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
@@ -1253,22 +1252,22 @@ export default function EstimatorClient() {
                       {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                       {firstSelectedObject.type === 'text' && (
                         <>
-                          <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-10 w-full text-xs md:text-sm font-black border-slate-400 bg-white shadow-sm" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
+                          <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-10 w-full text-xs md:text-sm font-black border-slate-700 bg-slate-800 text-white shadow-sm" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
                           <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
-                          <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-400" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
+                          <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-700 bg-slate-800 text-white" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
                         </>
                       )}
-                      <div className="flex items-center gap-1 border-l pl-2 flex-nowrap">
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-500" /></Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-400" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-4 h-4 text-blue-500" rotate={180} /></Button>
+                      <div className="flex items-center gap-1 border-l border-slate-800 pl-2 flex-nowrap">
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-700 bg-slate-800 text-white" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-400" /></Button>
+                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-700 bg-slate-800 text-white" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-4 h-4 text-blue-400" rotate={180} /></Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 md:gap-1.5 border-l pl-2 md:pl-4 flex-nowrap">
-                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-red-600 ring-offset-1" : "border-slate-300")} style={{ backgroundColor: c }} />)}
+                    <div className="flex items-center gap-1 md:gap-1.5 border-l border-slate-800 pl-2 md:pl-4 flex-nowrap">
+                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-red-600 ring-offset-1" : "border-slate-700")} style={{ backgroundColor: c }} />)}
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full flex items-center justify-center text-slate-300 italic text-[10px] md:text-[12px] uppercase tracking-widest font-black">
+                  <div className="w-full flex items-center justify-center text-slate-500 italic text-[10px] md:text-[12px] uppercase tracking-widest font-black">
                     Select Object to View Properties
                   </div>
                 )}
@@ -1278,10 +1277,10 @@ export default function EstimatorClient() {
             <Button 
               variant="secondary" 
               size="icon" 
-              className="absolute right-0 h-full w-10 z-50 rounded-none border-l opacity-100 bg-slate-100 flex items-center justify-center shadow-md"
+              className="absolute right-0 h-full w-10 z-50 rounded-none border-l border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md"
               onClick={() => scrollBottomBar('right')}
             >
-              <ChevronRight className="w-5 h-5 text-slate-700" />
+              <ChevronRight className="w-5 h-5 text-white" />
             </Button>
           </div>
         </div>
@@ -1601,7 +1600,7 @@ function EstimationView({
                   <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Column</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Beam</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Roof</TabsTrigger>
-                  <TabsTrigger value="tabs" value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger>
+                  <TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Brickwork</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Plaster</TabsTrigger>
                   <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Floor Tiles</TabsTrigger>
@@ -1918,8 +1917,8 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
     emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_0_0_#059669]",
     indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_0_0_#4338ca]",
     teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_4px_0_0_#0f766e]",
-    default: "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]",
-    destructive: "bg-white text-red-600 border border-slate-300 hover:bg-red-50 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]"
+    default: "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 shadow-[0_4px_0_0_#cbd5e1]",
+    destructive: "bg-slate-100 text-red-600 border border-slate-300 hover:bg-red-50 shadow-[0_4px_0_0_#cbd5e1]"
   };
 
   return (
@@ -1977,6 +1976,5 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
+  return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
