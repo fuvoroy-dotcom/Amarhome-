@@ -7,32 +7,29 @@ import {
   Clipboard as ClipboardIcon, Copy as CopyIcon, Undo2, Redo2,
   Pencil, ZoomIn, ZoomOut,
   RotateCw, Save, User,
-  Type as TypeIcon, Bold as BoldIcon,
+  Bold as BoldIcon,
   MousePointer2, Square, DoorOpen, Wind, TowerControl as PillarIcon,
   ImageIcon,
-  Rows, FilePlus, FolderOpen, Search, Check,
+  Rows, FilePlus, FolderOpen, Search,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
-  Layers, Boxes, Plus, X, Droplets,
-  ArrowUpToLine, ArrowDownToLine, CopyPlus,
-  Download, FileText
+  Layers, Boxes, Plus, X,
+  ArrowUpToLine, FileText, Download, Type as TypeIcon
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
-  DialogClose,
   DialogFooter
 } from "@/components/ui/dialog";
 import { 
@@ -51,7 +48,7 @@ import {
 import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
 
@@ -339,7 +336,7 @@ export default function EstimatorClient() {
           } else if (obj.subType === 'double-door') {
             svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2} " stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'sliding-door') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4} " y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
           }
         } else if (obj.subType === 'stair-u') {
           const steps = obj.stepCount || 15;
@@ -944,7 +941,7 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
         if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * displayZoom + CANVAS_OFFSET, top: (c1y - 1.2) * displayZoom + CANVAS_OFFSET, width: dist * displayZoom }}>
-          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
+          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.make(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
         </div>);
       }
     });
@@ -975,11 +972,11 @@ export default function EstimatorClient() {
     }
 
     return (
-      <div className={cn("bg-white/40 backdrop-blur-md border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
+      <div className={cn("bg-slate-900 border-slate-800 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
         {units.map((posValue) => (
           <div key={posValue} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * displayZoom + CANVAS_OFFSET - scrollX, top: 0 } : { top: posValue * displayZoom + CANVAS_OFFSET - scrollY, left: 0 }}>
-            <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
-            <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{posValue}</span>
+            <div className={cn("bg-slate-700", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
+            <span className={cn("text-[9px] font-bold text-slate-400 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{posValue}</span>
           </div>
         ))}
       </div>
@@ -1087,50 +1084,50 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full h-[100svh] bg-slate-100 flex flex-col overflow-hidden font-body text-slate-900 select-none relative">
-      <div className="h-10 bg-slate-800/90 backdrop-blur-md border-b flex items-center px-4 justify-between shrink-0 text-white z-50">
+      <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between shrink-0 text-white z-50">
         <div className="flex items-center gap-2 md:gap-6">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
           <div className="flex items-center gap-2">
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-10 w-40 md:w-80 bg-slate-700 border-white/20 text-[12px] md:text-sm text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-40 md:w-80 bg-slate-800 border-slate-700 text-[12px] md:text-sm text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="sm" className="h-8 text-[10px] md:text-sm hover:bg-slate-700 font-black" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
+          <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm hover:bg-slate-800 font-black text-white" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
           <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
         </div>
       </div>
 
-      <div className="h-10 md:h-11 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 gap-1.5 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1.5">
+      <div className="h-[44px] bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
         </div>
         
-        <div className="w-px h-6 bg-slate-800 mx-1" />
+        <div className="w-px h-6 bg-slate-800 mx-0.5" />
         
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
         </div>
         
-        <div className="w-px h-6 bg-slate-800 mx-1" />
+        <div className="w-px h-6 bg-slate-800 mx-0.5" />
         
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
           <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
         </div>
         
-        <div className="w-px h-6 bg-slate-800 mx-1" />
+        <div className="w-px h-6 bg-slate-800 mx-0.5" />
         
-        <div className="flex items-center gap-1.5">
-          <RibbonButton icon={<CopyPlus />} label="Duplicate" onClick={duplicateProject} color="emerald" />
+        <div className="flex items-center gap-1">
+          <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
         </div>
         
-        <div className="w-px h-6 bg-slate-800 mx-1" />
+        <div className="w-px h-6 bg-slate-800 mx-0.5" />
         
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" />
         </div>
@@ -1141,9 +1138,9 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[75px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[44px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
-            <div className="flex md:flex-col gap-1.5 p-1.5 md:p-2 items-center md:items-stretch min-w-max md:min-w-0">
+            <div className="flex md:flex-col gap-1 p-1 md:p-1.5 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
               <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} color="amber" />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
@@ -1152,8 +1149,8 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
               <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} color="cyan" />
-              <div className="w-px h-6 bg-slate-800 mx-1 md:hidden" />
-              <div className="flex md:flex-col gap-1.5 items-center md:items-stretch">
+              <div className="w-px h-3 bg-slate-800 mx-0.5 md:hidden" />
+              <div className="flex md:flex-col gap-1 items-center md:items-stretch">
                 <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="D1" onClick={() => setSelectedTool('door-1')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="D2" onClick={() => setSelectedTool('door-2')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="D3" onClick={() => setSelectedTool('door-3')} color="teal" />
@@ -1208,42 +1205,42 @@ export default function EstimatorClient() {
               </div>
             </div>
           </div>
-          <div className="h-8 bg-slate-900 border-t border-slate-800 flex items-center px-4 justify-between shrink-0 z-40 text-white">
+          <div className="h-6 bg-slate-900 border-t border-slate-800 flex items-center px-4 justify-between shrink-0 z-40 text-white text-[11px]">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 1))} />
               <Slider value={[zoom]} max={250} min={0} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 1))} />
               <div className="flex items-center gap-1 ml-1 md:ml-2">
-                <Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-700 bg-slate-800 text-white" />
-                <span className="text-[9px] font-black text-slate-400 uppercase">%</span>
+                <Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-5 w-12 text-[10px] md:text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white p-0" />
+                <span className="text-[8px] font-black text-slate-400 uppercase">%</span>
               </div>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
-              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
+              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
+              <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
             </div>
           </div>
           
-          <div className="h-24 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-6 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
-              className="absolute left-0 h-full w-10 z-50 rounded-none border-r border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md"
+              className="absolute left-0 h-full w-6 z-50 rounded-none border-r border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md p-0"
               onClick={() => scrollBottomBar('left')}
             >
-              <ChevronLeft className="w-5 h-5 text-white" />
+              <ChevronLeft className="w-3 h-3 text-white" />
             </Button>
             
             <div 
               ref={bottomBarRef} 
               className="flex-1 h-full overflow-x-auto overflow-y-hidden select-none"
-              style={{ scrollbarWidth: 'thin' }}
+              style={{ scrollbarWidth: 'none' }}
             >
-              <div className="flex items-center px-12 gap-4 md:gap-6 min-w-max h-full">
+              <div className="flex items-center px-8 gap-4 min-w-max h-full text-[11px]">
                 {firstSelectedObject ? (
-                  <div className="flex items-center gap-4 md:gap-6 flex-nowrap py-1">
-                    <div className="flex items-center gap-1.5 md:gap-2 pr-2 md:pr-4 border-r border-slate-800"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-75 md:scale-90" /><span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase">সংযুক্ত</span></div>
-                    <div className="flex items-center gap-2 md:gap-3 flex-nowrap">
+                  <div className="flex items-center gap-4 flex-nowrap py-0">
+                    <div className="flex items-center gap-1 pr-2 border-r border-slate-800"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-50" /><span className="text-[8px] font-black text-slate-400 uppercase">সংযুক্ত</span></div>
+                    <div className="flex items-center gap-2 flex-nowrap">
                       <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
@@ -1252,22 +1249,22 @@ export default function EstimatorClient() {
                       {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                       {firstSelectedObject.type === 'text' && (
                         <>
-                          <div className="flex flex-col gap-0.5 min-w-[180px] md:min-w-[250px]"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-10 w-full text-xs md:text-sm font-black border-slate-700 bg-slate-800 text-white shadow-sm" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
+                          <div className="flex flex-col gap-0.5 min-w-[100px]"><span className="text-[7px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-5 w-full text-[10px] font-black border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
                           <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
-                          <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-10 w-10 ml-1 border-slate-700 bg-slate-800 text-white" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-4 h-4" /></Button>
+                          <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-5 w-5 ml-0.5 border-slate-700 bg-slate-800 text-white p-0" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-2.5 h-2.5" /></Button>
                         </>
                       )}
-                      <div className="flex items-center gap-1 border-l border-slate-800 pl-2 flex-nowrap">
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-700 bg-slate-800 text-white" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-4 h-4 text-blue-400" /></Button>
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-slate-700 bg-slate-800 text-white" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-4 h-4 text-blue-400" rotate={180} /></Button>
+                      <div className="flex items-center gap-0.5 border-l border-slate-800 pl-1 flex-nowrap">
+                        <Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" /></Button>
+                        <Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" style={{ transform: 'rotate(180deg)' }} /></Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 md:gap-1.5 border-l border-slate-800 pl-2 md:pl-4 flex-nowrap">
-                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-5 h-5 md:w-6 md:h-6 rounded-full cursor-pointer border-2 shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-2 ring-red-600 ring-offset-1" : "border-slate-700")} style={{ backgroundColor: c }} />)}
+                    <div className="flex items-center gap-0.5 border-l border-slate-800 pl-2 flex-nowrap">
+                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-3 h-3 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-1 ring-red-600" : "border-slate-700")} style={{ backgroundColor: c }} />)}
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full flex items-center justify-center text-slate-500 italic text-[10px] md:text-[12px] uppercase tracking-widest font-black">
+                  <div className="w-full flex items-center justify-center text-slate-500 italic text-[8px] uppercase tracking-widest font-black">
                     Select Object to View Properties
                   </div>
                 )}
@@ -1277,10 +1274,10 @@ export default function EstimatorClient() {
             <Button 
               variant="secondary" 
               size="icon" 
-              className="absolute right-0 h-full w-10 z-50 rounded-none border-l border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md"
+              className="absolute right-0 h-full w-6 z-50 rounded-none border-l border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md p-0"
               onClick={() => scrollBottomBar('right')}
             >
-              <ChevronRight className="w-5 h-5 text-white" />
+              <ChevronRight className="w-3 h-3 text-white" />
             </Button>
           </div>
         </div>
@@ -1346,7 +1343,7 @@ export default function EstimatorClient() {
 
             <div className="space-y-2">
               <Label className="font-black text-slate-700 uppercase text-[10px]">Select Area</Label>
-              <Select value={exportSettings.area} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}>
+              <Select value={exportSettings.format} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}>
                 <SelectTrigger className="font-black h-12">
                   <SelectValue />
                 </SelectTrigger>
@@ -1824,10 +1821,10 @@ function EstimationView({
                       <div className="pt-2 mt-4 border-t border-emerald-200 space-y-3">
                         <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1 flex items-center gap-1"><Plus className="w-3 h-3" /> Other Expenses</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-500 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
+                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
                         </div>
                       </div>
                     </div>
@@ -1882,7 +1879,7 @@ function SectionResult({ res }: { res: any }) {
 function ResultRow({ label, value, unit, small, dark }: { label: string, value: number, unit: string, small?: boolean, dark?: boolean }) {
   return (
     <div className={cn("flex justify-between items-center rounded-lg border shadow-sm", small ? "p-1.5 bg-white" : "p-2 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
-      <span className={cn("font-black uppercase", small ? "text-[8px]" : "text-[10px]", dark ? "text-emerald-900" : "text-slate-600")}>{label}</span>
+      <span className={cn("font-black uppercase", small ? "text-[8px]" : "text-[10px]", dark ? "text-emerald-900" : "text-slate-700")}>{label}</span>
       <span className={cn("font-black", small ? "text-[9px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
     </div>
   );
@@ -1976,5 +1973,5 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
+  return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-5 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
