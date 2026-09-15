@@ -1085,11 +1085,11 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full h-[100svh] bg-slate-900 flex flex-col overflow-hidden font-body text-slate-200 select-none relative pb-12">
-      <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50 py-1">
+      <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50 py-1">
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
           <div className="flex items-center gap-2">
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-24 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
           </div>
         </div>
         
@@ -1119,7 +1119,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[24.2px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[36px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
@@ -1186,7 +1186,7 @@ export default function EstimatorClient() {
               </div>
             </div>
           </div>
-          <div className="h-6 bg-slate-900 border-t border-slate-800 flex items-center px-4 justify-between shrink-0 z-40 text-white text-[11px]">
+          <div className="h-10 bg-slate-900 border-t border-slate-800 flex items-center px-4 justify-between shrink-0 z-40 text-white text-[11px]">
             <div className="flex items-center gap-2 md:gap-4">
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 1))} />
               <Slider value={[zoom]} max={250} min={0} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
@@ -1202,7 +1202,7 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-6 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-10 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
@@ -1230,7 +1230,7 @@ export default function EstimatorClient() {
                       {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                       {firstSelectedObject.type === 'text' && (
                         <>
-                          <div className="flex flex-col gap-0.5 min-w-[100px]"><span className="text-[7px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-7 w-full text-[10px] font-black border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
+                          <div className="flex flex-col gap-0.5 min-w-[100px]"><span className="text-[7px] font-black text-slate-400 uppercase tracking-tight w-full">লেখা/মাপ</span><Input className="h-8 w-full text-[10px] font-black border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center leading-none" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
                           <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
                           <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-5 w-5 ml-0.5 border-slate-700 bg-slate-800 text-white p-0" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-2.5 h-2.5" /></Button>
                         </>
@@ -1940,7 +1940,7 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[24px] md:w-[28px] mx-auto",
+        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[32px] md:w-[34px] mx-auto overflow-visible",
         baseColor,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )}
@@ -1954,5 +1954,6 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-7 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
+  return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
