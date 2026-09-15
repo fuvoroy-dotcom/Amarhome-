@@ -1085,12 +1085,10 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full h-[100svh] bg-slate-900 flex flex-col overflow-hidden font-body text-slate-200 select-none relative pb-12">
-      <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50 py-1">
+      <div className="h-12 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50 py-1">
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
-          <div className="flex items-center gap-2">
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
-          </div>
+          <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
         </div>
         
         <div className="flex-1 flex items-center justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible">
@@ -1121,7 +1119,7 @@ export default function EstimatorClient() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         <div className="w-full md:w-[36px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
-            <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0">
+            <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
               <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} color="amber" />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
@@ -1202,7 +1200,7 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-10 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-8 md:h-12 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
@@ -1903,7 +1901,7 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold transition-all active:translate-y-[2px] active:shadow-none h-10 md:h-12 min-w-[40px] md:min-w-[48px]",
+        "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold transition-all active:translate-y-[2px] active:shadow-none h-8 md:h-12 min-w-[40px] md:min-w-[48px]",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[2px] shadow-none" : ""
       )} 
@@ -1956,4 +1954,3 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
