@@ -1085,28 +1085,28 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full h-[100svh] bg-slate-900 flex flex-col overflow-hidden font-body text-slate-200 select-none relative pb-12">
-      <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50">
+      <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50 py-1">
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
           <div className="flex items-center gap-2">
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-32 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-24 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
           </div>
         </div>
         
-        <div className="flex-1 flex items-center justify-center gap-1 mx-2 overflow-x-auto no-scrollbar">
+        <div className="flex-1 flex items-center justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
-          <div className="w-px h-6 bg-slate-800 mx-0.5" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
-          <div className="w-px h-6 bg-slate-800 mx-0.5" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
           <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
-          <div className="w-px h-6 bg-slate-800 mx-0.5" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
-          <div className="w-px h-6 bg-slate-800 mx-0.5" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5" />
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" />
           <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" />
@@ -1119,9 +1119,9 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[44px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[24.2px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
-            <div className="flex md:flex-col gap-1 p-1 md:p-1.5 items-center md:items-stretch min-w-max md:min-w-0">
+            <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
               <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} color="amber" />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
@@ -1230,7 +1230,7 @@ export default function EstimatorClient() {
                       {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                       {firstSelectedObject.type === 'text' && (
                         <>
-                          <div className="flex flex-col gap-0.5 min-w-[100px]"><span className="text-[7px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-5 w-full text-[10px] font-black border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
+                          <div className="flex flex-col gap-0.5 min-w-[100px]"><span className="text-[7px] font-black text-slate-400 uppercase tracking-tight">লেখা/মাপ</span><Input className="h-7 w-full text-[10px] font-black border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center" value={localPropText} onChange={e => setLocalPropText(e.target.value)} onBlur={() => updateObject(firstSelectedObject.id, { textContent: localPropText }, true)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>
                           <PropField label="সাইজ" value={localPropFontSize} onChange={setLocalPropFontSize} onBlur={() => updateObject(firstSelectedObject.id, { fontSize: parseInt(localPropFontSize) || 14 }, true)} />
                           <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-5 w-5 ml-0.5 border-slate-700 bg-slate-800 text-white p-0" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-2.5 h-2.5" /></Button>
                         </>
@@ -1890,29 +1890,29 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
 
 function RibbonButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
   const colorClasses = {
-    blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_2px_0_0_#1d4ed8]",
-    amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_2px_0_0_#b45309]",
-    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_2px_0_0_#059669]",
-    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_2px_0_0_#4338ca]",
-    teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_2px_0_0_#0f766e]",
-    default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 shadow-[0_2px_0_0_#475569]",
-    destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30 shadow-[0_2px_0_0_#475569]"
+    blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_3px_0_0_#1d4ed8]",
+    amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_3px_0_0_#b45309]",
+    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_3px_0_0_#059669]",
+    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_3px_0_0_#4338ca]",
+    teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_3px_0_0_#0f766e]",
+    default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 shadow-[0_3px_0_0_#475569]",
+    destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30 shadow-[0_3px_0_0_#475569]"
   };
 
   return (
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center px-1 md:px-1.5 py-0.5 rounded-md font-black text-[10px] transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 min-w-[32px] md:min-w-[40px]",
+        "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold transition-all active:translate-y-[2px] active:shadow-none h-10 md:h-12 min-w-[40px] md:min-w-[48px]",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
-        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
+        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[2px] shadow-none" : ""
       )} 
       onClick={onClick}
     >
-      <div className="shrink-0 text-white">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-3 md:w-3.5 h-3 md:h-3.5" })}
+      <div className="shrink-0 text-white mb-0.5">
+        {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}
       </div>
-      <span className="text-[6px] md:text-[7px] uppercase font-black mt-0.5 leading-none tracking-tight text-white">
+      <span className="text-[9px] uppercase font-black leading-none tracking-tight text-white antialiased">
         {label}
       </span>
     </Button>
@@ -1954,6 +1954,5 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
-  return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-5 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
+  return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-7 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
