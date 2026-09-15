@@ -1018,8 +1018,8 @@ export default function EstimatorClient() {
       const flightW = obj.w * 0.3;
       const midFlightH = obj.h - 2 * landingH;
       const sCount = Math.floor(steps / 3);
-      const stepH = midFlightH / sCount;
-      const stepW = (obj.w - 2 * flightW) / sCount;
+      const oStepH = midFlightH / sCount;
+      const oStepW = (obj.w - 2 * flightW) / sCount;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
@@ -1028,13 +1028,13 @@ export default function EstimatorClient() {
           <line x1={flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={flightW} y1={obj.h - landingH} x2={obj.w - flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
           {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`f1-${i}`} x1="0" y1={obj.h - landingH - (i * stepH)} x2={flightW} y2={obj.h - landingH - (i * stepH)} stroke={obj.color} strokeWidth={sw} />
+            <line key={`f1-${i}`} x1="0" y1={obj.h - landingH - (i * oStepH)} x2={flightW} y2={obj.h - landingH - (i * oStepH)} stroke={obj.color} strokeWidth={sw} />
           ))}
           {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`f2-${i}`} x1={flightW + (i * stepW)} y1={landingH} x2={flightW + (i * stepW)} y2={0} stroke={obj.color} strokeWidth={sw} />
+            <line key={`f2-${i}`} x1={flightW + (i * oStepW)} y1={landingH} x2={flightW + (i * oStepW)} y2={0} stroke={obj.color} strokeWidth={sw} />
           ))}
           {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`f3-${i}`} x1={obj.w - flightW} y1={landingH + (i * stepH)} x2={obj.w} y2={landingH + (i * stepH)} stroke={obj.color} strokeWidth={sw} />
+            <line key={`f3-${i}`} x1={obj.w - flightW} y1={landingH + (i * oStepH)} x2={obj.w} y2={landingH + (i * oStepH)} stroke={obj.color} strokeWidth={sw} />
           ))}
         </svg>
       );
@@ -1046,7 +1046,7 @@ export default function EstimatorClient() {
       const flightW = (obj.w - railW) / 2;
       const midH = obj.h - landingH;
       const sCount = Math.floor(steps / 2);
-      const stepH = midH / sCount;
+      const oStepH = midH / sCount;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
@@ -1054,10 +1054,10 @@ export default function EstimatorClient() {
           <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
           <line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * stepH} x2={flightW} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
+            <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * oStepH} x2={flightW} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />
           ))}
           {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * stepH} x2={obj.w} y2={landingH + (i+1) * stepH} stroke={obj.color} strokeWidth={sw} />
+            <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * oStepH} x2={obj.w} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />
           ))}
         </svg>
       );
@@ -1115,7 +1115,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[54px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[65px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
@@ -1937,7 +1937,7 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[38px] md:w-[42px] mx-auto overflow-visible",
+        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[46px] md:w-[50px] mx-auto overflow-visible",
         baseColor,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )}
