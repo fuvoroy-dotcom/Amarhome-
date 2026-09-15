@@ -1374,7 +1374,7 @@ export default function EstimatorClient() {
       </Dialog>
 
       <Dialog open={isEstimationDialogOpen} onOpenChange={setIsEstimationDialogOpen}>
-        <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
+        <DialogContent className="max-w-[45vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
           <EstimationView 
             designObjects={designObjects} 
             onBack={() => setIsEstimationDialogOpen(false)}
