@@ -1071,7 +1071,7 @@ export default function EstimatorClient() {
     return null;
   };
 
-  const getObjectStyle = (obj: DesignObject): React.CSSProperties => {
+  const getObjectStyle = (obj: DesignObject) => {
     let ox = 0, oy = 0;
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
@@ -1915,7 +1915,7 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
   const colorClasses = {
     blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_0_0_#1d4ed8]",
     amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_4px_0_0_#b45309]",
-    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_0_0_#047857]",
+    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_0_0_#059669]",
     indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_0_0_#4338ca]",
     teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_4px_0_0_#0f766e]",
     default: "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]",
@@ -1926,7 +1926,7 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center px-3 py-2 rounded-lg font-black text-xs transition-all active:translate-y-[2px] active:shadow-none h-12 md:h-14",
+        "flex flex-col items-center justify-center px-3 py-2 rounded-xl font-black text-xs transition-all active:translate-y-[2px] active:shadow-none h-12 md:h-14",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
         active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : ""
       )} 
@@ -1944,30 +1944,28 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
 
 function SymbolButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
   const colorMap = {
-    blue: "bg-blue-500 border-blue-700",
-    amber: "bg-amber-500 border-amber-700",
-    emerald: "bg-emerald-500 border-emerald-700",
-    indigo: "bg-indigo-500 border-indigo-700",
-    slate: "bg-slate-700 border-slate-900",
-    violet: "bg-violet-500 border-violet-700",
-    purple: "bg-purple-500 border-purple-700",
-    cyan: "bg-cyan-500 border-cyan-700",
-    teal: "bg-teal-500 border-teal-700",
-    pink: "bg-pink-500 border-pink-700",
-    sky: "bg-sky-500 border-sky-700",
+    blue: "bg-blue-500 border-blue-700 shadow-[0_4px_0_0_#1d4ed8]",
+    amber: "bg-amber-500 border-amber-700 shadow-[0_4px_0_0_#b45309]",
+    emerald: "bg-emerald-500 border-emerald-700 shadow-[0_4px_0_0_#059669]",
+    indigo: "bg-indigo-500 border-indigo-700 shadow-[0_4px_0_0_#4338ca]",
+    slate: "bg-slate-700 border-slate-900 shadow-[0_4px_0_0_#0f172a]",
+    violet: "bg-violet-500 border-violet-700 shadow-[0_4px_0_0_#6d28d9]",
+    purple: "bg-purple-500 border-purple-700 shadow-[0_4px_0_0_#7e22ce]",
+    cyan: "bg-cyan-500 border-cyan-700 shadow-[0_4px_0_0_#0891b2]",
+    teal: "bg-teal-500 border-teal-700 shadow-[0_4px_0_0_#0f766e]",
+    pink: "bg-pink-500 border-pink-700 shadow-[0_4px_0_0_#be185d]",
+    sky: "bg-sky-500 border-sky-700 shadow-[0_4px_0_0_#0369a1]",
   };
   
-  const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-white border-slate-300";
-  const activeClass = active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.3)]";
-
+  const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-white border-slate-300 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]";
+  
   return (
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-1 md:p-1.5 rounded-lg cursor-pointer border-2 transition-all active:translate-y-[2px] active:shadow-none",
+        "flex flex-col items-center justify-center p-1 md:p-1.5 rounded-xl cursor-pointer border-2 transition-all active:translate-y-[2px] active:shadow-none h-12 md:h-14 w-full md:w-[80%] mx-auto",
         baseColor,
-        activeClass,
-        "h-12 md:h-14 w-full md:w-[80%] mx-auto" 
+        active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : ""
       )}
     >
       <div className={cn("shrink-0", active ? "text-white" : "text-white/90")}>
@@ -1981,3 +1979,4 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
