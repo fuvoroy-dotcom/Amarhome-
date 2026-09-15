@@ -275,7 +275,6 @@ export default function EstimatorClient() {
         yMin = Math.min(exportSettings.yStart, exportSettings.yEnd);
         yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
       } else {
-        // Strict 60x60 from version 29b7dab logic
         xMin = 0; xMax = 60; yMin = 0; yMax = 60;
       }
       
@@ -317,7 +316,7 @@ export default function EstimatorClient() {
         objDiv.style.height = `${heightPx}px`;
         objDiv.style.transformOrigin = '0 0';
         objDiv.style.transform = `rotate(${obj.rotation}deg)`;
-        objDiv.style.overflow = 'visible'; // Door Swings visibility
+        objDiv.style.overflow = 'visible'; 
         
         const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
         if (isStructure) {
@@ -488,7 +487,7 @@ export default function EstimatorClient() {
           format: 'a4'
         });
         
-        const margin = 12.7; // 0.5 inch in mm
+        const margin = 12.7; 
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
@@ -694,7 +693,7 @@ export default function EstimatorClient() {
       const next = prev.map(o => {
         if (selectedObjectIds.includes(o.id) && !o.isJoined) {
           let dx = 0, dy = 0;
-          const step = 1/12; // 1 point = 1 inch
+          const step = 1/12; 
           if (key === 'ArrowUp') dy = -step;
           if (key === 'ArrowDown') dy = step;
           if (key === 'ArrowLeft') dx = -step;
@@ -764,7 +763,7 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -1 : 1; // 1 point precision wheel zoom
+        const delta = e.deltaY > 0 ? -1 : 1; 
         setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
       }
     };
@@ -1102,29 +1101,44 @@ export default function EstimatorClient() {
         </div>
       </div>
 
-      <div className="h-14 md:h-16 bg-white/70 backdrop-blur-lg border-b flex items-center px-2 md:px-4 gap-0.5 md:gap-1 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
-        <FilePlus className="text-blue-500 w-4 h-4 md:w-5 md:h-5 cursor-pointer mx-2" onClick={handleNewPage} />
-        <span className="text-[10px] md:text-xs font-black uppercase cursor-pointer mr-4" onClick={handleNewPage}>New</span>
+      <div className="h-14 md:h-16 bg-[#f8f9fa] border-b flex items-center px-2 md:px-4 gap-2 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2">
+          <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
+          <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
+        </div>
         
-        <FolderOpen className="text-amber-500 w-4 h-4 md:w-5 md:h-5 cursor-pointer mx-2" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} />
-        <span className="text-[10px] md:text-xs font-black uppercase cursor-pointer mr-4" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))}>Open</span>
+        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
         
-        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
-        <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
-        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
-        <RibbonButton icon={<CopyPlus className="text-teal-500" />} label="Duplicate" onClick={duplicateProject} color="teal" />
-        <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
-        <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
-        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<Calculator className="text-emerald-500" />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
-        <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2" />
-        <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
-        <Button variant="outline" size="sm" className="text-destructive h-12 flex flex-col items-center justify-center p-1 md:p-2 ml-auto shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.4)] active:shadow-none active:translate-y-[2px]" onClick={deleteSelected}>
-          <Trash2 className="w-4 h-4" />
-          <span className="text-[8px] uppercase font-black mt-1">Delete</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
+          <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
+        </div>
+        
+        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        
+        <div className="flex items-center gap-2">
+          <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
+          <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
+        </div>
+        
+        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        
+        <div className="flex items-center gap-2">
+          <RibbonButton icon={<CopyPlus />} label="Duplicate" onClick={duplicateProject} color="emerald" />
+          <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
+          <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
+        </div>
+        
+        <div className="w-px h-8 bg-slate-300 mx-1 md:mx-2" />
+        
+        <div className="flex items-center gap-2">
+          <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
+          <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" />
+        </div>
+
+        <div className="ml-auto">
+          <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" />
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
@@ -1587,7 +1601,7 @@ function EstimationView({
                   <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Column</TabsTrigger>
                   <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Beam</TabsTrigger>
                   <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Roof</TabsTrigger>
-                  <TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger>
+                  <TabsTrigger value="tabs" value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger>
                   <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Brickwork</TabsTrigger>
                   <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Plaster</TabsTrigger>
                   <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Floor Tiles</TabsTrigger>
@@ -1899,27 +1913,31 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
 
 function RibbonButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
   const colorClasses = {
-    blue: "bg-blue-500 hover:bg-blue-600 text-white border-blue-700",
-    amber: "bg-amber-500 hover:bg-amber-600 text-white border-amber-700",
-    emerald: "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-700",
-    indigo: "bg-indigo-500 hover:bg-indigo-600 text-white border-indigo-700",
-    teal: "bg-teal-500 hover:bg-teal-600 text-white border-teal-700",
-    default: "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+    blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_0_0_#1d4ed8]",
+    amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_4px_0_0_#b45309]",
+    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_0_0_#047857]",
+    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_0_0_#4338ca]",
+    teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_4px_0_0_#0f766e]",
+    default: "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]",
+    destructive: "bg-white text-red-600 border border-slate-300 hover:bg-red-50 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]"
   };
-  const activeClass = active ? "shadow-inner translate-y-[2px] ring-2 ring-red-600 ring-offset-1" : "shadow-[0_4px_0_0_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.4)]";
 
   return (
     <Button 
       variant="ghost" 
       className={cn(
-        "h-12 md:h-14 flex flex-col gap-0.5 md:gap-1 px-2 md:px-3 border-2 transition-all active:translate-y-[2px] active:shadow-none",
+        "flex flex-col items-center justify-center px-3 py-2 rounded-lg font-black text-xs transition-all active:translate-y-[2px] active:shadow-none h-12 md:h-14",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
-        activeClass
+        active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : ""
       )} 
       onClick={onClick}
     >
-      {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}
-      <span className="text-[8px] md:text-[9px] uppercase font-black tracking-tight">{label}</span>
+      <div className={cn("shrink-0", (color === 'default' || color === 'destructive') ? "" : "text-white")}>
+        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}
+      </div>
+      <span className={cn("text-[8px] md:text-[9px] uppercase font-black mt-1 leading-none tracking-tight", (color === 'default' || color === 'destructive') ? "" : "text-white")}>
+        {label}
+      </span>
     </Button>
   );
 }
