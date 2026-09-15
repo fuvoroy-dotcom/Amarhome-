@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -1166,7 +1167,7 @@ export default function EstimatorClient() {
             <Ruler orientation="vertical" />
             <div 
               ref={canvasRef} id="canvas-workspace-inner" 
-              className="flex-1 relative bg-white overflow-hidden cursor-crosshair" 
+              className="flex-1 relative bg-white overflow-auto cursor-crosshair" 
               onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchStart={(e) => handleMouseDown(e, null)} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
             >
               <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${displayZoom * gridConfig.minor}px ${displayZoom * gridConfig.minor}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 20000, height: 20000 }}>
@@ -1472,11 +1473,11 @@ function EstimationView({
     if (type === 'slab') setSlabs(slabs.filter(f => f.id !== id));
     if (type === 'stair') setStairs(stairs.filter(f => f.id !== id));
     if (type === 'brickwork') setBrickworks(brickworks.filter(f => f.id !== id));
-    if (type === 'plaster') setPlasters(plasters.filter(f => f.id !== id));
+    if (type === 'plaster') setPlasters(plasters.filter(p => p.id !== id));
     if (type === 'floorTiles') setFloorTiles(floorTiles.filter(f => f.id !== id));
     if (type === 'wallTiles') setWallTiles(wallTiles.filter(f => f.id !== id));
     if (type === 'septicTank') setSepticTanks(septicTanks.filter(f => f.id !== id));
-    if (type === 'soakWell') setSoakWells(soakWells.filter(f => f.id !== id));
+    if (type === 'soakWell') setSoakWells(soakWells.filter(s => s.id !== id));
   };
   const updateItem = (type: string, id: string, field: string, val: any) => {
     const textFields = ['aggregateType'];
