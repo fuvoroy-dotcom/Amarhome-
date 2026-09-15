@@ -702,7 +702,7 @@ export default function EstimatorClient() {
       const next = prev.map(o => {
         if (selectedObjectIds.includes(o.id) && !o.isJoined) {
           let dx = 0, dy = 0;
-          const step = 1/12; // Move by 1 inch as requested
+          const step = 1/12; 
           if (key === 'ArrowUp') dy = -step;
           if (key === 'ArrowDown') dy = step;
           if (key === 'ArrowLeft') dx = -step;
@@ -1916,3 +1916,4 @@ function SymbolButton({ icon, label, onClick, active }: { icon: React.ReactNode,
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight min-w-[30px]">{label}</span><Input className="h-10 w-20 md:w-32 text-xs md:text-sm font-black text-center border-slate-400 bg-white shadow-sm" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
