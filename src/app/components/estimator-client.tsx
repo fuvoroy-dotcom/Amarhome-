@@ -116,8 +116,8 @@ export default function EstimatorClient() {
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [showDimensions, setShowDimensions] = useState(true);
-  const [showPillarDistances, setShowPillarDistances] = useState(true);
+  const [showDimensions, setShowDimensions] = useState(false);
+  const [showPillarDistances, setShowPillarDistances] = useState(false);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
 
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
@@ -355,7 +355,7 @@ export default function EstimatorClient() {
             stairLines += `<line x1="${flightW + (i * stepW)}" y1="${landingH}" x2="${flightW + (i * stepW)}" y2="0" stroke="${obj.color}" stroke-width="${sw}"/>`;
             stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i * stepH)}" x2="${obj.w}" y2="${landingH + (i * stepH)}" stroke="${obj.color}" stroke-width="${sw}"/>`;
           }
-          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"|>${stairLines}</svg>`;
+          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="0" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="0" x2="${obj.w - flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${obj.h - landingH}" x2="${obj.w - flightW}" y2="${obj.h - landingH}" stroke="${obj.color}" stroke-width="${sw * 2}">${stairLines}</svg>`;
         } else if (obj.subType === 'stair-dogleg') {
           const steps = obj.stepCount || 10;
           const landingH = obj.h * 0.2;
@@ -1100,37 +1100,37 @@ export default function EstimatorClient() {
         </div>
       </div>
 
-      <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 gap-2 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-2">
+      <div className="h-10 md:h-11 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 gap-1.5 shrink-0 shadow-sm z-40 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
         </div>
         
-        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
+        <div className="w-px h-6 bg-slate-800 mx-1" />
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
         </div>
         
-        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
+        <div className="w-px h-6 bg-slate-800 mx-1" />
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
           <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
         </div>
         
-        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
+        <div className="w-px h-6 bg-slate-800 mx-1" />
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <RibbonButton icon={<CopyPlus />} label="Duplicate" onClick={duplicateProject} color="emerald" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
         </div>
         
-        <div className="w-px h-8 bg-slate-800 mx-1 md:mx-2" />
+        <div className="w-px h-6 bg-slate-800 mx-1" />
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" />
         </div>
@@ -1141,9 +1141,9 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[120px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[75px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
-            <div className="flex md:flex-col gap-2 p-2 md:p-3 items-center md:items-stretch min-w-max md:min-w-0">
+            <div className="flex md:flex-col gap-1.5 p-1.5 md:p-2 items-center md:items-stretch min-w-max md:min-w-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
               <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} color="amber" />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
@@ -1152,8 +1152,8 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
               <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} color="cyan" />
-              <div className="w-px h-8 bg-slate-800 mx-1 md:hidden" />
-              <div className="flex md:flex-col gap-2 items-center md:items-stretch">
+              <div className="w-px h-6 bg-slate-800 mx-1 md:hidden" />
+              <div className="flex md:flex-col gap-1.5 items-center md:items-stretch">
                 <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="D1" onClick={() => setSelectedTool('door-1')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="D2" onClick={() => setSelectedTool('door-2')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="D3" onClick={() => setSelectedTool('door-3')} color="teal" />
@@ -1582,7 +1582,7 @@ function EstimationView({
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
           <DialogTitle className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2">
-            <Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> Estimation Calculator 
+            <Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> <span className="font-bold">Estimation Calculator</span>
           </DialogTitle>
         </div>
         <div className="flex items-center gap-2">
@@ -1837,14 +1837,14 @@ function EstimationView({
               {advice && (<div className="bg-white p-4 rounded-xl border shadow-sm"><h3 className="text-xs font-black text-emerald-700 mb-2 flex items-center gap-1 uppercase">⭐ AI Advice</h3><div className="text-[10px] md:text-xs leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div></div>)}
             </div>
             <div className="space-y-4">
-              <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg sticky top-6">
-                <h3 className="text-xs font-black mb-3 border-b border-white/20 pb-1 flex items-center gap-2 uppercase"><Calculator className="w-4 h-4" /> Summary </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div>
-                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div>
-                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Rod:</span><span className="font-black">{Math.ceil(total.rod)} KG</span></div>
-                  <div className="flex justify-between text-[9px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div>
-                  <div className="mt-2 pt-2 border-t border-white/20 flex flex-col gap-1"><span className="text-[9px] font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-sm font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
+              <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg sticky top-6">
+                <h3 className="text-[11px] font-black mb-3 border-b border-white/20 pb-1 flex items-center gap-2 uppercase"><Calculator className="w-3.5 h-3.5" /> Summary </h3>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div>
+                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div>
+                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Rod:</span><span className="font-black">{Math.ceil(total.rod)} KG</span></div>
+                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div>
+                  <div className="mt-1.5 pt-1.5 border-t border-white/20 flex flex-col gap-0.5"><span className="text-[8px] font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-xs font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
                 </div>
               </div>
             </div>
@@ -1891,20 +1891,20 @@ function ResultRow({ label, value, unit, small, dark }: { label: string, value: 
 function CostRow({ label, value, unit, price, onPriceChange }: { label: string, value: number, unit: string, price: number, onPriceChange: (v: number) => void }) {
   const qty = Math.ceil(value); const subTotal = qty * price;
   return (
-    <div className="flex flex-col gap-2 p-3 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
+    <div className="flex flex-col gap-1.5 p-2 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
       <div className="flex justify-between items-start">
         <div className="flex flex-col">
-          <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{label}</span>
-          <span className="text-[8px] font-black text-slate-400 uppercase mt-1">{qty} {unit}</span>
+          <span className="text-[9px] font-black text-slate-700 uppercase leading-none">{label}</span>
+          <span className="text-[7.5px] font-black text-slate-400 uppercase mt-0.5">{qty} {unit}</span>
         </div>
         <div className="text-right flex flex-col items-end">
-          <span className="text-[7px] uppercase font-black text-slate-400 tracking-tight">Sub-total</span>
-          <span className="text-xs font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
+          <span className="text-[6.5px] uppercase font-black text-slate-400 tracking-tight">Sub-total</span>
+          <span className="text-[11px] font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Label className="text-[8px] font-black text-slate-400 uppercase shrink-0">Rate (৳)</Label>
-        <Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-8 w-full text-xs font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="0" />
+      <div className="flex items-center gap-1.5">
+        <Label className="text-[7.5px] font-black text-slate-400 uppercase shrink-0">Rate (৳)</Label>
+        <Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-7 w-full text-[10px] font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="0" />
       </div>
     </div>
   );
@@ -1912,29 +1912,29 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
 
 function RibbonButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
   const colorClasses = {
-    blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_0_0_#1d4ed8]",
-    amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_4px_0_0_#b45309]",
-    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_0_0_#059669]",
-    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_0_0_#4338ca]",
-    teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_4px_0_0_#0f766e]",
-    default: "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 shadow-[0_4px_0_0_#cbd5e1]",
-    destructive: "bg-slate-100 text-red-600 border border-slate-300 hover:bg-red-50 shadow-[0_4px_0_0_#cbd5e1]"
+    blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_2px_0_0_#1d4ed8]",
+    amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_2px_0_0_#b45309]",
+    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_2px_0_0_#059669]",
+    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_2px_0_0_#4338ca]",
+    teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_2px_0_0_#0f766e]",
+    default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 shadow-[0_2px_0_0_#475569]",
+    destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30 shadow-[0_2px_0_0_#475569]"
   };
 
   return (
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center px-3 py-2 rounded-xl font-black text-xs transition-all active:translate-y-[2px] active:shadow-none h-12 md:h-14",
+        "flex flex-col items-center justify-center px-1.5 py-0.5 rounded-md font-black text-[10px] transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 min-w-[50px]",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
-        active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : ""
+        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )} 
       onClick={onClick}
     >
-      <div className={cn("shrink-0", (color === 'default' || color === 'destructive') ? "" : "text-white")}>
-        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}
+      <div className="shrink-0 text-white">
+        {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5" })}
       </div>
-      <span className={cn("text-[8px] md:text-[9px] uppercase font-black mt-1 leading-none tracking-tight", (color === 'default' || color === 'destructive') ? "" : "text-white")}>
+      <span className="text-[7px] md:text-[8px] uppercase font-black mt-0.5 leading-none tracking-tight text-white">
         {label}
       </span>
     </Button>
@@ -1943,34 +1943,34 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
 
 function SymbolButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
   const colorMap = {
-    blue: "bg-blue-500 border-blue-700 shadow-[0_4px_0_0_#1d4ed8]",
-    amber: "bg-amber-500 border-amber-700 shadow-[0_4px_0_0_#b45309]",
-    emerald: "bg-emerald-500 border-emerald-700 shadow-[0_4px_0_0_#059669]",
-    indigo: "bg-indigo-500 border-indigo-700 shadow-[0_4px_0_0_#4338ca]",
-    slate: "bg-slate-700 border-slate-900 shadow-[0_4px_0_0_#0f172a]",
-    violet: "bg-violet-500 border-violet-700 shadow-[0_4px_0_0_#6d28d9]",
-    purple: "bg-purple-500 border-purple-700 shadow-[0_4px_0_0_#7e22ce]",
-    cyan: "bg-cyan-500 border-cyan-700 shadow-[0_4px_0_0_#0891b2]",
-    teal: "bg-teal-500 border-teal-700 shadow-[0_4px_0_0_#0f766e]",
-    pink: "bg-pink-500 border-pink-700 shadow-[0_4px_0_0_#be185d]",
-    sky: "bg-sky-500 border-sky-700 shadow-[0_4px_0_0_#0369a1]",
+    blue: "bg-blue-500 border-blue-700 shadow-[0_2px_0_0_#1d4ed8]",
+    amber: "bg-amber-500 border-amber-700 shadow-[0_2px_0_0_#b45309]",
+    emerald: "bg-emerald-500 border-emerald-700 shadow-[0_2px_0_0_#059669]",
+    indigo: "bg-indigo-500 border-indigo-700 shadow-[0_2px_0_0_#4338ca]",
+    slate: "bg-slate-700 border-slate-900 shadow-[0_2px_0_0_#0f172a]",
+    violet: "bg-violet-500 border-violet-700 shadow-[0_2px_0_0_#6d28d9]",
+    purple: "bg-purple-500 border-purple-700 shadow-[0_2px_0_0_#7e22ce]",
+    cyan: "bg-cyan-500 border-cyan-700 shadow-[0_2px_0_0_#0891b2]",
+    teal: "bg-teal-500 border-teal-700 shadow-[0_2px_0_0_#0f766e]",
+    pink: "bg-pink-500 border-pink-700 shadow-[0_2px_0_0_#be185d]",
+    sky: "bg-sky-500 border-sky-700 shadow-[0_2px_0_0_#0369a1]",
   };
   
-  const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-white border-slate-300 shadow-[0_2px_0_0_rgba(0,0,0,0.1)]";
+  const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-slate-800 border-slate-700 shadow-[0_1px_0_0_rgba(0,0,0,0.3)]";
   
   return (
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-1 md:p-1.5 rounded-xl cursor-pointer border-2 transition-all active:translate-y-[2px] active:shadow-none h-12 md:h-14 w-full md:w-[80%] mx-auto",
+        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 w-full md:w-[90%] mx-auto",
         baseColor,
-        active ? "ring-2 ring-red-600 ring-offset-2 scale-95 translate-y-[2px] shadow-none" : ""
+        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )}
     >
-      <div className={cn("shrink-0", active ? "text-white" : "text-white/90")}>
-        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 md:w-5 md:h-5" })}
+      <div className="shrink-0 text-white">
+        {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 h-3.5" })}
       </div>
-      <span className="text-[7px] md:text-[8px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
+      <span className="text-[6.5px] md:text-[7.5px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
     </div>
   );
 }
