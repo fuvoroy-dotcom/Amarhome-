@@ -108,8 +108,11 @@ export default function EstimatorClient() {
   const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
   
   const [zoom, setZoom] = useState(40);
-  // Adjusted multiplier so at 40% zoom, the display scale is around 20px per foot, 
-  // helping show ~40ft in a typical screen height.
+  const [scrollX, setScrollX] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+
+  // Adjusted multiplier so at 40% zoom, the display scale is 20px per foot.
+  // This means 40 feet = 800 pixels, matching a typical vertical viewport.
   const displayZoom = useMemo(() => zoom * 0.5, [zoom]);
 
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
@@ -698,7 +701,7 @@ export default function EstimatorClient() {
       const next = prev.map(o => {
         if (selectedObjectIds.includes(o.id) && !o.isJoined) {
           let dx = 0, dy = 0;
-          const step = 1/12; // Move by 1 inch as "one point"
+          const step = 1/12; // Move by 1 inch as requested
           if (key === 'ArrowUp') dy = -step;
           if (key === 'ArrowDown') dy = step;
           if (key === 'ArrowLeft') dx = -step;
@@ -768,17 +771,21 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        // Zoom by 1 point on mouse wheel as requested
         const delta = e.deltaY > 0 ? -1 : 1; 
         setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
-      } else {
-        container.scrollTop += e.deltaY;
-        container.scrollLeft += e.deltaX;
       }
     };
+    const handleScroll = () => {
+      setScrollX(container.scrollLeft);
+      setScrollY(container.scrollTop);
+    };
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleNativeWheel);
-  }, [zoom]);
+    container.addEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel);
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -965,19 +972,28 @@ export default function EstimatorClient() {
     return dims;
   };
 
-  const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => (
-    <div className={cn("bg-white/40 backdrop-blur-md border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
-      {Array.from({ length: Math.ceil(400 / gridConfig.interval) }).map((_, t) => {
-        const posValue = t * gridConfig.interval;
-        return (
-          <div key={t} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * displayZoom + CANVAS_OFFSET, top: 0 } : { top: posValue * displayZoom + CANVAS_OFFSET, left: 0 }}>
+  const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => {
+    const scrollVal = orientation === 'horizontal' ? scrollX : scrollY;
+    const interval = gridConfig.interval;
+    const startUnit = Math.floor((scrollVal - CANVAS_OFFSET) / (interval * displayZoom)) * interval;
+    const count = Math.ceil(2000 / (interval * displayZoom)); 
+    
+    const units = [];
+    for (let t = 0; t <= count; t++) {
+      units.push(startUnit + t * interval);
+    }
+
+    return (
+      <div className={cn("bg-white/40 backdrop-blur-md border-slate-200 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
+        {units.map((posValue) => (
+          <div key={posValue} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * displayZoom + CANVAS_OFFSET - scrollX, top: 0 } : { top: posValue * displayZoom + CANVAS_OFFSET - scrollY, left: 0 }}>
             <div className={cn("bg-slate-400", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
             <span className={cn("text-[9px] font-bold text-slate-500 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{posValue}</span>
           </div>
-        );
-      })}
-    </div>
-  );
+        ))}
+      </div>
+    );
+  };
 
   const renderObjectContent = (obj: DesignObject) => {
     const sw = 1 / displayZoom;
