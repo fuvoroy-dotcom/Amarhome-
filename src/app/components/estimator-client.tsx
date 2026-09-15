@@ -108,7 +108,9 @@ export default function EstimatorClient() {
   const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
   
   const [zoom, setZoom] = useState(40);
-  const displayZoom = useMemo(() => zoom * 0.4, [zoom]);
+  // Adjusted multiplier so at 40% zoom, the display scale is around 20px per foot, 
+  // helping show ~40ft in a typical screen height.
+  const displayZoom = useMemo(() => zoom * 0.5, [zoom]);
 
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -696,7 +698,7 @@ export default function EstimatorClient() {
       const next = prev.map(o => {
         if (selectedObjectIds.includes(o.id) && !o.isJoined) {
           let dx = 0, dy = 0;
-          const step = ARCH_SNAP;
+          const step = 1/12; // Move by 1 inch as "one point"
           if (key === 'ArrowUp') dy = -step;
           if (key === 'ArrowDown') dy = step;
           if (key === 'ArrowLeft') dx = -step;
@@ -766,7 +768,8 @@ export default function EstimatorClient() {
     const handleNativeWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -5 : 5; 
+        // Zoom by 1 point on mouse wheel as requested
+        const delta = e.deltaY > 0 ? -1 : 1; 
         setZoom(prev => Math.min(250, Math.max(5, prev + delta)));
       } else {
         container.scrollTop += e.deltaY;
@@ -1185,9 +1188,9 @@ export default function EstimatorClient() {
           </div>
           <div className="h-8 bg-white/80 backdrop-blur-md border-t flex items-center px-4 justify-between shrink-0 z-40">
             <div className="flex items-center gap-2 md:gap-4">
-              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 5))} />
-              <Slider value={[zoom]} max={250} min={0} step={5} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
-              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 5))} />
+              <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 1))} />
+              <Slider value={[zoom]} max={250} min={0} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
+              <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 1))} />
               <div className="flex items-center gap-1 ml-1 md:ml-2">
                 <Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-10 w-20 text-[12px] md:text-[14px] font-black text-center border-slate-400 bg-white" />
                 <span className="text-[9px] font-black text-slate-400 uppercase">%</span>
