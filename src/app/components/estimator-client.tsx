@@ -1089,23 +1089,23 @@ export default function EstimatorClient() {
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
         </div>
         
-        <div className="flex-1 flex items-center justify-start md:justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible">
-          <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
-          <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5" />
-          <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" />
-          <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5" />
-          <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" />
-          <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5" />
-          <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" />
-          <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" />
-          <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5" />
-          <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" />
-          <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" />
-          <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" />
+        <div className="flex-1 flex items-center justify-start md:justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible flex-nowrap">
+          <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" className="shrink-0" />
+          <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" className="shrink-0" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" className="shrink-0" />
+          <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" className="shrink-0" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" className="shrink-0" />
+          <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" className="shrink-0" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" className="shrink-0" />
+          <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" className="shrink-0" />
+          <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" className="shrink-0" />
+          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" className="shrink-0" />
+          <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" className="shrink-0" />
+          <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" className="shrink-0" />
         </div>
 
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
@@ -1115,7 +1115,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[44px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[54px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
@@ -1884,7 +1884,7 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
   );
 }
 
-function RibbonButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
+function RibbonButton({ icon, label, onClick, active, color, className }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string, className?: string }) {
   const colorClasses = {
     blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_3px_0_0_#1d4ed8]",
     amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_3px_0_0_#b45309]",
@@ -1901,7 +1901,8 @@ function RibbonButton({ icon, label, onClick, active, color }: { icon: React.Rea
       className={cn(
         "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold transition-all active:translate-y-[2px] active:shadow-none h-8 md:h-12 min-w-[40px] md:min-w-[48px]",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
-        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[2px] shadow-none" : ""
+        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[2px] shadow-none" : "",
+        className
       )} 
       onClick={onClick}
     >
