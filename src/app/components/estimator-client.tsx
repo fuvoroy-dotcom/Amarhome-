@@ -136,8 +136,8 @@ export default function EstimatorClient() {
     area: 'all' as 'all' | 'custom',
     xStart: 0, xEnd: 60, yStart: 0, yEnd: 60,
     targetProjectId: '',
-    showDimensions: true,
-    showPillars: true
+    showDimensions: false,
+    showPillars: false
   });
 
   const [foundations, setFoundations] = useState([{ id: '1', count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
@@ -271,8 +271,6 @@ export default function EstimatorClient() {
         xMax = Math.max(exportSettings.xStart, exportSettings.xEnd);
         yMin = Math.min(exportSettings.yStart, exportSettings.yEnd);
         yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
-      } else {
-        xMin = 0; xMax = 60; yMin = 0; yMax = 60;
       }
       
       const wFt = xMax - xMin;
@@ -1091,7 +1089,7 @@ export default function EstimatorClient() {
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
         </div>
         
-        <div className="flex-1 flex items-center justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible">
+        <div className="flex-1 flex items-center justify-start md:justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" />
           <div className="w-px h-8 bg-slate-800 mx-0.5" />
@@ -1117,7 +1115,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[36px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[44px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
@@ -1200,7 +1198,7 @@ export default function EstimatorClient() {
             </div>
           </div>
           
-          <div className="h-8 md:h-12 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
+          <div className="h-10 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
             <Button 
               variant="secondary" 
               size="icon" 
@@ -1938,7 +1936,7 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[32px] md:w-[34px] mx-auto overflow-visible",
+        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[38px] md:w-[42px] mx-auto overflow-visible",
         baseColor,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )}
