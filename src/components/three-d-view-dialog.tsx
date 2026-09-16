@@ -22,7 +22,15 @@ import {
   Tag, 
   X,
   Sparkles,
-  Camera
+  Camera,
+  Footprints,
+  Sunset,
+  SunMedium,
+  Compass,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight
 } from "lucide-react";
 
 export type DesignObject = {
@@ -70,12 +78,68 @@ export function ThreeDViewDialog({
 
   const [showFurniture, setShowFurniture] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
-  const [isEvening, setIsEvening] = useState(false);
+  const [lightingMode, setLightingMode] = useState<'day' | 'sunset' | 'night'>('day');
+  const [floorTextureType, setFloorTextureType] = useState<'marble' | 'wood'>('marble');
+  const [isWalkthrough, setIsWalkthrough] = useState(false);
   const [wallHeightMode, setWallHeightMode] = useState<'full' | 'half'>('full');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [currentView, setCurrentView] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
   const boundsRef = useRef<{ bWidth: number; bDepth: number; centerX: number; centerZ: number }>({ bWidth: 30, bDepth: 30, centerX: 15, centerZ: 15 });
+  const walkStateRef = useRef({
+    keys: { forward: false, backward: false, left: false, right: false },
+    yaw: 0,
+    pitch: 0,
+    isMouseDown: false,
+    prevMouseX: 0,
+    prevMouseY: 0,
+  });
+
+  const createMarbleTexture = useCallback(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+
+    // Polished Italian white/cream marble base
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Marble veins
+    ctx.lineWidth = 2.5;
+    const veins = [
+      { color: 'rgba(148, 163, 184, 0.45)', pts: [[0, 80], [120, 160], [260, 140], [380, 290], [512, 350]] },
+      { color: 'rgba(100, 116, 139, 0.35)', pts: [[60, 0], [180, 130], [320, 240], [450, 420], [512, 490]] },
+      { color: 'rgba(180, 150, 110, 0.30)', pts: [[220, 0], [280, 180], [380, 270], [420, 512]] },
+      { color: 'rgba(148, 163, 184, 0.25)', pts: [[0, 360], [110, 380], [230, 460], [350, 512]] },
+    ];
+
+    veins.forEach(v => {
+      ctx.strokeStyle = v.color;
+      ctx.beginPath();
+      ctx.moveTo(v.pts[0][0], v.pts[0][1]);
+      for (let i = 1; i < v.pts.length; i++) {
+        const xc = (v.pts[i - 1][0] + v.pts[i][0]) / 2;
+        const yc = (v.pts[i - 1][1] + v.pts[i][1]) / 2;
+        ctx.quadraticCurveTo(v.pts[i - 1][0], v.pts[i - 1][1], xc, yc);
+      }
+      ctx.stroke();
+    });
+
+    // Subtle 2x2 luxury slab borders
+    ctx.strokeStyle = 'rgba(203, 213, 225, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(0, 0, 256, 256);
+    ctx.strokeRect(256, 0, 256, 256);
+    ctx.strokeRect(0, 256, 256, 256);
+    ctx.strokeRect(256, 256, 256, 256);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(3.5, 3.5);
+    return texture;
+  }, []);
 
   const createParquetTexture = useCallback(() => {
     const canvas = document.createElement('canvas');
@@ -248,7 +312,7 @@ export function ThreeDViewDialog({
     const blanketMat = new THREE.MeshStandardMaterial({ color: blanketColors[theme] || 0x1d4ed8, roughness: 0.7 });
     const accentCushionMat = new THREE.MeshStandardMaterial({ color: accentColors[theme] || 0xf59e0b, roughness: 0.5 });
     const pillowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
-    const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff2b2, emissive: 0xffe082, emissiveIntensity: isEvening ? 0.9 : 0.25 });
+    const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff2b2, emissive: 0xffe082, emissiveIntensity: lightingMode !== 'day' ? 0.9 : 0.25 });
 
     // Bed frame
     const frameGeo = new THREE.BoxGeometry(w, 0.6, d);
@@ -862,7 +926,10 @@ export function ThreeDViewDialog({
     const height = container.clientHeight || 700;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(isEvening ? 0x0f172a : 0xf1f5f9);
+    const bgColor = lightingMode === 'night' 
+      ? 0x050814 
+      : (lightingMode === 'sunset' ? 0x2e1d2c : 0xf1f5f9);
+    scene.background = new THREE.Color(bgColor);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(42, width / height, 0.5, 1000);
@@ -874,7 +941,7 @@ export function ThreeDViewDialog({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = isEvening ? 1.0 : 1.15;
+    renderer.toneMappingExposure = lightingMode === 'night' ? 0.9 : (lightingMode === 'sunset' ? 1.15 : 1.2);
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
@@ -970,12 +1037,16 @@ export function ThreeDViewDialog({
 
     boundsRef.current = { bWidth, bDepth, centerX, centerZ };
 
-    const ambientLight = new THREE.AmbientLight(isEvening ? 0x334155 : 0xffffff, isEvening ? 0.95 : 1.35);
+    // Dynamic Atmosphere & Natural Lighting (Day, Sunset, Night)
+    const ambientColor = lightingMode === 'night' ? 0x0f172a : (lightingMode === 'sunset' ? 0x4a1d2e : 0xffffff);
+    const ambientIntensity = lightingMode === 'night' ? 0.35 : (lightingMode === 'sunset' ? 0.85 : 1.35);
+    const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     lightsGroup.add(ambientLight);
 
-    // Directional sunlight directly overhead the building at (0, 0, 0)
-    const sunLight = new THREE.DirectionalLight(isEvening ? 0xfdba74 : 0xfffaed, isEvening ? 1.3 : 1.5);
-    sunLight.position.set(5, 48, 6);
+    const sunColor = lightingMode === 'night' ? 0x38bdf8 : (lightingMode === 'sunset' ? 0xf97316 : 0xfffaed);
+    const sunIntensity = lightingMode === 'night' ? 0.25 : (lightingMode === 'sunset' ? 1.6 : 1.5);
+    const sunLight = new THREE.DirectionalLight(sunColor, sunIntensity);
+    sunLight.position.set(lightingMode === 'sunset' ? 25 : 5, lightingMode === 'sunset' ? 18 : 48, 6);
     sunLight.target.position.set(0, 0, 0);
     scene.add(sunLight.target);
     sunLight.castShadow = true;
@@ -992,16 +1063,26 @@ export function ThreeDViewDialog({
     sunLight.shadow.radius = 1.6;
     lightsGroup.add(sunLight);
 
-    const hemiLight = new THREE.HemisphereLight(isEvening ? 0x1e293b : 0xffffff, isEvening ? 0x0f172a : 0x94a3b8, 0.65);
+    const hemiSky = lightingMode === 'night' ? 0x0f172a : (lightingMode === 'sunset' ? 0x7c2d12 : 0xffffff);
+    const hemiGround = lightingMode === 'night' ? 0x020617 : (lightingMode === 'sunset' ? 0x1e1b4b : 0x94a3b8);
+    const hemiLight = new THREE.HemisphereLight(hemiSky, hemiGround, 0.65);
     lightsGroup.add(hemiLight);
 
     const wallHeight = wallHeightMode === 'full' ? 7.5 : 4.2;
 
     const maxDim = Math.max(bWidth, bDepth, 12);
     const dist = maxDim * 1.25;
-    camera.position.set(dist * 0.72, dist * 0.85, dist * 0.72);
-    controls.target.set(0, wallHeight * 0.35, 0);
-    controls.update();
+    if (!isWalkthrough) {
+      controls.enabled = true;
+      camera.position.set(dist * 0.72, dist * 0.85, dist * 0.72);
+      controls.target.set(0, wallHeight * 0.35, 0);
+      controls.update();
+    } else {
+      // First person eye-level camera inside the house (ground level Y ~ 4.8ft)
+      controls.enabled = false;
+      camera.position.set(0, 4.8, 0);
+      camera.lookAt(0, 4.8, 5);
+    }
 
     const buildingGroup = new THREE.Group();
     buildingGroup.position.set(-centerX, 0, -centerZ);
@@ -1049,9 +1130,13 @@ export function ThreeDViewDialog({
 
     buildingGroup.add(rNorth, rSouth, rEast, rWest);
 
-    const parquetTexture = createParquetTexture();
-    const parquetMat = new THREE.MeshStandardMaterial({ map: parquetTexture, roughness: 0.55 });
-    const mainFloor = new THREE.Mesh(new THREE.BoxGeometry(bWidth + 0.6, 0.08, bDepth + 0.6), parquetMat);
+    const floorTexture = floorTextureType === 'marble' ? createMarbleTexture() : createParquetTexture();
+    const floorMat = new THREE.MeshStandardMaterial({ 
+      map: floorTexture, 
+      roughness: floorTextureType === 'marble' ? 0.25 : 0.55,
+      metalness: floorTextureType === 'marble' ? 0.15 : 0.05
+    });
+    const mainFloor = new THREE.Mesh(new THREE.BoxGeometry(bWidth + 0.6, 0.08, bDepth + 0.6), floorMat);
     mainFloor.position.set(centerX, 0.0, centerZ);
     mainFloor.receiveShadow = true;
     buildingGroup.add(mainFloor);
@@ -1230,7 +1315,7 @@ export function ThreeDViewDialog({
             desk.position.set(cx + Math.min(rW * 0.28, 4), 0, cz + Math.min(rD * 0.25, 3));
             furnitureGroup.add(desk);
 
-            if (isEvening) {
+            if (lightingMode !== 'day') {
               const bedLight = new THREE.PointLight(0xffbe76, 1.3, 16);
               bedLight.position.set(cx, 4.5, cz);
               lightsGroup.add(bedLight);
@@ -1247,7 +1332,7 @@ export function ThreeDViewDialog({
               furnitureGroup.add(dining);
             }
 
-            if (isEvening) {
+            if (lightingMode !== 'day') {
               const warmL = new THREE.PointLight(0xffd180, 1.4, 20);
               warmL.position.set(cx, 5.0, cz);
               lightsGroup.add(warmL);
@@ -1274,19 +1359,91 @@ export function ThreeDViewDialog({
             mandir.position.set(cx, 0, cz);
             furnitureGroup.add(mandir);
 
-            if (isEvening) {
-              const diya = new THREE.PointLight(0xff9900, 1.5, 12);
-              diya.position.set(cx, 3.5, cz);
-              lightsGroup.add(diya);
+            if (lightingMode !== 'day') {
+              const spot = new THREE.PointLight(lightingMode === 'night' ? 0xfef08a : 0xfdba74, lightingMode === 'night' ? 2.5 : 1.8, 16);
+              spot.position.set(cx, 6.0, cz);
+              spot.castShadow = true;
+              spot.shadow.bias = -0.002;
+              lightsGroup.add(spot);
             }
           }
         }
       }
     });
 
+    // Walkthrough keyboard & mouse controls
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const k = walkStateRef.current.keys;
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') k.forward = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') k.backward = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') k.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') k.right = true;
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const k = walkStateRef.current.keys;
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') k.forward = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') k.backward = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') k.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') k.right = false;
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!isWalkthrough) return;
+      walkStateRef.current.isMouseDown = true;
+      walkStateRef.current.prevMouseX = e.clientX;
+      walkStateRef.current.prevMouseY = e.clientY;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isWalkthrough || !walkStateRef.current.isMouseDown) return;
+      const dx = e.clientX - walkStateRef.current.prevMouseX;
+      const dy = e.clientY - walkStateRef.current.prevMouseY;
+      walkStateRef.current.prevMouseX = e.clientX;
+      walkStateRef.current.prevMouseY = e.clientY;
+
+      walkStateRef.current.yaw -= dx * 0.004;
+      walkStateRef.current.pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, walkStateRef.current.pitch - dy * 0.004));
+    };
+
+    const handleMouseUp = () => {
+      walkStateRef.current.isMouseDown = false;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    const canvasDom = renderer.domElement;
+    canvasDom.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
-      controls.update();
+
+      if (isWalkthrough && cameraRef.current) {
+        const cam = cameraRef.current;
+        const ws = walkStateRef.current;
+
+        const forward = new THREE.Vector3(Math.sin(ws.yaw), 0, -Math.cos(ws.yaw)).normalize();
+        const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+
+        const moveSpeed = 0.35;
+        if (ws.keys.forward) cam.position.addScaledVector(forward, moveSpeed);
+        if (ws.keys.backward) cam.position.addScaledVector(forward, -moveSpeed);
+        if (ws.keys.left) cam.position.addScaledVector(side, moveSpeed);
+        if (ws.keys.right) cam.position.addScaledVector(side, -moveSpeed);
+
+        cam.position.y = 4.8;
+        const targetLook = cam.position.clone().add(new THREE.Vector3(
+          Math.sin(ws.yaw) * Math.cos(ws.pitch),
+          Math.sin(ws.pitch),
+          -Math.cos(ws.yaw) * Math.cos(ws.pitch)
+        ));
+        cam.lookAt(targetLook);
+      } else if (controlsRef.current) {
+        controlsRef.current.update();
+      }
+
       renderer.render(scene, camera);
     };
     animate();
@@ -1303,11 +1460,16 @@ export function ThreeDViewDialog({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      canvasDom.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       controls.dispose();
       renderer.dispose();
     };
-  }, [open, designObjects, isEvening, wallHeightMode, createParquetTexture, createTileTexture, createGravelTexture, createTextBadge]);
+  }, [open, designObjects, lightingMode, floorTextureType, isWalkthrough, wallHeightMode, createMarbleTexture, createParquetTexture, createTileTexture, createGravelTexture, createTextBadge]);
 
   useEffect(() => {
     if (furnitureGroupRef.current) {
@@ -1497,6 +1659,77 @@ export function ThreeDViewDialog({
 
           <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
             <div className="flex flex-col gap-1 bg-slate-900/85 p-1.5 rounded-xl border border-slate-800 shadow-xl backdrop-blur-md">
+              {/* Walkthrough Mode Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsWalkthrough(!isWalkthrough)}
+                className={cn(
+                  "h-8 text-xs px-2.5 font-bold justify-start gap-2 border transition-all",
+                  isWalkthrough 
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-900/40" 
+                    : "text-slate-200 border-slate-700 hover:bg-slate-800"
+                )}
+              >
+                <Footprints className="w-4 h-4 text-emerald-400" />
+                <span>{isWalkthrough ? "ওয়াকথ্রু মোড (চালু)" : "FPS ওয়াকথ্রু (হাঁটুন)"}</span>
+              </Button>
+
+              {/* Floor Texture Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFloorTextureType(floorTextureType === 'marble' ? 'wood' : 'marble')}
+                className="h-7 text-xs px-2.5 font-bold justify-start gap-2 text-slate-200 hover:bg-slate-800"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>মেঝে: {floorTextureType === 'marble' ? "ইতালিয়ান মার্বেল" : "উডেন পারকেট"}</span>
+              </Button>
+
+              <div className="w-full h-px bg-slate-800 my-0.5" />
+
+              {/* Lighting Mode Selector (Day, Sunset, Night) */}
+              <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-lg border border-slate-800">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLightingMode('day')}
+                  className={cn(
+                    "h-6 text-[11px] px-2 font-bold flex-1",
+                    lightingMode === 'day' ? "bg-amber-500/20 text-amber-300 font-black" : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <SunMedium className="w-3 h-3 mr-1 text-amber-400" />
+                  দিন
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLightingMode('sunset')}
+                  className={cn(
+                    "h-6 text-[11px] px-2 font-bold flex-1",
+                    lightingMode === 'sunset' ? "bg-orange-500/20 text-orange-400 font-black" : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <Sunset className="w-3 h-3 mr-1 text-orange-400" />
+                  গোধূলি
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLightingMode('night')}
+                  className={cn(
+                    "h-6 text-[11px] px-2 font-bold flex-1",
+                    lightingMode === 'night' ? "bg-indigo-500/20 text-indigo-300 font-black" : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  <Moon className="w-3 h-3 mr-1 text-indigo-300" />
+                  রাত
+                </Button>
+              </div>
+
+              <div className="w-full h-px bg-slate-800 my-0.5" />
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -1532,19 +1765,6 @@ export function ThreeDViewDialog({
                 <Layers className="w-3.5 h-3.5 text-amber-400" />
                 <span>দেয়াল: {wallHeightMode === 'full' ? "উঁচু (7.5')" : "নিচু (4.2')"}</span>
               </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEvening(!isEvening)}
-                className={cn(
-                  "h-7 text-xs px-2.5 font-bold justify-start gap-2",
-                  isEvening ? "text-amber-400 bg-amber-500/10" : "text-slate-200"
-                )}
-              >
-                {isEvening ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
-                <span>{isEvening ? "শান্ত সন্ধ্যা" : "দিবালোক"}</span>
-              </Button>
             </div>
           </div>
 
@@ -1569,11 +1789,26 @@ export function ThreeDViewDialog({
             </div>
           </div>
 
-          <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
-            <div className="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 backdrop-blur-sm text-[11px] text-slate-400 flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>মাউস টেনে ঘোরান (Rotate) • স্ক্রল করে জুম (Zoom) • রাইট-ক্লিকে প্যান (Pan)</span>
-            </div>
+          <div className="absolute bottom-4 left-4 z-20">
+            {isWalkthrough ? (
+              <div className="bg-slate-900/95 px-3.5 py-2 rounded-xl border border-emerald-500/40 backdrop-blur-md text-xs text-white shadow-xl flex items-center gap-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <div>
+                  <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Footprints className="w-3.5 h-3.5" />
+                    <span>ফার্স্ট-পার্সন ওয়াকথ্রু মোড সক্রিয়</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300">
+                    <span className="font-mono font-bold text-amber-300">W/A/S/D</span> বা কীবোর্ড এরো কী চেপে হাঁটুন • মাউস চেপে ধরে আশেপাশে দেখুন
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 backdrop-blur-sm text-[11px] text-slate-400 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>মাউস টেনে ঘোরান (Rotate) • স্ক্রল করে জুম (Zoom) • রাইট-ক্লিকে প্যান (Pan)</span>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
