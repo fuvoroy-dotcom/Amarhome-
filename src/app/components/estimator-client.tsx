@@ -15,7 +15,8 @@ import {
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
   Layers, Boxes, Plus, X,
-  ArrowUpToLine, FileText, Download, Type as TypeIcon, Cloud
+  ArrowUpToLine, FileText, Download, Type as TypeIcon, Cloud,
+  TrendingUp, Sparkles
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,8 @@ import { uploadDesignSnapshot, uploadExportBlob } from '@/firebase/storage-servi
 import { UserProfileMenu } from '@/components/user-profile-menu';
 import { CloudGalleryDialog } from '@/components/cloud-gallery-dialog';
 import { ThreeDViewDialog } from '@/components/three-d-view-dialog';
+import { MarketPriceSyncDialog, MaterialPrices } from '@/components/market-price-sync-dialog';
+import { AdvancedPdfReportDialog } from '@/components/advanced-pdf-report-dialog';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
 
@@ -126,6 +129,10 @@ export default function EstimatorClient() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(false);
   const [showPillarDistances, setShowPillarDistances] = useState(false);
+  const [unitSystem, setUnitSystem] = useState<'imperial' | 'metric'>('imperial');
+  const [isMarketSyncOpen, setIsMarketSyncOpen] = useState(false);
+  const [isAdvancedPdfReportOpen, setIsAdvancedPdfReportOpen] = useState(false);
+  const [pdfReportPayload, setPdfReportPayload] = useState<{ total: any; grandTotalCost: number } | null>(null);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
 
   const [projectName, setProjectName] = useState("নতুন প্রজেক্ট");
@@ -187,6 +194,17 @@ export default function EstimatorClient() {
     return `${feet}' ${inches}"`;
   };
 
+  const formatDimension = (val: number, system = unitSystem) => {
+    if (system === 'metric') {
+      const meters = Math.abs(val) * 0.3048;
+      if (meters < 1 && meters > 0) {
+        return `${Math.round(meters * 100)} cm`;
+      }
+      return `${meters.toFixed(2)} m`;
+    }
+    return formatFeetInches(val);
+  };
+
   const parseFeetInches = (str: string) => {
     if (!str || str.trim() === "") return 0;
     const s = str.trim();
@@ -200,20 +218,38 @@ export default function EstimatorClient() {
     return isNaN(decimal) ? 0 : decimal;
   };
 
+  const parseDimensionInput = (str: string, system = unitSystem) => {
+    if (!str || str.trim() === "") return 0;
+    const s = str.trim().toLowerCase();
+    if (system === 'metric') {
+      if (s.endsWith('cm')) {
+        const cm = parseFloat(s.replace('cm', '')) || 0;
+        return (cm / 100) / 0.3048;
+      }
+      if (s.endsWith('m')) {
+        const m = parseFloat(s.replace('m', '')) || 0;
+        return m / 0.3048;
+      }
+      const num = parseFloat(s);
+      return isNaN(num) ? 0 : num / 0.3048;
+    }
+    return parseFeetInches(str);
+  };
+
   const firstSelectedObject = useMemo(() => designObjects.find(obj => obj.id === selectedObjectIds[0]), [designObjects, selectedObjectIds]);
 
   useEffect(() => {
     if (firstSelectedObject) {
-      setLocalPropX(formatFeetInches(firstSelectedObject.x));
-      setLocalPropY(formatFeetInches(firstSelectedObject.y));
-      setLocalPropW(formatFeetInches(firstSelectedObject.w));
-      setLocalPropH(formatFeetInches(firstSelectedObject.h));
+      setLocalPropX(formatDimension(firstSelectedObject.x, unitSystem));
+      setLocalPropY(formatDimension(firstSelectedObject.y, unitSystem));
+      setLocalPropW(formatDimension(firstSelectedObject.w, unitSystem));
+      setLocalPropH(formatDimension(firstSelectedObject.h, unitSystem));
       setLocalPropRot(firstSelectedObject.rotation.toString());
       setLocalPropSteps((firstSelectedObject.stepCount || 10).toString());
       setLocalPropText(firstSelectedObject.textContent || "");
       setLocalPropFontSize((firstSelectedObject.fontSize || 14).toString());
     }
-  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, firstSelectedObject?.textContent, firstSelectedObject?.fontSize]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, firstSelectedObject?.textContent, firstSelectedObject?.fontSize, unitSystem]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -406,7 +442,7 @@ export default function EstimatorClient() {
           hLabel.style.display = 'flex';
           hLabel.style.justifyContent = 'center';
           hLabel.style.pointerEvents = 'none';
-          hLabel.innerHTML = `<div style="background:white; border:1px solid #64748b; border-radius:2px; padding:0 4px; font-weight:900; color:#0f172a; font-size:${10 * (exportZoom/40)}px; white-space:nowrap;">${formatFeetInches(obj.w)}</div>`;
+          hLabel.innerHTML = `<div style="background:white; border:1px solid #64748b; border-radius:2px; padding:0 4px; font-weight:900; color:#0f172a; font-size:${10 * (exportZoom/40)}px; white-space:nowrap;">${formatDimension(obj.w)}</div>`;
           exportContainer.appendChild(hLabel);
 
           const vLabel = document.createElement('div');
@@ -417,7 +453,7 @@ export default function EstimatorClient() {
           vLabel.style.display = 'flex';
           vLabel.style.alignItems = 'center';
           vLabel.style.pointerEvents = 'none';
-          vLabel.innerHTML = `<div style="background:white; border:1px solid #64748b; border-radius:2px; padding:0 4px; font-weight:900; color:#0f172a; font-size:${10 * (exportZoom/40)}px; white-space:nowrap; transform:rotate(90deg);">${formatFeetInches(obj.h)}</div>`;
+          vLabel.innerHTML = `<div style="background:white; border:1px solid #64748b; border-radius:2px; padding:0 4px; font-weight:900; color:#0f172a; font-size:${10 * (exportZoom/40)}px; white-space:nowrap; transform:rotate(90deg);">${formatDimension(obj.h)}</div>`;
           exportContainer.appendChild(vLabel);
         });
       }
@@ -438,7 +474,7 @@ export default function EstimatorClient() {
               pLine.style.left = `${(c1x - xMin) * exportZoom}px`;
               pLine.style.top = `${(c1y - 1.2 - yMin) * exportZoom}px`;
               pLine.style.width = `${dist * exportZoom}px`;
-              pLine.innerHTML = `<div style="width:100%; height:1px; background:#ef4444; position:relative; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; left:0; width:1px; height:10px; background:#ef4444;"></div><div style="position:absolute; right:0; width:1px; height:10px; background:#ef4444;"></div><div style="background:white; border:1px solid #ef4444; color:#ef4444; padding:0 4px; font-weight:bold; font-size:${9 * (exportZoom/40)}px; border-radius:2px; transform:translateY(-12px); white-space:nowrap;">${formatFeetInches(dist)}</div></div>`;
+              pLine.innerHTML = `<div style="width:100%; height:1px; background:#ef4444; position:relative; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; left:0; width:1px; height:10px; background:#ef4444;"></div><div style="position:absolute; right:0; width:1px; height:10px; background:#ef4444;"></div><div style="background:white; border:1px solid #ef4444; color:#ef4444; padding:0 4px; font-weight:bold; font-size:${9 * (exportZoom/40)}px; border-radius:2px; transform:translateY(-12px); white-space:nowrap;">${formatDimension(dist)}</div></div>`;
               exportContainer.appendChild(pLine);
             }
           }
@@ -456,7 +492,7 @@ export default function EstimatorClient() {
               pLine.style.left = `${(c1x + 0.8 - xMin) * exportZoom}px`;
               pLine.style.top = `${(c1y - yMin) * exportZoom}px`;
               pLine.style.height = `${dist * exportZoom}px`;
-              pLine.innerHTML = `<div style="height:100%; width:1px; background:#ef4444; position:relative; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; top:0; height:1px; width:10px; background:#ef4444;"></div><div style="position:absolute; bottom:0; height:1px; width:10px; background:#ef4444;"></div><div style="background:white; border:1px solid #ef4444; color:#ef4444; padding:0 4px; font-weight:bold; font-size:${9 * (exportZoom/40)}px; border-radius:2px; transform:rotate(90deg) translateX(12px); white-space:nowrap;">${formatFeetInches(dist)}</div></div>`;
+              pLine.innerHTML = `<div style="height:100%; width:1px; background:#ef4444; position:relative; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; top:0; height:1px; width:10px; background:#ef4444;"></div><div style="position:absolute; bottom:0; height:1px; width:10px; background:#ef4444;"></div><div style="background:white; border:1px solid #ef4444; color:#ef4444; padding:0 4px; font-weight:bold; font-size:${9 * (exportZoom/40)}px; border-radius:2px; transform:rotate(90deg) translateX(12px); white-space:nowrap;">${formatDimension(dist)}</div></div>`;
               exportContainer.appendChild(pLine);
             }
           }
@@ -1045,7 +1081,7 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c2x = p2.x + p2.w / 2, c1y = p1.y + p1.h / 2, dist = c2x - c1x;
         if (dist > 0.1) dims.push(<div key={`h-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex flex-col items-center dimension-label" style={{ left: c1x * displayZoom + CANVAS_OFFSET, top: (c1y - 1.2) * displayZoom + CANVAS_OFFSET, width: dist * displayZoom }}>
-          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
+          <div className="w-full h-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute left-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="absolute right-0 w-[1px] h-3 bg-red-500 -translate-y-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap -translate-y-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatDimension(dist)}</div></div>
         </div>);
       }
     });
@@ -1057,7 +1093,7 @@ export default function EstimatorClient() {
         const p1 = sorted[i], p2 = sorted[i+1];
         const c1x = p1.x + p1.w / 2, c1y = p1.y + p1.h / 2, c2y = p2.y + p2.h / 2, dist = c2y - c1y;
         if (dist > 0.1) dims.push(<div key={`v-${p1.id}-${p2.id}`} className="absolute pointer-events-none z-20 flex items-center justify-center dimension-label" style={{ left: (c1x + 0.8) * displayZoom + CANVAS_OFFSET, top: c1y * displayZoom + CANVAS_OFFSET, height: dist * displayZoom, width: 20 }}>
-          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(dist)}</div></div>
+          <div className="h-full w-[1px] bg-red-500 relative flex items-center justify-center"><div className="absolute top-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="absolute bottom-0 h-[1px] w-3 bg-red-500 -translate-x-1/2" /><div className="bg-white px-1 text-[9px] font-bold text-red-600 border border-red-200 shadow-sm rounded-sm whitespace-nowrap rotate-90 translate-x-4" style={{ fontSize: Math.max(8, 9 * gridConfig.labelScale) + 'px' }}>{formatDimension(dist)}</div></div>
         </div>);
       }
     });
@@ -1080,7 +1116,9 @@ export default function EstimatorClient() {
         {units.map((posValue) => (
           <div key={posValue} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * displayZoom + CANVAS_OFFSET - scrollX, top: 0 } : { top: posValue * displayZoom + CANVAS_OFFSET - scrollY, left: 0 }}>
             <div className={cn("bg-slate-700", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
-            <span className={cn("text-[9px] font-bold text-slate-400 absolute", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>{posValue}</span>
+            <span className={cn("text-[9px] font-bold text-slate-400 absolute whitespace-nowrap", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>
+              {unitSystem === 'metric' ? `${(posValue * 0.3048).toFixed(1)}m` : posValue}
+            </span>
           </div>
         ))}
       </div>
@@ -1207,6 +1245,7 @@ export default function EstimatorClient() {
           <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" className="shrink-0" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" className="shrink-0" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" className="shrink-0" />
+          <RibbonButton icon={<Square className="w-3.5 h-3.5" />} label={unitSystem === 'imperial' ? "একক: ft" : "একক: m"} onClick={() => setUnitSystem(unitSystem === 'imperial' ? 'metric' : 'imperial')} color="cyan" className="shrink-0" />
           <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0" />
@@ -1264,8 +1303,8 @@ export default function EstimatorClient() {
                     )}
                     {showDimensions && (
                       <>
-                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
-                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatFeetInches(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
+                        <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatDimension(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
+                        <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatDimension(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
                       </>
                     )}
                   </div>
@@ -1300,6 +1339,24 @@ export default function EstimatorClient() {
             <div className="flex items-center gap-2 md:gap-4">
               <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
               <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
+              <div className="flex items-center bg-slate-800 p-0.5 rounded border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setUnitSystem('imperial')}
+                  className={cn("px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black transition-colors", unitSystem === 'imperial' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")}
+                  title="ফুট-ইঞ্চি মোড"
+                >
+                  ft-in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUnitSystem('metric')}
+                  className={cn("px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black transition-colors", unitSystem === 'metric' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")}
+                  title="মিটার-সেমি মোড"
+                >
+                  m-cm
+                </button>
+              </div>
             </div>
           </div>
           
@@ -1323,10 +1380,10 @@ export default function EstimatorClient() {
                   <div className="flex items-center gap-4 flex-nowrap py-0">
                     <div className="flex items-center gap-1 pr-2 border-r border-slate-800"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-50" /><span className="text-[8px] font-black text-slate-400 uppercase">সংযুক্ত</span></div>
                     <div className="flex items-center gap-2 flex-nowrap">
-                      <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseFeetInches(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseFeetInches(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseFeetInches(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseFeetInches(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseDimensionInput(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseDimensionInput(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
                       {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                       {firstSelectedObject.type === 'text' && (
@@ -1491,7 +1548,7 @@ export default function EstimatorClient() {
       <ThreeDViewDialog open={is3DViewOpen} onOpenChange={setIs3DViewOpen} designObjects={designObjects} projectName={projectName} />
 
       <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}>
-        <DialogContent className="max-w-[45vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
+        <DialogContent className="max-w-[92vw] lg:max-w-5xl w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
           <EstimationView 
             designObjects={designObjects} 
             onBack={() => setIsEstimationDialogOpen(false)}
@@ -1508,9 +1565,34 @@ export default function EstimatorClient() {
             septicTanks={septicTanks} setSepticTanks={setSepticTanks}
             soakWells={soakWells} setSoakWells={setSoakWells}
             prices={prices} setPrices={setPrices}
+            unitSystem={unitSystem}
+            onOpenMarketSync={() => setIsMarketSyncOpen(true)}
+            onOpenAdvancedPdfReport={(total, grandTotal) => {
+              setPdfReportPayload({ total, grandTotalCost: grandTotal });
+              setIsAdvancedPdfReportOpen(true);
+            }}
           />
         </DialogContent>
       </Dialog>
+
+      <MarketPriceSyncDialog
+        open={isMarketSyncOpen}
+        onOpenChange={setIsMarketSyncOpen}
+        currentPrices={prices}
+        onApplyPrices={(newPrices) => setPrices(newPrices)}
+      />
+
+      <AdvancedPdfReportDialog
+        open={isAdvancedPdfReportOpen}
+        onOpenChange={setIsAdvancedPdfReportOpen}
+        projectName={projectName}
+        total={pdfReportPayload?.total || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 }}
+        prices={prices}
+        grandTotalCost={pdfReportPayload?.grandTotalCost || 0}
+        unitSystem={unitSystem}
+        foundationsCount={foundations.length}
+        columnsCount={columns.length}
+      />
     </div>
   );
 }
@@ -1528,7 +1610,10 @@ function EstimationView({
   wallTiles, setWallTiles,
   septicTanks, setSepticTanks,
   soakWells, setSoakWells,
-  prices, setPrices
+  prices, setPrices,
+  unitSystem = 'imperial',
+  onOpenMarketSync,
+  onOpenAdvancedPdfReport
 }: { 
   designObjects: DesignObject[], 
   onBack: () => void,
@@ -1544,7 +1629,10 @@ function EstimationView({
   wallTiles: any[], setWallTiles: (v: any[]) => void,
   septicTanks: any[], setSepticTanks: (v: any[]) => void,
   soakWells: any[], setSoakWells: (v: any[]) => void,
-  prices: any, setPrices: (v: any) => void
+  prices: any, setPrices: (v: any) => void,
+  unitSystem?: 'imperial' | 'metric',
+  onOpenMarketSync?: () => void,
+  onOpenAdvancedPdfReport?: (total: any, grandTotalCost: number) => void
 }) {
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
@@ -1677,9 +1765,29 @@ function EstimationView({
             <Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> <span className="font-bold">Estimation Calculator</span>
           </DialogTitle>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-10 md:h-12 text-[10px] md:text-sm hover:bg-slate-100 font-black gap-2 border-slate-300" onClick={onSave}><Save className="w-4 h-4 text-green-600"/> SAVE</Button>
-          <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 md:h-12 text-[10px] md:text-xs font-black">{loadingAdvice ? <Loader2 className="animate-spin" /> : <Send className="w-3 h-3" />} AI Advice </Button>
+        <div className="flex items-center gap-1.5 md:gap-2">
+          {onOpenMarketSync && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onOpenMarketSync}
+              className="h-9 md:h-11 text-[10px] md:text-xs font-black gap-1.5 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 shadow-sm"
+              title="স্থানীয় বাজার দর সিঙ্ক করুন"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> <span className="hidden sm:inline">বাজার দর সিঙ্ক</span><span className="sm:hidden">মার্কেট</span>
+            </Button>
+          )}
+          {onOpenAdvancedPdfReport && (
+            <Button 
+              onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)}
+              className="bg-slate-900 hover:bg-slate-800 text-white gap-1.5 h-9 md:h-11 text-[10px] md:text-xs font-black shadow-sm"
+              title="কাজের সময়সীমা ও লেবার শিডিউলসহ পূর্ণাঙ্গ PDF রিপোর্ট"
+            >
+              <FileText className="w-3.5 h-3.5 text-emerald-400" /> <span className="hidden sm:inline">পূর্ণাঙ্গ রিপোর্ট (PDF)</span><span className="sm:hidden">রিপোর্ট</span>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-9 md:h-11 text-[10px] md:text-xs hover:bg-slate-100 font-black gap-1.5 border-slate-300" onClick={onSave}><Save className="w-3.5 h-3.5 text-green-600"/> SAVE</Button>
+          <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-9 md:h-11 text-[10px] md:text-xs font-black">{loadingAdvice ? <Loader2 className="animate-spin w-3 h-3" /> : <Send className="w-3 h-3" />} AI Advice </Button>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -1895,7 +2003,28 @@ function EstimationView({
                 <TabsContent value="total" className="space-y-4 m-0">
                   <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-4">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-100 pb-2 gap-2">
-                      <h3 className="font-black text-emerald-800 flex items-center gap-2 text-sm uppercase"><Boxes className="w-5 h-5" /> Summary </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-black text-emerald-800 flex items-center gap-2 text-sm uppercase"><Boxes className="w-5 h-5" /> Summary </h3>
+                        {onOpenMarketSync && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onOpenMarketSync}
+                            className="h-7 text-[10px] font-black gap-1 border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-800"
+                          >
+                            <TrendingUp className="w-3 h-3 text-emerald-600" /> বাজার দর সিঙ্ক
+                          </Button>
+                        )}
+                        {onOpenAdvancedPdfReport && (
+                          <Button
+                            size="sm"
+                            onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)}
+                            className="h-7 text-[10px] font-black gap-1 bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+                          >
+                            <FileText className="w-3 h-3 text-emerald-400" /> PDF রিপোর্ট
+                          </Button>
+                        )}
+                      </div>
                       <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-md text-right w-full md:w-auto">
                         <span className="text-[8px] uppercase font-black opacity-80 block">Grand Total:</span>
                         <span className="text-sm font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
@@ -1929,8 +2058,11 @@ function EstimationView({
               {advice && (<div className="bg-white p-4 rounded-xl border shadow-sm"><h3 className="text-xs font-black text-emerald-700 mb-2 flex items-center gap-1 uppercase">⭐ AI Advice</h3><div className="text-[10px] md:text-xs leading-relaxed whitespace-pre-wrap text-slate-600">{advice}</div></div>)}
             </div>
             <div className="space-y-4">
-              <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg sticky top-6">
-                <h3 className="text-[11px] font-black mb-3 border-b border-white/20 pb-1 flex items-center gap-2 uppercase"><Calculator className="w-3.5 h-3.5" /> Summary </h3>
+              <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg sticky top-6 space-y-2">
+                <h3 className="text-[11px] font-black border-b border-white/20 pb-1 flex items-center justify-between uppercase">
+                  <span className="flex items-center gap-1.5"><Calculator className="w-3.5 h-3.5 text-emerald-400" /> Summary</span>
+                  {unitSystem === 'metric' && <span className="text-[8px] text-slate-400 font-bold">Metric (m/cm)</span>}
+                </h3>
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div>
                   <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div>
@@ -1938,6 +2070,14 @@ function EstimationView({
                   <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div>
                   <div className="mt-1.5 pt-1.5 border-t border-white/20 flex flex-col gap-0.5"><span className="text-[8px] font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-xs font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
                 </div>
+                {onOpenAdvancedPdfReport && (
+                  <Button
+                    onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)}
+                    className="w-full h-8 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 mt-2"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> পূর্ণাঙ্গ PDF রিপোর্ট
+                  </Button>
+                )}
               </div>
             </div>
           </div>
