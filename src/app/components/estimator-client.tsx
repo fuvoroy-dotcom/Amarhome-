@@ -15,7 +15,7 @@ import {
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Hand, Calculator, ArrowLeft, Send, Loader2,
   Layers, Boxes, Plus, X,
-  ArrowUpToLine, FileText, Download, Type as TypeIcon
+  ArrowUpToLine, FileText, Download, Type as TypeIcon, Cloud
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -50,8 +50,13 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, serverTimestamp, q
 import { initializeFirebase } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useAuth } from '@/firebase/auth-context';
+import { uploadDesignSnapshot, uploadExportBlob } from '@/firebase/storage-service';
+import { UserProfileMenu } from '@/components/user-profile-menu';
+import { CloudGalleryDialog } from '@/components/cloud-gallery-dialog';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
+
 
 type DesignObject = {
   id: string;
@@ -93,6 +98,9 @@ const ROD_OPTIONS = [
 
 export default function EstimatorClient() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [isCloudGalleryOpen, setIsCloudGalleryOpen] = useState(false);
+  const [isCloudUploading, setIsCloudUploading] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const bottomBarRef = useRef<HTMLDivElement>(null);
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
@@ -249,7 +257,7 @@ export default function EstimatorClient() {
     }
   }, [designObjects, selectedObjectIds, toast]);
 
-  const handleExport = async () => {
+  const handleExport = async (exportMode: 'download' | 'cloud' = 'download') => {
     try {
       let objectsToExport = designObjects;
       let nameToExport = projectName;
@@ -468,53 +476,134 @@ export default function EstimatorClient() {
       });
       document.body.removeChild(exportContainer);
 
-      if (exportSettings.format === 'png') {
-        const link = document.createElement('a');
-        link.download = `${nameToExport || 'design'}.png`;
-        link.href = finalCanvas.toDataURL('image/png');
-        link.click();
-        toast({ title: "সফল", description: "ইমেজটি ডাউনলোড করা হয়েছে।" });
-      } else {
-        const { jsPDF } = await import('jspdf');
-        const pdf = new jsPDF({
-          orientation: pW > pH ? 'l' : 'p',
-          unit: 'mm',
-          format: 'a4'
-        });
-        
-        const margin = 12.7; 
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        
-        const availableW = pdfWidth - (margin * 2);
-        const availableH = pdfHeight - (margin * 2);
-        
-        const pageRatio = availableW / availableH;
-        const canvasRatio = finalCanvas.width / finalCanvas.height;
-        
-        let printW = availableW;
-        let printH = availableH;
-        
-        if (canvasRatio > pageRatio) {
-          printH = availableW / canvasRatio;
-        } else {
-          printW = availableH * canvasRatio;
+      if (exportMode === 'cloud') {
+        if (!user) {
+          toast({ 
+            variant: "destructive", 
+            title: "লগইন আবশ্যক", 
+            description: "ক্লাউড স্টোরেজে সেভ করতে অনুগ্রহ করে প্রথমে উপরে ডানপাশের 'লগইন' বাটনে ক্লিক করুন।" 
+          });
+          return;
         }
-        
-        pdf.addImage(
-          finalCanvas.toDataURL('image/png'), 
-          'PNG', 
-          margin + (availableW - printW) / 2, 
-          margin + (availableH - printH) / 2, 
-          printW, 
-          printH
-        );
-        pdf.save(`${nameToExport || 'design'}.pdf`);
-        toast({ title: "সফল", description: "পিডিএফটি ডাউনলোড করা হয়েছে।" });
+        setIsCloudUploading(true);
+        try {
+          const fileName = `${nameToExport || 'design'}_${Date.now()}.${exportSettings.format}`;
+          if (exportSettings.format === 'png') {
+            const dataUrl = finalCanvas.toDataURL('image/png');
+            await uploadDesignSnapshot(user.uid, exportSettings.targetProjectId || currentDesignId, dataUrl, fileName);
+            toast({ title: "ক্লাউডে সংরক্ষিত", description: "স্ন্যাপশটটি আপনার ক্লাউড অ্যাকাউন্টে সফলভাবে সেভ করা হয়েছে।" });
+          } else {
+            const { jsPDF } = await import('jspdf');
+            const pdf = new jsPDF({
+              orientation: pW > pH ? 'l' : 'p',
+              unit: 'mm',
+              format: 'a4'
+            });
+            const margin = 12.7; 
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const availableW = pdfWidth - (margin * 2);
+            const availableH = pdfHeight - (margin * 2);
+            const pageRatio = availableW / availableH;
+            const canvasRatio = finalCanvas.width / finalCanvas.height;
+            let printW = availableW;
+            let printH = availableH;
+            if (canvasRatio > pageRatio) {
+              printH = availableW / canvasRatio;
+            } else {
+              printW = availableH * canvasRatio;
+            }
+            // Downscale canvas to max 1000px for cloud PDF to guarantee size < 150KB (well within 1MB limit)
+            const maxDim = 1000;
+            let targetW = pW;
+            let targetH = pH;
+            if (pW > maxDim || pH > maxDim) {
+              if (pW > pH) {
+                targetH = Math.round((pH * maxDim) / pW);
+                targetW = maxDim;
+              } else {
+                targetW = Math.round((pW * maxDim) / pH);
+                targetH = maxDim;
+              }
+            }
+            const scaledCanvas = document.createElement('canvas');
+            scaledCanvas.width = targetW;
+            scaledCanvas.height = targetH;
+            const sCtx = scaledCanvas.getContext('2d');
+            if (sCtx) {
+              sCtx.fillStyle = '#ffffff';
+              sCtx.fillRect(0, 0, targetW, targetH);
+              sCtx.drawImage(finalCanvas, 0, 0, targetW, targetH);
+            }
+            const jpegData = (sCtx ? scaledCanvas : finalCanvas).toDataURL('image/jpeg', 0.72);
+            pdf.addImage(
+              jpegData, 
+              'JPEG', 
+              margin + (availableW - printW) / 2, 
+              margin + (availableH - printH) / 2, 
+              printW, 
+              printH,
+              undefined,
+              'FAST'
+            );
+            const pdfBlob = pdf.output('blob');
+            await uploadExportBlob(user.uid, exportSettings.targetProjectId || currentDesignId, pdfBlob, fileName, jpegData);
+            toast({ title: "ক্লাউডে সংরক্ষিত", description: "পিডিএফটি আপনার ক্লাউড অ্যাকাউন্টে সেভ করা হয়েছে।" });
+          }
+        } finally {
+          setIsCloudUploading(false);
+        }
+      } else {
+        if (exportSettings.format === 'png') {
+          const link = document.createElement('a');
+          link.download = `${nameToExport || 'design'}.png`;
+          link.href = finalCanvas.toDataURL('image/png');
+          link.click();
+          toast({ title: "সফল", description: "ইমেজটি ডাউনলোড করা হয়েছে।" });
+        } else {
+          const { jsPDF } = await import('jspdf');
+          const pdf = new jsPDF({
+            orientation: pW > pH ? 'l' : 'p',
+            unit: 'mm',
+            format: 'a4'
+          });
+          
+          const margin = 12.7; 
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          const availableW = pdfWidth - (margin * 2);
+          const availableH = pdfHeight - (margin * 2);
+          
+          const pageRatio = availableW / availableH;
+          const canvasRatio = finalCanvas.width / finalCanvas.height;
+          
+          let printW = availableW;
+          let printH = availableH;
+          
+          if (canvasRatio > pageRatio) {
+            printH = availableW / canvasRatio;
+          } else {
+            printW = availableH * canvasRatio;
+          }
+          
+          const localJpeg = finalCanvas.toDataURL('image/jpeg', 0.85);
+          pdf.addImage(
+            localJpeg, 
+            'JPEG', 
+            margin + (availableW - printW) / 2, 
+            margin + (availableH - printH) / 2, 
+            printW, 
+            printH
+          );
+          pdf.save(`${nameToExport || 'design'}.pdf`);
+          toast({ title: "সফল", description: "পিডিএফটি ডাউনলোড করা হয়েছে।" });
+        }
       }
       setIsExportDialogOpen(false);
     } catch (e) {
       console.error(e);
+      setIsCloudUploading(false);
       toast({ variant: "destructive", title: "ত্রুটি", description: "এক্সপোর্ট করতে সমস্যা হয়েছে।" });
     }
   };
@@ -555,22 +644,29 @@ export default function EstimatorClient() {
   const saveToFirestore = useCallback(() => {
     const { firestore } = initializeFirebase();
     const docRef = doc(firestore, 'designs', currentDesignId);
-    const data = { 
+    const data: any = { 
       objects: designObjects, 
       name: projectName, 
       updatedAt: serverTimestamp(),
+      userId: user?.uid || null,
+      userEmail: user?.email || null,
       estimations: {
         foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells
       },
       prices: prices
     };
     setDoc(docRef, data, { merge: true }).then(() => {
-      toast({ title: "সফল", description: `"${projectName}" ডিজাইন এবং হিসাব সেভ করা হয়েছে।` });
+      toast({ 
+        title: "সফল", 
+        description: user 
+          ? `"${projectName}" ডিজাইন আপনার অ্যাকাউন্টে সফলভাবে সেভ হয়েছে।` 
+          : `"${projectName}" ডিজাইন সেভ করা হয়েছে (লগইন করলে যেকোনো ডিভাইস থেকে পাবেন)।` 
+      });
     }).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
       errorEmitter.emit('permission-error', permissionError);
     });
-  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, toast]);
+  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, user, toast]);
 
   const duplicateProject = useCallback(() => {
     const newId = Math.random().toString(36).substr(2, 9);
@@ -623,11 +719,14 @@ export default function EstimatorClient() {
       const designsCol = collection(firestore, 'designs');
       const q = query(designsCol, orderBy('updatedAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const designs = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name || "নামহীন ডিজাইন",
-        updatedAt: doc.data().updatedAt
-      }));
+      const designs = querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          name: doc.data().name || "নামহীন ডিজাইন",
+          updatedAt: doc.data().updatedAt,
+          userId: doc.data().userId
+        }))
+        .filter(d => !user || !d.userId || d.userId === user.uid);
       setSavedDesigns(designs);
       return designs;
     } catch (e) {
@@ -773,6 +872,10 @@ export default function EstimatorClient() {
       container.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    fetchSavedDesigns();
+  }, [user]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1089,7 +1192,7 @@ export default function EstimatorClient() {
           <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
         </div>
         
-        <div className="flex-1 flex items-center justify-start md:justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-visible flex-nowrap">
+        <div className="flex-1 flex items-center justify-start md:justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-hidden flex-nowrap py-0.5">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" className="shrink-0" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" className="shrink-0" />
           <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
@@ -1104,13 +1207,13 @@ export default function EstimatorClient() {
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" className="shrink-0" />
           <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" className="shrink-0" />
-          <RibbonButton icon={<Layers />} label="3D View" onClick={() => {}} color="indigo" className="shrink-0" />
+          <RibbonButton icon={<Layers />} label="3D View" onClick={() => toast({ title: "আসন্ন ফিচার", description: "৩ডি ভিউ ফিচারটি পরবর্তী আপডেটে যুক্ত করা হবে।" })} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" className="shrink-0" />
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
           <Button variant="ghost" size="sm" className="h-7 text-[10px] md:text-sm hover:bg-slate-800 font-black text-white" onClick={saveToFirestore}><Save className="w-3 h-3 md:w-4 md:h-4 md:mr-2 text-green-400"/> SAVE</Button>
-          <User className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
+          <UserProfileMenu onOpenCloudGallery={() => setIsCloudGalleryOpen(true)} />
         </div>
       </div>
 
@@ -1320,9 +1423,9 @@ export default function EstimatorClient() {
 
             <div className="space-y-2">
               <Label className="font-black text-slate-700 uppercase text-[10px]">Select Area</Label>
-              <Select value={exportSettings.format} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}>
+              <Select value={exportSettings.area} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}>
                 <SelectTrigger className="font-black h-12">
-                  <SelectValue />
+                  <SelectValue placeholder="Select Area" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="font-black">Full Workspace</SelectItem>
@@ -1363,14 +1466,25 @@ export default function EstimatorClient() {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleExport} className="w-full bg-blue-600 hover:bg-blue-700 font-black gap-2 h-12">
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={() => handleExport('download')} className="flex-1 bg-blue-600 hover:bg-blue-700 font-black gap-2 h-11">
               {exportSettings.format === 'png' ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-              EXPORT {exportSettings.format.toUpperCase()}
+              ডাউনলোড {exportSettings.format.toUpperCase()}
+            </Button>
+            <Button 
+              onClick={() => handleExport('cloud')} 
+              disabled={isCloudUploading}
+              variant="outline"
+              className="flex-1 border-cyan-500/60 text-cyan-600 hover:bg-cyan-50 font-black gap-2 h-11"
+            >
+              {isCloudUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4 text-cyan-500" />}
+              ক্লাউডে সেভ করুন
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CloudGalleryDialog open={isCloudGalleryOpen} onOpenChange={setIsCloudGalleryOpen} />
 
       <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}>
         <DialogContent className="max-w-[45vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
@@ -1886,30 +2000,30 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
 
 function RibbonButton({ icon, label, onClick, active, color, className }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string, className?: string }) {
   const colorClasses = {
-    blue: "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_3px_0_0_#1d4ed8]",
-    amber: "bg-amber-500 hover:bg-amber-600 text-white shadow-[0_3px_0_0_#b45309]",
-    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_3px_0_0_#059669]",
-    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_3px_0_0_#4338ca]",
-    teal: "bg-teal-500 hover:bg-teal-600 text-white shadow-[0_3px_0_0_#0f766e]",
-    default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 shadow-[0_3px_0_0_#475569]",
-    destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30 shadow-[0_3px_0_0_#475569]"
+    blue: "bg-blue-600 hover:bg-blue-700 text-white",
+    amber: "bg-amber-600 hover:bg-amber-700 text-white",
+    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white",
+    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white",
+    teal: "bg-teal-600 hover:bg-teal-700 text-white",
+    default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700",
+    destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30"
   };
 
   return (
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold transition-all active:translate-y-[2px] active:shadow-none h-8 md:h-12 min-w-[40px] md:min-w-[48px]",
+        "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold h-8 md:h-11 min-w-[40px] md:min-w-[48px] shrink-0 active:scale-[0.97] transition-transform",
         color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
-        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[2px] shadow-none" : "",
+        active ? "ring-2 ring-red-600 ring-offset-1 ring-offset-slate-900 bg-slate-700" : "",
         className
       )} 
       onClick={onClick}
     >
-      <div className="shrink-0 text-white mb-0.5">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}
+      <div className="shrink-0 text-white mb-0.5 pointer-events-none">
+        {React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}
       </div>
-      <span className="text-[9px] uppercase font-black leading-none tracking-tight text-white antialiased">
+      <span className="text-[9px] uppercase font-black leading-none tracking-tight text-white antialiased pointer-events-none">
         {label}
       </span>
     </Button>
@@ -1943,7 +2057,7 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
       )}
     >
       <div className="shrink-0 text-white">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-2.5 md:w-3 h-2.5 md:h-3" })}
+        {React.cloneElement(icon as React.ReactElement<any>, { className: "w-2.5 md:w-3 h-2.5 md:h-3" })}
       </div>
       <span className="text-[5px] md:text-[6px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
     </div>

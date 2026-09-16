@@ -82,7 +82,18 @@ body {
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
+    overflow: hidden !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    pointer-events: auto !important;
+  }
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    overflow: hidden !important;
+    pointer-events: auto !important;
   }
 }
+

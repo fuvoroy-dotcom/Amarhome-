@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/firebase/auth-context';
 
 export const metadata: Metadata = {
   title: 'Architectural Pro Studio',
@@ -22,7 +23,9 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </head>
       <body className="font-body antialiased overflow-hidden overscroll-behavior-none">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <FirebaseErrorListener />
         <Toaster />
       </body>
