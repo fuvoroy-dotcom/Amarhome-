@@ -125,6 +125,7 @@ export default function EstimatorClient() {
   const [scrollY, setScrollY] = useState(0);
 
   const displayZoom = useMemo(() => zoom * 0.5, [zoom]);
+  const safeDisplayZoom = useMemo(() => Math.max(displayZoom, 0.1), [displayZoom]);
 
   const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
@@ -319,9 +320,9 @@ export default function EstimatorClient() {
 
       let xMin = 0, xMax = 60, yMin = 0, yMax = 60;
       if (exportSettings.area === 'custom') {
-        xMin = Math.min(exportSettings.xStart, exportSettings.xEnd);
+        xMin = Math.min(exportSettings.xStart, exportSettings.xStart);
         xMax = Math.max(exportSettings.xStart, exportSettings.xEnd);
-        yMin = Math.min(exportSettings.yStart, exportSettings.yEnd);
+        yMin = Math.min(exportSettings.yStart, exportSettings.yStart);
         yMax = Math.max(exportSettings.yStart, exportSettings.yEnd);
       }
       
@@ -761,8 +762,7 @@ export default function EstimatorClient() {
     try {
       const { firestore } = initializeFirebase();
       const designsCol = collection(firestore, 'designs');
-      const q = query(designsCol, orderBy('updatedAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(designsCol);
       const designs = querySnapshot.docs
         .map(doc => ({
           id: doc.id,
@@ -770,7 +770,12 @@ export default function EstimatorClient() {
           updatedAt: doc.data().updatedAt,
           userId: doc.data().userId
         }))
-        .filter(d => !user || !d.userId || d.userId === user.uid);
+        .filter(d => !user || !d.userId || d.userId === user.uid || !d.userId)
+        .sort((a, b) => {
+          const timeA = a.updatedAt?.seconds || 0;
+          const timeB = b.updatedAt?.seconds || 0;
+          return timeB - timeA;
+        });
       setSavedDesigns(designs);
       return designs;
     } catch (e) {
@@ -1155,8 +1160,9 @@ export default function EstimatorClient() {
   const Ruler = ({ orientation }: { orientation: 'horizontal' | 'vertical' }) => {
     const scrollVal = orientation === 'horizontal' ? scrollX : scrollY;
     const interval = gridConfig.interval;
-    const startUnit = Math.floor((scrollVal - CANVAS_OFFSET) / (interval * displayZoom)) * interval;
-    const count = Math.ceil(2000 / (interval * displayZoom)); 
+    const safeZoom = Math.max(displayZoom, 0.1); 
+    const startUnit = Math.floor((scrollVal - CANVAS_OFFSET) / (interval * safeZoom)) * interval;
+    const count = Math.min(Math.ceil(2000 / (interval * safeZoom)), 500); 
     
     const units = [];
     for (let t = 0; t <= count; t++) {
@@ -1166,7 +1172,7 @@ export default function EstimatorClient() {
     return (
       <div className={cn("bg-slate-900 border-slate-800 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
         {units.map((posValue) => (
-          <div key={posValue} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * displayZoom + CANVAS_OFFSET - scrollX, top: 0 } : { top: posValue * displayZoom + CANVAS_OFFSET - scrollY, left: 0 }}>
+          <div key={posValue} className="absolute overflow-visible" style={orientation === 'horizontal' ? { left: posValue * safeZoom + CANVAS_OFFSET - scrollX, top: 0 } : { top: posValue * safeZoom + CANVAS_OFFSET - scrollY, left: 0 }}>
             <div className={cn("bg-slate-700", orientation === 'horizontal' ? "w-[1px] h-3 -translate-x-1/2" : "h-[1px] w-3 -translate-y-1/2")} />
             <span className={cn("text-[9px] font-bold text-slate-400 absolute whitespace-nowrap", orientation === 'horizontal' ? "top-3 -translate-x-1/2" : "left-3 -translate-y-1/2")}>
               {unitSystem === 'metric' ? `${(posValue * 0.3048).toFixed(1)}m` : posValue}
@@ -1386,7 +1392,7 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[65px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[85px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
             <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
@@ -1426,7 +1432,7 @@ export default function EstimatorClient() {
               className="flex-1 relative bg-white overflow-auto cursor-crosshair" 
               onMouseDown={(e) => handleMouseDown(e, null)} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchStart={(e) => handleMouseDown(e, null)} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
             >
-              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${displayZoom * gridConfig.minor}px ${displayZoom * gridConfig.minor}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 20000, height: 20000 }}>
+              <div className="absolute" style={{ backgroundImage: `linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)`, backgroundSize: `${safeDisplayZoom * gridConfig.minor}px ${safeDisplayZoom * gridConfig.minor}px`, backgroundPosition: `${CANVAS_OFFSET}px ${CANVAS_OFFSET}px`, width: 20000, height: 20000 }}>
                 {renderPillarDistances()}
                 {designObjects.map(obj => (
                   <div key={obj.id} data-id={obj.id} onMouseDown={(e) => handleMouseDown(e, obj.id)} onTouchStart={(e) => handleMouseDown(e, obj.id)} className={cn("absolute design-object-container", selectedObjectIds.includes(obj.id) ? "z-30" : "z-10")} style={getObjectStyle(obj)}>
@@ -2406,15 +2412,15 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
     <div 
       onClick={onClick} 
       className={cn(
-        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-6 md:h-7 w-[46px] md:w-[50px] mx-auto overflow-visible",
+        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 w-[60px] md:w-[65px] mx-auto overflow-visible",
         baseColor,
         active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
       )}
     >
       <div className="shrink-0 text-white">
-        {React.cloneElement(icon as React.ReactElement<any>, { className: "w-2.5 md:w-3 h-2.5 md:h-3" })}
+        {React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}
       </div>
-      <span className="text-[5px] md:text-[6px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
+      <span className="text-[7px] md:text-[8px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
     </div>
   );
 }
@@ -2422,3 +2428,4 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
