@@ -89,10 +89,13 @@ export function ThreeDViewDialog({
   const walkStateRef = useRef({
     keys: { forward: false, backward: false, left: false, right: false },
     yaw: 0,
-    pitch: 0,
+    pitch: -0.06,
     isMouseDown: false,
     prevMouseX: 0,
     prevMouseY: 0,
+    bobTimer: 0,
+    vx: 0,
+    vz: 0,
   });
 
   const createMarbleTexture = useCallback(() => {
@@ -932,7 +935,9 @@ export function ThreeDViewDialog({
     scene.background = new THREE.Color(bgColor);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.5, 1000);
+    const initialFov = isWalkthrough ? 75 : 42;
+    const initialNear = isWalkthrough ? 0.1 : 0.5;
+    const camera = new THREE.PerspectiveCamera(initialFov, width / height, initialNear, 1000);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
@@ -1074,14 +1079,25 @@ export function ThreeDViewDialog({
     const dist = maxDim * 1.25;
     if (!isWalkthrough) {
       controls.enabled = true;
+      camera.fov = 42;
+      camera.near = 0.5;
+      camera.updateProjectionMatrix();
       camera.position.set(dist * 0.72, dist * 0.85, dist * 0.72);
       controls.target.set(0, wallHeight * 0.35, 0);
       controls.update();
     } else {
-      // First person eye-level camera inside the house (ground level Y ~ 4.8ft)
+      // First person eye-level camera inside the house (ground level Y ~ 3.6ft, wide 75° human FOV)
       controls.enabled = false;
-      camera.position.set(0, 4.8, 0);
-      camera.lookAt(0, 4.8, 5);
+      camera.fov = 75;
+      camera.near = 0.1;
+      camera.updateProjectionMatrix();
+      const spawnZ = Math.min(bDepth * 0.2, 3);
+      camera.position.set(0, 3.6, spawnZ);
+      walkStateRef.current.yaw = Math.PI; // Face forward towards the center of the building (-Z)
+      walkStateRef.current.pitch = -0.06; // Look slightly down to clearly see the floor and surrounding space
+      walkStateRef.current.bobTimer = 0;
+      walkStateRef.current.vx = 0;
+      walkStateRef.current.vz = 0;
     }
 
     const buildingGroup = new THREE.Group();
@@ -1153,8 +1169,11 @@ export function ThreeDViewDialog({
     labelsGroupRef.current = labelsGroup;
     buildingGroup.add(labelsGroup);
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.8 });
-    const wallCapMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
+    // Day mode wall color: soft architectural light brick (হালকা ইটের রঙ), other views unchanged
+    const wallMatColor = lightingMode === 'day' ? 0xd59b82 : 0xf3f4f6;
+    const wallCapColor = lightingMode === 'day' ? 0xf4ece6 : 0xffffff;
+    const wallMat = new THREE.MeshStandardMaterial({ color: wallMatColor, roughness: 0.82 });
+    const wallCapMat = new THREE.MeshStandardMaterial({ color: wallCapColor, roughness: 0.35 });
 
     const openings = designObjects.filter(o => 
       o.subType.startsWith('door') || 
@@ -1402,8 +1421,9 @@ export function ThreeDViewDialog({
       walkStateRef.current.prevMouseX = e.clientX;
       walkStateRef.current.prevMouseY = e.clientY;
 
-      walkStateRef.current.yaw -= dx * 0.004;
-      walkStateRef.current.pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, walkStateRef.current.pitch - dy * 0.004));
+      walkStateRef.current.yaw -= dx * 0.003;
+      // Allow looking down to the floor or looking up clearly
+      walkStateRef.current.pitch = Math.max(-Math.PI / 2.4, Math.min(Math.PI / 2.4, walkStateRef.current.pitch - dy * 0.003));
     };
 
     const handleMouseUp = () => {
@@ -1427,13 +1447,43 @@ export function ThreeDViewDialog({
         const forward = new THREE.Vector3(Math.sin(ws.yaw), 0, -Math.cos(ws.yaw)).normalize();
         const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
 
-        const moveSpeed = 0.35;
-        if (ws.keys.forward) cam.position.addScaledVector(forward, moveSpeed);
-        if (ws.keys.backward) cam.position.addScaledVector(forward, -moveSpeed);
-        if (ws.keys.left) cam.position.addScaledVector(side, moveSpeed);
-        if (ws.keys.right) cam.position.addScaledVector(side, -moveSpeed);
+        let moveX = 0;
+        let moveZ = 0;
+        const isMoving = ws.keys.forward || ws.keys.backward || ws.keys.left || ws.keys.right;
 
-        cam.position.y = 4.8;
+        if (ws.keys.forward) { moveX += forward.x; moveZ += forward.z; }
+        if (ws.keys.backward) { moveX -= forward.x; moveZ -= forward.z; }
+        if (ws.keys.left) { moveX += side.x; moveZ += side.z; }
+        if (ws.keys.right) { moveX -= side.x; moveZ -= side.z; }
+
+        const moveLen = Math.hypot(moveX, moveZ);
+        if (moveLen > 0) {
+          moveX /= moveLen;
+          moveZ /= moveLen;
+        }
+
+        const targetSpeed = 0.22;
+        ws.vx = THREE.MathUtils.lerp(ws.vx, moveX * targetSpeed, 0.2);
+        ws.vz = THREE.MathUtils.lerp(ws.vz, moveZ * targetSpeed, 0.2);
+
+        cam.position.x += ws.vx;
+        cam.position.z += ws.vz;
+
+        // Bounding box clamp: keep user securely on the floor inside the building
+        const halfW = Math.max(2, bWidth / 2 - 1.2);
+        const halfD = Math.max(2, bDepth / 2 - 1.2);
+        cam.position.x = Math.max(-halfW, Math.min(halfW, cam.position.x));
+        cam.position.z = Math.max(-halfD, Math.min(halfD, cam.position.z));
+
+        // Subtle step bobbing for realistic walking sensation on floor
+        if (isMoving) {
+          ws.bobTimer += 0.16;
+        } else {
+          ws.bobTimer = THREE.MathUtils.lerp(ws.bobTimer, 0, 0.1);
+        }
+        const bobbing = Math.sin(ws.bobTimer) * 0.04;
+        cam.position.y = 3.6 + bobbing;
+
         const targetLook = cam.position.clone().add(new THREE.Vector3(
           Math.sin(ws.yaw) * Math.cos(ws.pitch),
           Math.sin(ws.pitch),
@@ -1789,20 +1839,89 @@ export function ThreeDViewDialog({
             </div>
           </div>
 
-          <div className="absolute bottom-4 left-4 z-20">
+          {/* First-Person Walkthrough Center Reticle / Crosshair */}
+          {isWalkthrough && (
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+              <div className="relative flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-white/80 shadow-md ring-1 ring-black/40" />
+                <div className="absolute w-6 h-[1.5px] bg-white/40" />
+                <div className="absolute h-6 w-[1.5px] bg-white/40" />
+              </div>
+            </div>
+          )}
+
+          <div className="absolute bottom-4 left-4 z-20 flex flex-col sm:flex-row items-start sm:items-center gap-3">
             {isWalkthrough ? (
-              <div className="bg-slate-900/95 px-3.5 py-2 rounded-xl border border-emerald-500/40 backdrop-blur-md text-xs text-white shadow-xl flex items-center gap-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                <div>
-                  <div className="font-bold text-emerald-400 flex items-center gap-1.5">
-                    <Footprints className="w-3.5 h-3.5" />
-                    <span>ফার্স্ট-পার্সন ওয়াকথ্রু মোড সক্রিয়</span>
-                  </div>
-                  <div className="text-[11px] text-slate-300">
-                    <span className="font-mono font-bold text-amber-300">W/A/S/D</span> বা কীবোর্ড এরো কী চেপে হাঁটুন • মাউস চেপে ধরে আশেপাশে দেখুন
+              <>
+                <div className="bg-slate-900/95 px-3.5 py-2.5 rounded-xl border border-emerald-500/40 backdrop-blur-md text-xs text-white shadow-xl flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                  <div>
+                    <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Footprints className="w-4 h-4" />
+                      <span>মেঝের উপর ওয়াকথ্রু (উচ্চতা ৩.৬ ফুট)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-300">
+                      <span className="font-mono font-bold text-amber-300">W/A/S/D</span> বা কীবোর্ড এরো চেপে হাঁটুন • মাউস টেনে দেখুন
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Virtual Touch / Mouse Walking D-pad */}
+                <div className="bg-slate-900/95 p-1.5 rounded-xl border border-slate-800 shadow-xl backdrop-blur-md flex items-center gap-1">
+                  <div className="grid grid-cols-3 gap-1">
+                    <div />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 w-7 p-0 bg-slate-800 hover:bg-emerald-600 text-white border-slate-700 active:scale-95 transition-all"
+                      title="সামনে চলুন"
+                      onMouseDown={() => { walkStateRef.current.keys.forward = true; }}
+                      onMouseUp={() => { walkStateRef.current.keys.forward = false; }}
+                      onTouchStart={() => { walkStateRef.current.keys.forward = true; }}
+                      onTouchEnd={() => { walkStateRef.current.keys.forward = false; }}
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </Button>
+                    <div />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 w-7 p-0 bg-slate-800 hover:bg-emerald-600 text-white border-slate-700 active:scale-95 transition-all"
+                      title="বামে চলুন"
+                      onMouseDown={() => { walkStateRef.current.keys.left = true; }}
+                      onMouseUp={() => { walkStateRef.current.keys.left = false; }}
+                      onTouchStart={() => { walkStateRef.current.keys.left = true; }}
+                      onTouchEnd={() => { walkStateRef.current.keys.left = false; }}
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 w-7 p-0 bg-slate-800 hover:bg-emerald-600 text-white border-slate-700 active:scale-95 transition-all"
+                      title="পেছনে চলুন"
+                      onMouseDown={() => { walkStateRef.current.keys.backward = true; }}
+                      onMouseUp={() => { walkStateRef.current.keys.backward = false; }}
+                      onTouchStart={() => { walkStateRef.current.keys.backward = true; }}
+                      onTouchEnd={() => { walkStateRef.current.keys.backward = false; }}
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 w-7 p-0 bg-slate-800 hover:bg-emerald-600 text-white border-slate-700 active:scale-95 transition-all"
+                      title="ডানে চলুন"
+                      onMouseDown={() => { walkStateRef.current.keys.right = true; }}
+                      onMouseUp={() => { walkStateRef.current.keys.right = false; }}
+                      onTouchStart={() => { walkStateRef.current.keys.right = true; }}
+                      onTouchEnd={() => { walkStateRef.current.keys.right = false; }}
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 backdrop-blur-sm text-[11px] text-slate-400 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
