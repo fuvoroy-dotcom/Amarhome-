@@ -54,6 +54,7 @@ import { useAuth } from '@/firebase/auth-context';
 import { uploadDesignSnapshot, uploadExportBlob } from '@/firebase/storage-service';
 import { UserProfileMenu } from '@/components/user-profile-menu';
 import { CloudGalleryDialog } from '@/components/cloud-gallery-dialog';
+import { ThreeDViewDialog } from '@/components/three-d-view-dialog';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
 
@@ -101,6 +102,7 @@ export default function EstimatorClient() {
   const { user } = useAuth();
   const [isCloudGalleryOpen, setIsCloudGalleryOpen] = useState(false);
   const [isCloudUploading, setIsCloudUploading] = useState(false);
+  const [is3DViewOpen, setIs3DViewOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const bottomBarRef = useRef<HTMLDivElement>(null);
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
@@ -1207,7 +1209,7 @@ export default function EstimatorClient() {
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" className="shrink-0" />
           <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" className="shrink-0" />
-          <RibbonButton icon={<Layers />} label="3D View" onClick={() => toast({ title: "আসন্ন ফিচার", description: "৩ডি ভিউ ফিচারটি পরবর্তী আপডেটে যুক্ত করা হবে।" })} color="indigo" className="shrink-0" />
+          <RibbonButton icon={<Layers />} label="3D View" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" className="shrink-0" />
         </div>
 
@@ -1485,6 +1487,8 @@ export default function EstimatorClient() {
       </Dialog>
 
       <CloudGalleryDialog open={isCloudGalleryOpen} onOpenChange={setIsCloudGalleryOpen} />
+
+      <ThreeDViewDialog open={is3DViewOpen} onOpenChange={setIs3DViewOpen} designObjects={designObjects} projectName={projectName} />
 
       <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}>
         <DialogContent className="max-w-[45vw] w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
