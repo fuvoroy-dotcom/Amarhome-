@@ -935,8 +935,8 @@ export function ThreeDViewDialog({
     scene.background = new THREE.Color(bgColor);
     sceneRef.current = scene;
 
-    const initialFov = isWalkthrough ? 75 : 42;
-    const initialNear = isWalkthrough ? 0.1 : 0.5;
+    const initialFov = isWalkthrough ? 90 : 42;
+    const initialNear = isWalkthrough ? 0.08 : 0.5;
     const camera = new THREE.PerspectiveCamera(initialFov, width / height, initialNear, 1000);
     cameraRef.current = camera;
 
@@ -1086,15 +1086,15 @@ export function ThreeDViewDialog({
       controls.target.set(0, wallHeight * 0.35, 0);
       controls.update();
     } else {
-      // First person eye-level camera inside the house (ground level Y ~ 3.6ft, wide 75° human FOV)
+      // First person eye-level camera inside the house (ground level Y ~ 3.2ft, wide 90° human FOV)
       controls.enabled = false;
-      camera.fov = 75;
-      camera.near = 0.1;
+      camera.fov = 90;
+      camera.near = 0.08;
       camera.updateProjectionMatrix();
       const spawnZ = Math.min(bDepth * 0.2, 3);
-      camera.position.set(0, 3.6, spawnZ);
+      camera.position.set(0, 3.2, spawnZ);
       walkStateRef.current.yaw = Math.PI; // Face forward towards the center of the building (-Z)
-      walkStateRef.current.pitch = -0.06; // Look slightly down to clearly see the floor and surrounding space
+      walkStateRef.current.pitch = -0.08; // Look slightly down to clearly see floor and walls
       walkStateRef.current.bobTimer = 0;
       walkStateRef.current.vx = 0;
       walkStateRef.current.vz = 0;
@@ -1482,7 +1482,7 @@ export function ThreeDViewDialog({
           ws.bobTimer = THREE.MathUtils.lerp(ws.bobTimer, 0, 0.1);
         }
         const bobbing = Math.sin(ws.bobTimer) * 0.04;
-        cam.position.y = 3.6 + bobbing;
+        cam.position.y = 3.2 + bobbing;
 
         const targetLook = cam.position.clone().add(new THREE.Vector3(
           Math.sin(ws.yaw) * Math.cos(ws.pitch),
