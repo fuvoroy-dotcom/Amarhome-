@@ -1349,32 +1349,32 @@ export default function EstimatorClient() {
 
   return (
     <div className="w-full h-[100svh] bg-slate-900 flex flex-col overflow-hidden font-body text-slate-200 select-none relative pb-12">
-      <div className="h-12 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-4 justify-between shrink-0 text-white z-50 py-1">
-        <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
-          <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-7 w-20 md:w-48 bg-slate-800 border-slate-700 text-[10px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500" placeholder="প্রজেক্টের নাম..." />
+      <div className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center px-2 md:px-3 justify-between shrink-0 text-white z-50 py-1 gap-2">
+        <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+          <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-400 shrink-0" />
+          <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-8 w-24 md:w-36 lg:w-44 bg-slate-800 border-slate-700 text-[11px] md:text-xs text-white font-black focus:ring-1 focus:ring-blue-500 px-2" placeholder="প্রজেক্টের নাম..." />
         </div>
         
-        <div className="flex-1 flex items-center justify-start md:justify-center gap-1 mx-2 overflow-x-auto no-scrollbar overflow-y-hidden flex-nowrap py-0.5">
+        <div className="flex-1 flex items-center justify-start gap-1 overflow-x-auto overflow-y-hidden flex-nowrap py-1 px-1 scrollbar-thin scrollbar-thumb-slate-700">
           <RibbonButton icon={<FilePlus />} label="New" onClick={handleNewPage} color="default" className="shrink-0" />
           <RibbonButton icon={<FolderOpen />} label="Open" onClick={() => fetchSavedDesigns().then(() => setIsOpenDialogOpen(true))} color="default" className="shrink-0" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<Undo2 />} label="Undo" onClick={undo} color="blue" className="shrink-0" />
           <RibbonButton icon={<Redo2 />} label="Redo" onClick={redo} color="blue" className="shrink-0" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<CopyIcon />} label="Copy" onClick={copySelected} color="amber" className="shrink-0" />
           <RibbonButton icon={<ClipboardIcon />} label="Paste" onClick={enterPasteMode} active={interactionMode === 'pasting'} color="amber" className="shrink-0" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
+          <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" className="shrink-0" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" className="shrink-0" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" className="shrink-0" />
           <RibbonButton icon={<Square className="w-3.5 h-3.5" />} label={unitSystem === 'imperial' ? "একক: ft" : "একক: m"} onClick={() => setUnitSystem(unitSystem === 'imperial' ? 'metric' : 'imperial')} color="cyan" className="shrink-0" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
-          <RibbonButton icon={<ShieldCheck className="w-4 h-4" />} label="BNBC অডিট" onClick={() => setIsBnbcAuditOpen(true)} color="indigo" className="shrink-0" />
-          <RibbonButton icon={<ClipboardList className="w-4 h-4" />} label="সাইট খতিয়ান" onClick={() => setIsSiteLedgerOpen(true)} color="emerald" className="shrink-0" />
-          <RibbonButton icon={<Magnet className="w-4 h-4" />} label={isSmartSnapEnabled ? "ম্যাগনেটিক: ON" : "ম্যাগনেটিক: OFF"} onClick={() => setIsSmartSnapEnabled(!isSmartSnapEnabled)} active={isSmartSnapEnabled} color="cyan" className="shrink-0" />
-          <div className="w-px h-8 bg-slate-800 mx-0.5 shrink-0" />
-          <RibbonButton icon={<LayoutGrid />} label="Select All" onClick={selectAll} color="indigo" className="shrink-0" />
+          <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<ShieldCheck className="w-4 h-4" />} label="BNBC" onClick={() => setIsBnbcAuditOpen(true)} color="indigo" className="shrink-0" />
+          <RibbonButton icon={<ClipboardList className="w-4 h-4" />} label="খতিয়ান" onClick={() => setIsSiteLedgerOpen(true)} color="emerald" className="shrink-0" />
+          <RibbonButton icon={<Magnet className="w-4 h-4" />} label={isSmartSnapEnabled ? "স্ন্যাপ: ON" : "স্ন্যাপ: OFF"} onClick={() => setIsSmartSnapEnabled(!isSmartSnapEnabled)} active={isSmartSnapEnabled} color="cyan" className="shrink-0" />
+          <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<LayoutGrid />} label="All" onClick={selectAll} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" className="shrink-0" />
         </div>
