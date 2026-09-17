@@ -55,13 +55,13 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     return t.includes('bath') || t.includes('toilet') || t.includes('washroom') || t.includes('wc') || t.includes('বাথ') || t.includes('টয়লেট') || t.includes('প্রসাধন');
   }), [textLabels]);
 
-  // Floor area from bounding box of all meaningful objects
+  // Floor area calculation - set default fallback to 0 as per user instruction
   const estimatedFloorArea = useMemo(() => {
     const src = walls.length > 0 ? walls : designObjects.filter(o => o.w > 1 && o.h > 1);
-    if (src.length === 0) return 600;
+    if (src.length === 0) return 0;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     src.forEach(s => { minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x + s.w); minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y + s.h); });
-    return Math.max(150, Math.round((maxX - minX) * (maxY - minY) * 0.80));
+    return Math.max(0, Math.round((maxX - minX) * (maxY - minY) * 0.80));
   }, [walls, designObjects]);
 
   // 1. Column Span Analysis
@@ -168,7 +168,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     if (bathroomAnalysis.severity === 'warning') score -= 5;
     if (fireExitAnalysis.issues.some(i => i.severity === 'danger')) score -= 10;
     if (seismicAnalysis.severity === 'danger') score -= 8;
-    return Math.max(20, Math.min(100, score));
+    return Math.max(0, Math.min(100, score));
   }, [pillars, columnSpanAnalysis, stairAnalysis, stairs, ventilationAnalysis, bathroomAnalysis, fireExitAnalysis, seismicAnalysis]);
 
   const countBySeverity = (issues: AuditIssue[], sev: Severity) => issues.filter(i => i.severity === sev).length;

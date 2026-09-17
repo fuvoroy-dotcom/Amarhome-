@@ -79,47 +79,10 @@ export function DailySiteManagementDialog({
 
   const storageKey = `site_ledger_${currentDesignId}`;
 
-  const defaultMaterials: MaterialInflowItem[] = [
-    {
-      id: "m-1",
-      date: new Date().toISOString().split("T")[0],
-      material: "সিমেন্ট (Cement - শাহ/হোলসিম)",
-      quantity: 100,
-      unit: "বস্তা",
-      challanNo: "CH-8491",
-      cost: 56000
-    },
-    {
-      id: "m-2",
-      date: new Date().toISOString().split("T")[0],
-      material: "৫০০W টিএমটি রড (Steel Rebar)",
-      quantity: 1250,
-      unit: "কেজি",
-      challanNo: "CH-8492",
-      cost: 120000
-    }
-  ];
+  // Default values cleared as per user instruction
+  const defaultMaterials: MaterialInflowItem[] = [];
 
-  const defaultLabor: LaborAttendanceItem[] = [
-    {
-      id: "l-1",
-      date: new Date().toISOString().split("T")[0],
-      trade: "রাজমিস্ত্রি দল (Mason Crew)",
-      workerCount: 4,
-      dailyRate: 900,
-      totalWage: 3600,
-      supervisor: "বশির ওস্তাদ"
-    },
-    {
-      id: "l-2",
-      date: new Date().toISOString().split("T")[0],
-      trade: "নির্মাণ শ্রমিক / হেল্পার (Helpers)",
-      workerCount: 6,
-      dailyRate: 650,
-      totalWage: 3900,
-      supervisor: "সাইট ম্যানেজার"
-    }
-  ];
+  const defaultLabor: LaborAttendanceItem[] = [];
 
   // Material Inflow State
   const [materialsLedger, setMaterialsLedger] = useState<MaterialInflowItem[]>(defaultMaterials);
@@ -152,8 +115,8 @@ export function DailySiteManagementDialog({
         try {
           const cloudData = await loadSiteLedger(user.uid, currentDesignId);
           if (cloudData) {
-            if (cloudData.materials.length > 0) setMaterialsLedger(cloudData.materials);
-            if (cloudData.labor.length > 0) setLaborLedger(cloudData.labor);
+            if (cloudData.materials) setMaterialsLedger(cloudData.materials);
+            if (cloudData.labor) setLaborLedger(cloudData.labor);
             if (cloudData.savedAt) setLastSavedAt(cloudData.savedAt);
             return; // Firebase load success, skip localStorage
           }
@@ -431,35 +394,39 @@ export function DailySiteManagementDialog({
                   <span>মোট ম্যাটেরিয়াল ব্যয়: ৳ {totalMaterialSpent.toLocaleString('bn-BD')}</span>
                 </div>
                 <div className="divide-y divide-slate-100 text-xs max-h-60 overflow-y-auto">
-                  {materialsLedger.map((item) => (
-                    <div key={item.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-slate-800 flex items-center gap-2">
-                          <span>{item.material}</span>
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                            {item.challanNo}
-                          </span>
+                  {materialsLedger.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 italic">এখনও কোনো চালান যুক্ত করা হয়নি।</div>
+                  ) : (
+                    materialsLedger.map((item) => (
+                      <div key={item.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-slate-800 flex items-center gap-2">
+                            <span>{item.material}</span>
+                            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                              {item.challanNo}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">তারিখ: {item.date}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400">তারিখ: {item.date}</span>
+                        <div className="flex items-center gap-6 text-right">
+                          <div className="font-bold text-slate-700">
+                            {item.quantity} {item.unit}
+                          </div>
+                          <div className="font-bold text-emerald-700 w-24">
+                            ৳ {item.cost.toLocaleString('bn-BD')}
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDeleteMaterial(item.id)}
+                            className="h-7 w-7 text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-6 text-right">
-                        <div className="font-bold text-slate-700">
-                          {item.quantity} {item.unit}
-                        </div>
-                        <div className="font-bold text-emerald-700 w-24">
-                          ৳ {item.cost.toLocaleString('bn-BD')}
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDeleteMaterial(item.id)}
-                          className="h-7 w-7 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -529,35 +496,39 @@ export function DailySiteManagementDialog({
                   <span>মোট লেবার পরিশোধ: ৳ {totalLaborSpent.toLocaleString('bn-BD')}</span>
                 </div>
                 <div className="divide-y divide-slate-100 text-xs max-h-60 overflow-y-auto">
-                  {laborLedger.map((item) => (
-                    <div key={item.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-slate-800 flex items-center gap-2">
-                          <span>{item.trade}</span>
-                          <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-semibold">
-                            {item.workerCount} জন
-                          </span>
+                  {laborLedger.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 italic">এখনও কোনো হাজিরার তথ্য যুক্ত করা হয়নি।</div>
+                  ) : (
+                    laborLedger.map((item) => (
+                      <div key={item.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-slate-800 flex items-center gap-2">
+                            <span>{item.trade}</span>
+                            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-semibold">
+                              {item.workerCount} জন
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">তারিখ: {item.date} | তদারকি: {item.supervisor}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400">তারিখ: {item.date} | তদারকি: {item.supervisor}</span>
+                        <div className="flex items-center gap-6 text-right">
+                          <div className="text-slate-600 font-medium">
+                            ৳ {item.dailyRate}/জন
+                          </div>
+                          <div className="font-bold text-emerald-700 w-24">
+                            ৳ {item.totalWage.toLocaleString('bn-BD')}
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDeleteLabor(item.id)}
+                            className="h-7 w-7 text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-6 text-right">
-                        <div className="text-slate-600 font-medium">
-                          ৳ {item.dailyRate}/জন
-                        </div>
-                        <div className="font-bold text-emerald-700 w-24">
-                          ৳ {item.totalWage.toLocaleString('bn-BD')}
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDeleteLabor(item.id)}
-                          className="h-7 w-7 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </TabsContent>
