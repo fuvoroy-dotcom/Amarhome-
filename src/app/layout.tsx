@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/firebase/auth-context';
 
 export const metadata: Metadata = {
-  title: 'Architectural Pro Studio',
+  title: 'আমার বাড়ি',
   description: 'Professional architectural design and estimation tool',
 };
 
