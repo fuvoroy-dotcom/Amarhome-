@@ -55,7 +55,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     return t.includes('bath') || t.includes('toilet') || t.includes('washroom') || t.includes('wc') || t.includes('বাথ') || t.includes('টয়লেট') || t.includes('প্রসাধন');
   }), [textLabels]);
 
-  // Floor area calculation - set default fallback to 0 as per user instruction
   const estimatedFloorArea = useMemo(() => {
     const src = walls.length > 0 ? walls : designObjects.filter(o => o.w > 1 && o.h > 1);
     if (src.length === 0) return 0;
@@ -82,14 +81,14 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
         else if (dist < 6 && dist > 0.5) issues.push({ message: `কলাম দুটি অতি নিকটে: ${dist.toFixed(1)} ফুট — অতিরিক্ত কলাম অপচয়।`, severity: 'info', distance: dist, clause: 'Structural Economy', recommendation: 'ট্রিবিউটারি এরিয়া পুনর্বিন্যাস করে কলাম অপসারণ করুন।' });
       }
     });
-    if (pillars.length === 0) issues.push({ message: 'ড্রয়িংয়ে কোনো কলাম (Pillar) নেই। RCC ভবনে কলাম ছাড়া কাঠামো অসম্ভব।', severity: 'danger', distance: 0, clause: 'BNBC Part 6: Structural Design', recommendation: 'প্রতিটি কোণে ও লোড-বেয়ারিং পয়েন্টে ন্যূনতম ১০"×১০" কলাম যোগ করুন।' });
+    if (pillars.length === 0 && designObjects.length > 0) issues.push({ message: 'ড্রয়িংয়ে কোনো কলাম (Pillar) নেই। RCC ভবনে কলাম ছাড়া কাঠামো অসম্ভব।', severity: 'danger', distance: 0, clause: 'BNBC Part 6: Structural Design', recommendation: 'প্রতিটি কোণে ও লোড-বেয়ারিং পয়েন্টে ন্যূনতম ১০"×১০" কলাম যোগ করুন।' });
     return { issues, maxDistance, checkedPairs };
-  }, [pillars]);
+  }, [pillars, designObjects.length]);
 
   // 2. Stair Analysis
   const stairAnalysis = useMemo(() => {
     const issues: AuditIssue[] = [];
-    if (stairs.length === 0) { issues.push({ message: 'সিঁড়ি নেই। দোতলা+ ভবনে সিঁড়ি বাধ্যতামূলক।', severity: 'warning', clause: 'BNBC Part 4, Clause 3.3.4', recommendation: 'ন্যূনতম প্রস্থ ৩\' ৩" (১ মিটার), রাইজার উচ্চতা ৭.৫" এর বেশি নয়।' }); return { issues, compliant: false }; }
+    if (stairs.length === 0 && designObjects.length > 0) { issues.push({ message: 'সিঁড়ি নেই। দোতলা+ ভবনে সিঁড়ি বাধ্যতামূলক।', severity: 'warning', clause: 'BNBC Part 4, Clause 3.3.4', recommendation: 'ন্যূনতম প্রস্থ ৩\' ৩" (১ মিটার), রাইজার উচ্চতা ৭.৫" এর বেশি নয়।' }); return { issues, compliant: false }; }
     let allOk = true;
     stairs.forEach((s, idx) => {
       const w = Math.min(s.w, s.h);
@@ -98,7 +97,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
       else issues.push({ message: `সিঁড়ি #${idx+1}: প্রস্থ ${w.toFixed(1)}' — BNBC সম্মত ✓`, severity: 'success', clause: 'BNBC Part 4, Clause 3.3.4', recommendation: 'অগ্নি-নিরাপত্তা চিহ্ন ও ইমার্জেন্সি লাইটিং নিশ্চিত করুন।' });
     });
     return { issues, compliant: allOk };
-  }, [stairs]);
+  }, [stairs, designObjects.length]);
 
   // 3. Ventilation
   const ventilationAnalysis = useMemo(() => {
@@ -106,18 +105,18 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     const required = estimatedFloorArea * 0.10;
     const pct = estimatedFloorArea > 0 ? (totalWindowArea / estimatedFloorArea) * 100 : 0;
     let status: 'good'|'warning'|'danger' = 'good', message = '', recommendation = '';
-    if (windows.length === 0) { status = 'danger'; message = 'জানালা নেই! প্রতিটি বাসযোগ্য কক্ষে আলো-বাতাস বাধ্যতামূলক।'; recommendation = `${Math.ceil(required)} Sq.ft জানালা যোগ করুন। ক্রস-ভেন্টিলেশনের জন্য বিপরীত দেয়ালে জানালা রাখুন।`; }
-    else if (pct < 8) { status = 'danger'; message = `জানালার অনুপাত মাত্র ${pct.toFixed(1)}% (ন্যূনতম ১০% প্রয়োজন)।`; recommendation = `আরও ${Math.ceil(required - totalWindowArea)} Sq.ft জানালা যোগ করুন।`; }
-    else if (pct < 10) { status = 'warning'; message = `জানালার অনুপাত ${pct.toFixed(1)}% — মানদণ্ডের কাছাকাছি।`; recommendation = '১-২টি অতিরিক্ত জানালা যোগ করুন।'; }
-    else { status = 'good'; message = `জানালার অনুপাত ${pct.toFixed(1)}% — BNBC সম্মত ✓`; recommendation = 'ভবিষ্যত সম্প্রসারণে এই অনুপাত বজায় রাখুন।'; }
+    if (windows.length === 0 && designObjects.length > 0) { status = 'danger'; message = 'জানালা নেই! প্রতিটি বাসযোগ্য কক্ষে আলো-বাতাস বাধ্যতামূলক।'; recommendation = `${Math.ceil(required)} Sq.ft জানালা যোগ করুন। ক্রস-ভেন্টিলেশনের জন্য বিপরীত দেয়ালে জানালা রাখুন।`; }
+    else if (pct < 8 && designObjects.length > 0) { status = 'danger'; message = `জানালার অনুপাত মাত্র ${pct.toFixed(1)}% (ন্যূনতম ১০% প্রয়োজন)।`; recommendation = `আরও ${Math.ceil(required - totalWindowArea)} Sq.ft জানালা যোগ করুন।`; }
+    else if (pct < 10 && designObjects.length > 0) { status = 'warning'; message = `জানালার অনুপাত ${pct.toFixed(1)}% — মানদণ্ডের কাছাকাছি।`; recommendation = '১-২টি অতিরিক্ত জানালা যোগ করুন।'; }
+    else if (designObjects.length > 0) { status = 'good'; message = `জানালার অনুপাত ${pct.toFixed(1)}% — BNBC সম্মত ✓`; recommendation = 'ভবিষ্যত সম্প্রসারণে এই অনুপাত বজায় রাখুন।'; }
     return { totalWindowArea, required, pct, status, message, recommendation, count: windows.length };
-  }, [windows, estimatedFloorArea]);
+  }, [windows, estimatedFloorArea, designObjects.length]);
 
   // 4. Room Size
   const roomSizeAnalysis = useMemo(() => {
     const issues: AuditIssue[] = [];
     const rooms = textLabels.filter(o => o.w > 5 && o.h > 5);
-    if (rooms.length === 0) { issues.push({ message: 'রুম লেবেল নেই — আয়তন যাচাই করা সম্ভব হয়নি।', severity: 'info', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'প্রতিটি কক্ষে লেবেল যোগ করুন। বাসযোগ্য কক্ষের ন্যূনতম আয়তন ৮০ Sq.ft, একটি মাত্রা ≥ ৮ ফুট।' }); return { issues }; }
+    if (rooms.length === 0 && designObjects.length > 0) { issues.push({ message: 'রুম লেবেল নেই — আয়তন যাচাই করা সম্ভব হয়নি।', severity: 'info', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'প্রতিটি কক্ষে লেবেল যোগ করুন। বাসযোগ্য কক্ষের ন্যূনতম আয়তন ৮০ Sq.ft, একটি মাত্রা ≥ ৮ ফুট।' }); return { issues }; }
     rooms.forEach(r => {
       const area = r.w * r.h; const label = r.textContent || r.label || 'রুম';
       if (area < 60) issues.push({ message: `"${label}": ~${Math.round(area)} Sq.ft — অতি ছোট।`, severity: 'danger', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'বাসযোগ্য কক্ষ ন্যূনতম ৮০ Sq.ft এবং একটি মাত্রা ≥ ৮ ফুট হতে হবে।' });
@@ -125,26 +124,27 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
       else issues.push({ message: `"${label}": ~${Math.round(area)} Sq.ft — সম্মত ✓`, severity: 'success', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'আয়তন মানদণ্ড পূরণ করছে।' });
     });
     return { issues };
-  }, [textLabels]);
+  }, [textLabels, designObjects.length]);
 
   // 5. Bathroom
   const bathroomAnalysis = useMemo((): AuditIssue => {
-    if (bathrooms.length === 0) return { message: 'বাথরুম/টয়লেট চিহ্নিত নেই। প্রতিটি ইউনিটে ন্যূনতম ১টি বাধ্যতামূলক।', severity: 'warning', clause: 'BNBC Part 3, Clause 3.1', recommendation: 'ন্যূনতম ৩০ Sq.ft বাথরুম যোগ করুন। বায়ুচলাচল ও ড্রেন স্লোপ (১:৮০) নিশ্চিত করুন।' };
+    if (bathrooms.length === 0 && designObjects.length > 0) return { message: 'বাথরুম/টয়লেট চিহ্নিত নেই। প্রতিটি ইউনিটে ন্যূনতম ১টি বাধ্যতামূলক।', severity: 'warning', clause: 'BNBC Part 3, Clause 3.1', recommendation: 'ন্যূনতম ৩০ Sq.ft বাথরুম যোগ করুন। বায়ুচলাচল ও ড্রেন স্লোপ (১:৮০) নিশ্চিত করুন।' };
+    if (designObjects.length === 0) return { message: 'অডিট শুরুর অপেক্ষায়...', severity: 'info' };
     return { message: `${bathrooms.length}টি বাথরুম/টয়লেট আছে — প্রাথমিক শর্ত পূরণ ✓`, severity: 'success', clause: 'BNBC Part 3, Clause 3.1', recommendation: 'অ্যান্টি-স্কিড ফ্লোর, এক্সজস্ট ফ্যান ও সঠিক ড্রেনেজ নিশ্চিত করুন।' };
-  }, [bathrooms]);
+  }, [bathrooms.length, designObjects.length]);
 
   // 6. Fire & Door
   const fireExitAnalysis = useMemo(() => {
     const issues: AuditIssue[] = [];
-    if (doors.length === 0) { issues.push({ message: 'কোনো দরজা নেই। জরুরি নির্গমন শূন্য।', severity: 'danger', clause: 'BNBC Part 4, Section 4', recommendation: 'প্রধান দরজা ≥ ৩ ফুট প্রস্থ ও ৭ ফুট উচ্চতা। ৩০০০+ Sq.ft হলে ২টি এক্সিট বাধ্যতামূলক।' }); }
-    else {
+    if (doors.length === 0 && designObjects.length > 0) { issues.push({ message: 'কোনো দরজা নেই। জরুরি নির্গমন শূন্য।', severity: 'danger', clause: 'BNBC Part 4, Section 4', recommendation: 'প্রধান দরজা ≥ ৩ ফুট প্রস্থ ও ৭ ফুট উচ্চতা। ৩০০০+ Sq.ft হলে ২টি এক্সিট বাধ্যতামূলক।' }); }
+    else if (designObjects.length > 0) {
       const narrow = doors.filter(d => d.w < 2.5 && d.w > 0.3);
       if (narrow.length > 0) issues.push({ message: `${narrow.length}টি দরজা ২'৬" এর কম প্রস্থ — BNBC লঙ্ঘন।`, severity: 'warning', clause: 'BNBC Part 4, Clause 4.2.3', recommendation: 'কক্ষের দরজা ≥ ২\' ৮" (৮০ সেমি), প্রধান দরজা ≥ ৩\' (৯০ সেমি)।' });
       else issues.push({ message: `${doors.length}টি দরজার প্রস্থ গ্রহণযোগ্য ✓`, severity: 'success', clause: 'BNBC Part 4, Clause 4.2.3', recommendation: 'দরজার উচ্চতা ≥ ৭ ফুট নিশ্চিত করুন। অগ্নিরোধী দরজা বিবেচনা করুন।' });
     }
     if (estimatedFloorArea > 3000) issues.push({ message: `মোট আয়তন ~${estimatedFloorArea} Sq.ft — দুটি পৃথক ফায়ার এক্সিট বাধ্যতামূলক।`, severity: 'warning', clause: 'BNBC Part 4, Section 4.3', recommendation: 'দুটি সিঁড়ি বা বিকল্প নির্গমন রুট নিশ্চিত করুন। প্রতি ২৫০ Sq.ft-এ ১টি ফায়ার এক্সটিংগুইশার রাখুন।' });
     return { issues };
-  }, [doors, estimatedFloorArea]);
+  }, [doors, estimatedFloorArea, designObjects.length]);
 
   // 7. Seismic
   const seismicAnalysis = useMemo((): AuditIssue => {
@@ -157,6 +157,9 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
 
   // Safety Score
   const safetyScore = useMemo(() => {
+    // If empty drawing, default to 100% instead of penalizing non-existent building
+    if (designObjects.length === 0 || (pillars.length === 0 && walls.length === 0)) return 100;
+
     let score = 100;
     if (pillars.length === 0) score -= 35;
     if (columnSpanAnalysis.issues.some(i => i.severity === 'danger')) score -= 20;
@@ -169,12 +172,12 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     if (fireExitAnalysis.issues.some(i => i.severity === 'danger')) score -= 10;
     if (seismicAnalysis.severity === 'danger') score -= 8;
     return Math.max(0, Math.min(100, score));
-  }, [pillars, columnSpanAnalysis, stairAnalysis, stairs, ventilationAnalysis, bathroomAnalysis, fireExitAnalysis, seismicAnalysis]);
+  }, [designObjects.length, pillars.length, walls.length, columnSpanAnalysis, stairAnalysis, stairs.length, ventilationAnalysis, bathroomAnalysis, fireExitAnalysis, seismicAnalysis]);
 
   const countBySeverity = (issues: AuditIssue[], sev: Severity) => issues.filter(i => i.severity === sev).length;
   const allIssues = [
     ...columnSpanAnalysis.issues, ...stairAnalysis.issues,
-    { severity: ventilationAnalysis.status === 'good' ? 'success' : ventilationAnalysis.status as Severity, message: '' },
+    ...(designObjects.length > 0 ? [{ severity: ventilationAnalysis.status === 'good' ? 'success' : ventilationAnalysis.status as Severity, message: '' }] : []),
     bathroomAnalysis, ...roomSizeAnalysis.issues, ...fireExitAnalysis.issues, seismicAnalysis
   ] as AuditIssue[];
   const passCount = countBySeverity(allIssues, 'success');
@@ -291,7 +294,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
                 <div className="space-y-2">
                   {columnSpanAnalysis.issues.length === 0
-                    ? renderIssue({ message: 'কলামের দূরত্ব নিরাপদ সীমার মধ্যে — সকল স্প্যান ১৫ ফুটের নিচে ✓', severity: 'success', clause: 'BNBC Section 6.3', recommendation: 'অতিরিক্ত ডিফ্লেকশন বা ক্র্যাকিং ঝুঁকি নেই।' }, 0)
+                    ? renderIssue({ message: designObjects.length === 0 ? 'ডিজাইন শুরু করার অপেক্ষায়...' : 'কলামের দূরত্ব নিরাপদ সীমার মধ্যে — সকল স্প্যান ১৫ ফুটের নিচে ✓', severity: designObjects.length === 0 ? 'info' : 'success', clause: 'BNBC Section 6.3', recommendation: 'অতিরিক্ত ডিফ্লেকশন বা ক্র্যাকিং ঝুঁকি নেই।' }, 0)
                     : columnSpanAnalysis.issues.map((iss, i) => renderIssue(iss, i))}
                 </div>
               </div>
@@ -302,7 +305,11 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Ruler className="w-4 h-4 text-purple-600" /> ২. সিঁড়ির মাপ ও জরুরি নির্গমন</h4>
                   <span className="text-[10px] text-slate-400">BNBC Part 4, Clause 3.3.4</span>
                 </div>
-                <div className="space-y-2">{stairAnalysis.issues.map((iss, i) => renderIssue(iss, i))}</div>
+                <div className="space-y-2">
+                  {designObjects.length === 0 
+                    ? renderIssue({ message: 'ড্রয়িং শুরু করলে সিঁড়ির নিরাপত্তা যাচাই করা হবে।', severity: 'info' }, 0)
+                    : stairAnalysis.issues.map((iss, i) => renderIssue(iss, i))}
+                </div>
               </div>
 
               {/* Check 3: Ventilation */}
@@ -311,7 +318,10 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Wind className="w-4 h-4 text-sky-600" /> ৩. প্রাকৃতিক আলো ও বায়ুচলাচল</h4>
                   <span className="text-[10px] text-slate-400">BNBC Part 3: Light &amp; Ventilation</span>
                 </div>
-                {renderIssue({ message: ventilationAnalysis.message, severity: ventilationAnalysis.status === 'good' ? 'success' : ventilationAnalysis.status as Severity, clause: 'জানালা ≥ ফ্লোরের ১০%', recommendation: ventilationAnalysis.recommendation }, 0)}
+                {designObjects.length === 0 
+                  ? renderIssue({ message: 'জানালা ও বাতাসের অনুপাত এখানে প্রদর্শিত হবে।', severity: 'info' }, 0)
+                  : renderIssue({ message: ventilationAnalysis.message, severity: ventilationAnalysis.status === 'good' ? 'success' : ventilationAnalysis.status as Severity, clause: 'জানালা ≥ ফ্লোরের ১০%', recommendation: ventilationAnalysis.recommendation }, 0)
+                }
                 <div className="flex gap-4 text-[11px] text-slate-500 px-1">
                   <span>জানালা: <strong>{ventilationAnalysis.count}টি</strong></span>
                   <span>বর্তমান: <strong>{ventilationAnalysis.totalWindowArea.toFixed(1)} Sq.ft</strong></span>
@@ -325,7 +335,11 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Home className="w-4 h-4 text-rose-600" /> ৪. ন্যূনতম কক্ষের আয়তন যাচাই</h4>
                   <span className="text-[10px] text-slate-400">BNBC Part 3, Clause 1.6.1</span>
                 </div>
-                <div className="space-y-2">{roomSizeAnalysis.issues.map((iss, i) => renderIssue(iss, i))}</div>
+                <div className="space-y-2">
+                  {designObjects.length === 0 
+                    ? renderIssue({ message: 'রুমের আয়তন ও লেবেল অডিট হবে।', severity: 'info' }, 0)
+                    : roomSizeAnalysis.issues.map((iss, i) => renderIssue(iss, i))}
+                </div>
               </div>
 
               {/* Check 5: Bathroom */}
@@ -343,7 +357,11 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Flame className="w-4 h-4 text-orange-600" /> ৬. অগ্নি-নিরাপত্তা ও দরজার প্রস্থ</h4>
                   <span className="text-[10px] text-slate-400">BNBC Part 4, Section 4</span>
                 </div>
-                <div className="space-y-2">{fireExitAnalysis.issues.map((iss, i) => renderIssue(iss, i))}</div>
+                <div className="space-y-2">
+                  {designObjects.length === 0 
+                    ? renderIssue({ message: 'দরজা ও জরুরি নির্গমন পথ যাচাই করা হবে।', severity: 'info' }, 0)
+                    : fireExitAnalysis.issues.map((iss, i) => renderIssue(iss, i))}
+                </div>
               </div>
 
               {/* Check 7: Seismic */}
