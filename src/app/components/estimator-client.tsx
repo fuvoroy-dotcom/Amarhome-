@@ -16,7 +16,7 @@ import {
   Hand, Calculator, ArrowLeft, Send, Loader2,
   Layers, Boxes, Plus, X,
   ArrowUpToLine, FileText, Download, Type as TypeIcon, Cloud,
-  TrendingUp, Sparkles, ShieldCheck, ClipboardList, Bed, Armchair, UtensilsCrossed, Bath, Magnet, CookingPot
+  TrendingUp, Sparkles, ShieldCheck, ClipboardList, Bed, Armchair, UtensilsCrossed, Bath, Magnet, CookingPot, Maximize2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1002,7 +1002,8 @@ export default function EstimatorClient() {
     if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
         if (selectedTool === 'wall') { const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return; }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
-        else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 0.83, h: 0.83 });
+        else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 1, h: 1 });
+        else if (selectedTool === 'area-marker') addObjectAt('shape', 'area-marker', 'রুম এলাকা', snappedX, snappedY, { w: 12, h: 10, fillColor: 'rgba(59, 130, 246, 0.15)' });
         else if (selectedTool === 'door-1') addObjectAt('opening', 'door-1', 'Door 1', snappedX, snappedY);
         else if (selectedTool === 'door-2') addObjectAt('opening', 'door-2', 'Door 2', snappedX, snappedY);
         else if (selectedTool === 'door-3') addObjectAt('opening', 'door-3', 'Door 3', snappedX, snappedY);
@@ -1199,6 +1200,17 @@ export default function EstimatorClient() {
 
   const renderObjectContent = (obj: DesignObject) => {
     const sw = 1 / displayZoom;
+    if (obj.subType === 'area-marker') {
+      const areaSqFt = Math.round(obj.w * obj.h);
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-blue-500/10 border-2 border-dashed border-blue-400/60 rounded-sm pointer-events-none">
+          <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm flex flex-col items-center">
+            <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{obj.label || "রুম এরিয়া"}</span>
+            <span className="text-[12px] font-black text-slate-900 leading-none">{areaSqFt} Sq.ft</span>
+          </div>
+        </div>
+      );
+    }
     if (obj.type === 'opening') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
@@ -1330,8 +1342,8 @@ export default function EstimatorClient() {
           <circle cx={obj.w * 0.24} cy={obj.h * 0.5} r={obj.h * 0.1} fill="#94a3b8" />
           {/* Stove 2 Burners */}
           <rect x={obj.w * 0.55} y={obj.h * 0.15} width={obj.w * 0.35} height={obj.h * 0.7} fill="#1e293b" stroke="#0f172a" strokeWidth={sw} rx="0.1" />
-          <circle cx={obj.w * 0.65} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
-          <circle cx={obj.w * 0.80} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
+          <circle cx={obj.w * 0.55} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
+          <circle cx={obj.w * 0.75} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
         </svg>
       );
     }
@@ -1388,7 +1400,7 @@ export default function EstimatorClient() {
           <RibbonButton icon={<CopyIcon />} label="Duplicate" onClick={duplicateProject} color="emerald" className="shrink-0" />
           <RibbonButton icon={<ImageIcon />} label="As Image" onClick={() => setIsExportDialogOpen(true)} color="emerald" className="shrink-0" />
           <RibbonButton icon={<Calculator />} label="হিসাব" onClick={() => setIsEstimationDialogOpen(true)} color="emerald" className="shrink-0" />
-          <RibbonButton icon={<Square className="w-3.5 h-3.5" />} label={unitSystem === 'imperial' ? "একক: ft" : "একক: m"} onClick={() => setUnitSystem(unitSystem === 'imperial' ? 'metric' : 'imperial')} color="cyan" className="shrink-0" />
+          <RibbonButton icon={<Square className="w-3.5 h-3.5" />} label={unitSystem === 'imperial' ? "ft" : "m"} onClick={() => setUnitSystem(unitSystem === 'imperial' ? 'metric' : 'imperial')} color="cyan" className="shrink-0" />
           <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<ShieldCheck className="w-4 h-4" />} label="BNBC" onClick={() => setIsBnbcAuditOpen(true)} color="indigo" className="shrink-0" />
           <RibbonButton icon={<ClipboardList className="w-4 h-4" />} label="খতিয়ান" onClick={() => setIsSiteLedgerOpen(true)} color="emerald" className="shrink-0" />
@@ -1414,6 +1426,7 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
               <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} color="indigo" />
               <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} color="slate" />
+              <SymbolButton active={selectedTool === 'area-marker'} icon={<Maximize2 className="w-4 h-4" />} label="রুম এরিয়া" onClick={() => setSelectedTool('area-marker')} color="sky" />
               <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
               <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} color="cyan" />
@@ -2447,4 +2460,3 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-

@@ -1,4 +1,5 @@
-﻿"use client";
+
+"use client";
 
 import React, { useState, useMemo } from "react";
 import { 
@@ -56,6 +57,10 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
   }), [textLabels]);
 
   const estimatedFloorArea = useMemo(() => {
+    const areaMarkers = designObjects.filter(o => o.subType === 'area-marker');
+    if (areaMarkers.length > 0) {
+      return Math.round(areaMarkers.reduce((acc, obj) => acc + (obj.w * obj.h), 0));
+    }
     const src = walls.length > 0 ? walls : designObjects.filter(o => o.w > 1 && o.h > 1);
     if (src.length === 0) return 0;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -116,7 +121,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
   const roomSizeAnalysis = useMemo(() => {
     const issues: AuditIssue[] = [];
     const rooms = textLabels.filter(o => o.w > 5 && o.h > 5);
-    if (rooms.length === 0 && designObjects.length > 0) { issues.push({ message: 'রুম লেবেল নেই — আয়তন যাচাই করা সম্ভব হয়নি।', severity: 'info', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'প্রতিটি কক্ষে লেবেল যোগ করুন। বাসযোগ্য কক্ষের ন্যূনতম আয়তন ৮০ Sq.ft, একটি মাত্রা ≥ ৮ ফুট।' }); return { issues }; }
+    if (rooms.length === 0 && designObjects.length > 0) { issues.push({ message: 'রুম লেবেল নেই — আয়তন যাচাই করা সম্ভব হয়নি।', severity: 'info', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'প্রতি প্রতিটি কক্ষে লেবেল যোগ করুন। বাসযোগ্য কক্ষের ন্যূনতম আয়তন ৮০ Sq.ft, একটি মাত্রা ≥ ৮ ফুট।' }); return { issues }; }
     rooms.forEach(r => {
       const area = r.w * r.h; const label = r.textContent || r.label || 'রুম';
       if (area < 60) issues.push({ message: `"${label}": ~${Math.round(area)} Sq.ft — অতি ছোট।`, severity: 'danger', clause: 'BNBC Part 3, Clause 1.6.1', recommendation: 'বাসযোগ্য কক্ষ ন্যূনতম ৮০ Sq.ft এবং একটি মাত্রা ≥ ৮ ফুট হতে হবে।' });
@@ -272,7 +277,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                   { label: 'কলাম সংখ্যা', value: `${pillars.length} টি`, sub: pillars.length > 0 ? `সর্বোচ্চ স্প্যান: ${columnSpanAnalysis.maxDistance.toFixed(1)}'` : '⚠️ কলাম নেই!' },
                   { label: 'সিঁড়ি প্রস্থ', value: stairs.length > 0 ? `${Math.min(stairs[0].w, stairs[0].h).toFixed(1)}'` : 'নাই', sub: stairs.length > 0 ? (stairAnalysis.compliant ? '✅ BNBC সম্মত' : '⚠️ পর্যালোচনা দরকার') : 'সিঁড়ি যোগ করুন' },
                   { label: 'জানালা ও বাতাস', value: `${ventilationAnalysis.pct.toFixed(1)}%`, sub: ventilationAnalysis.status === 'good' ? '✅ পর্যাপ্ত' : '⚠️ ঘাটতি আছে' },
-                  { label: 'আনুমানিক ফ্লোর', value: `${estimatedFloorArea} Sq.ft`, sub: `(${(estimatedFloorArea * 0.0929).toFixed(1)} m²)` },
+                  { label: 'ফ্লোর এরিয়া', value: `${estimatedFloorArea} Sq.ft`, sub: designObjects.some(o => o.subType === 'area-marker') ? '✅ মার্কার অনুযায়ী' : '⚠️ আনুমানিক বাউন্ডারি' },
                 ].map((s, i) => (
                   <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">{s.label}</span>
