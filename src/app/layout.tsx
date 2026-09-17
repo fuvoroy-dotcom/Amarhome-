@@ -7,6 +7,11 @@ import { AuthProvider } from '@/firebase/auth-context';
 export const metadata: Metadata = {
   title: 'আমার বাড়ি',
   description: 'Professional architectural design and estimation tool',
+  icons: {
+    icon: '/favicon.ico?v=2',
+    shortcut: '/favicon.ico?v=2',
+    apple: '/favicon.ico?v=2',
+  },
 };
 
 export default function RootLayout({
