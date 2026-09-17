@@ -157,9 +157,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
 
   // Safety Score
   const safetyScore = useMemo(() => {
-    // If empty drawing, default to 100% instead of penalizing non-existent building
     if (designObjects.length === 0 || (pillars.length === 0 && walls.length === 0)) return 100;
-
     let score = 100;
     if (pillars.length === 0) score -= 35;
     if (columnSpanAnalysis.issues.some(i => i.severity === 'danger')) score -= 20;
@@ -172,7 +170,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     if (fireExitAnalysis.issues.some(i => i.severity === 'danger')) score -= 10;
     if (seismicAnalysis.severity === 'danger') score -= 8;
     return Math.max(0, Math.min(100, score));
-  }, [designObjects.length, pillars.length, walls.length, columnSpanAnalysis, stairAnalysis, stairs.length, ventilationAnalysis, bathroomAnalysis, fireExitAnalysis, seismicAnalysis]);
+  }, [designObjects.length, pillars, walls.length, columnSpanAnalysis, stairAnalysis, stairs.length, ventilationAnalysis, bathroomAnalysis, fireExitAnalysis, seismicAnalysis]);
 
   const countBySeverity = (issues: AuditIssue[], sev: Severity) => issues.filter(i => i.severity === sev).length;
   const allIssues = [
@@ -204,11 +202,10 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     </div>
   );
 
-  // Engineering Calc
   const engineeringCalc = useMemo(() => {
     const sbc = parseFloat(soilBearingCapacity) || 1.5;
     const s = parseInt(buildingStoreys) || 3;
-    const raw = 130 * 165 * s; // tributary 130sqft × (DL125+LL40)psf × storeys
+    const raw = 130 * 165 * s; 
     const totalTons = Math.round((raw / 2000) * 1.25);
     const area = totalTons / sbc;
     const side = Math.ceil(Math.sqrt(area) * 4) / 4;
@@ -270,7 +267,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
 
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <TabsContent value="audit" className="m-0 space-y-4">
-              {/* Summary Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   { label: 'কলাম সংখ্যা', value: `${pillars.length} টি`, sub: pillars.length > 0 ? `সর্বোচ্চ স্প্যান: ${columnSpanAnalysis.maxDistance.toFixed(1)}'` : '⚠️ কলাম নেই!' },
@@ -286,7 +282,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 ))}
               </div>
 
-              {/* Check 1: Column Spans */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Building2 className="w-4 h-4 text-indigo-600" /> ১. কলামের দূরত্ব ও বিম স্প্যান বিশ্লেষণ</h4>
@@ -299,7 +294,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
               </div>
 
-              {/* Check 2: Stairs */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Ruler className="w-4 h-4 text-purple-600" /> ২. সিঁড়ির মাপ ও জরুরি নির্গমন</h4>
@@ -312,7 +306,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
               </div>
 
-              {/* Check 3: Ventilation */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Wind className="w-4 h-4 text-sky-600" /> ৩. প্রাকৃতিক আলো ও বায়ুচলাচল</h4>
@@ -329,7 +322,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
               </div>
 
-              {/* Check 4: Room Size */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Home className="w-4 h-4 text-rose-600" /> ৪. ন্যূনতম কক্ষের আয়তন যাচাই</h4>
@@ -342,7 +334,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
               </div>
 
-              {/* Check 5: Bathroom */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Activity className="w-4 h-4 text-teal-600" /> ৫. বাথরুম ও স্যানিটারি বিধিমালা</h4>
@@ -351,7 +342,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 {renderIssue(bathroomAnalysis, 0)}
               </div>
 
-              {/* Check 6: Fire & Door */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Flame className="w-4 h-4 text-orange-600" /> ৬. অগ্নি-নিরাপত্তা ও দরজার প্রস্থ</h4>
@@ -364,7 +354,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
               </div>
 
-              {/* Check 7: Seismic */}
               <div className="border rounded-xl p-4 bg-white shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2"><Zap className="w-4 h-4 text-yellow-600" /> ৭. ভূমিকম্প-সহনশীলতা (Seismic Zone)</h4>
@@ -384,7 +373,6 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
               </div>
             </TabsContent>
 
-            {/* TAB 2: SOIL CALCULATOR */}
             <TabsContent value="soil" className="m-0 space-y-4">
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-center gap-3 text-xs text-emerald-900">
                 <HardHat className="w-5 h-5 text-emerald-600 shrink-0" />
