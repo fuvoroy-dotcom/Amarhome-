@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -32,8 +33,6 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/firebase/auth-context";
-import { saveSiteLedger, loadSiteLedger } from "@/firebase/site-ledger-service";
-
 
 interface MaterialInflowItem {
   id: string;
@@ -61,6 +60,11 @@ interface DailySiteManagementDialogProps {
   projectName: string;
   currentDesignId: string;
   grandTotalEstimatedCost: number;
+  materialsLedger: MaterialInflowItem[];
+  setMaterialsLedger: React.Dispatch<React.SetStateAction<MaterialInflowItem[]>>;
+  laborLedger: LaborAttendanceItem[];
+  setLaborLedger: React.Dispatch<React.SetStateAction<LaborAttendanceItem[]>>;
+  onIntegratedSave: () => void;
 }
 
 export function DailySiteManagementDialog({
@@ -68,24 +72,17 @@ export function DailySiteManagementDialog({
   onOpenChange,
   projectName,
   currentDesignId,
-  grandTotalEstimatedCost
+  grandTotalEstimatedCost,
+  materialsLedger,
+  setMaterialsLedger,
+  laborLedger,
+  setLaborLedger,
+  onIntegratedSave
 }: DailySiteManagementDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("materials");
   const [copiedLink, setCopiedLink] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<string>("");
-
-  const storageKey = `site_ledger_${currentDesignId}`;
-
-  // Default values cleared as per user instruction
-  const defaultMaterials: MaterialInflowItem[] = [];
-
-  const defaultLabor: LaborAttendanceItem[] = [];
-
-  // Material Inflow State
-  const [materialsLedger, setMaterialsLedger] = useState<MaterialInflowItem[]>(defaultMaterials);
 
   // New Material Form State
   const [newMatDate, setNewMatDate] = useState(new Date().toISOString().split("T")[0]);
@@ -95,105 +92,12 @@ export function DailySiteManagementDialog({
   const [newMatChallan, setNewMatChallan] = useState("");
   const [newMatCost, setNewMatCost] = useState("");
 
-  // Labor Attendance State
-  const [laborLedger, setLaborLedger] = useState<LaborAttendanceItem[]>(defaultLabor);
-
   // New Labor Form State
   const [newLabDate, setNewLabDate] = useState(new Date().toISOString().split("T")[0]);
   const [newLabTrade, setNewLabTrade] = useState("সাধারণ রাজমিস্ত্রি");
   const [newLabCount, setNewLabCount] = useState("");
   const [newLabRate, setNewLabRate] = useState("900");
   const [newLabSupervisor, setNewLabSupervisor] = useState("");
-
-  // Load saved data — Firebase first, fallback to localStorage
-  useEffect(() => {
-    if (!open) return;
-
-    const loadData = async () => {
-      // Try Firebase if user is logged in
-      if (user?.uid) {
-        try {
-          const cloudData = await loadSiteLedger(user.uid, currentDesignId);
-          if (cloudData) {
-            if (cloudData.materials) setMaterialsLedger(cloudData.materials);
-            if (cloudData.labor) setLaborLedger(cloudData.labor);
-            if (cloudData.savedAt) setLastSavedAt(cloudData.savedAt);
-            return; // Firebase load success, skip localStorage
-          }
-        } catch {
-          // Firebase load failed, fall through to localStorage
-        }
-      }
-
-      // Fallback: localStorage
-      try {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.materials && Array.isArray(parsed.materials)) setMaterialsLedger(parsed.materials);
-          if (parsed.labor && Array.isArray(parsed.labor)) setLaborLedger(parsed.labor);
-          if (parsed.savedAt) setLastSavedAt(parsed.savedAt);
-        }
-      } catch {
-        // ignore parse errors
-      }
-    };
-
-    loadData();
-  }, [open, storageKey, currentDesignId, user]);
-
-  // Handle Save — Firebase (cloud) + localStorage (offline backup)
-  const handleSave = useCallback(async () => {
-    setIsSaving(true);
-    const dataToSave = {
-      materials: materialsLedger,
-      labor: laborLedger,
-      savedAt: new Date().toISOString(),
-      projectName
-    };
-
-    let firebaseSaved = false;
-
-    // 1. Save to Firebase if user is logged in
-    if (user?.uid) {
-      try {
-        await saveSiteLedger(user.uid, currentDesignId, dataToSave);
-        firebaseSaved = true;
-      } catch (err) {
-        console.error("Firebase save error:", err);
-      }
-    }
-
-    // 2. Always save to localStorage as offline backup
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-    } catch {
-      // ignore
-    }
-
-    const now = new Date().toLocaleString('bn-BD');
-    setLastSavedAt(dataToSave.savedAt);
-
-    if (firebaseSaved) {
-      toast({
-        title: "☁️ ক্লাউডে সেভ হয়েছে",
-        description: `${projectName} সাইট লেজার Firebase ডাটাবেজ ও ডিভাইসে সংরক্ষিত হয়েছে।`
-      });
-    } else if (user?.uid) {
-      toast({
-        title: "⚠️ লোকাল সেভ হয়েছে",
-        description: "ইন্টারনেট সমস্যার কারণে শুধু ডিভাইসে সেভ হয়েছে। পুনরায় চেষ্টা করুন।"
-      });
-    } else {
-      toast({
-        title: "✅ ডিভাইসে সেভ হয়েছে",
-        description: `লগইন করলে ক্লাউডেও সংরক্ষিত হবে। ডিভাইসে সেভ সম্পন্ন।`
-      });
-    }
-
-    setTimeout(() => setIsSaving(false), 1200);
-  }, [materialsLedger, laborLedger, storageKey, projectName, currentDesignId, user, toast]);
-
 
   // Share link generation
   const shareableUrl = typeof window !== 'undefined' 
@@ -596,27 +500,15 @@ export function DailySiteManagementDialog({
                 <span className="text-amber-500 ml-2">• লগইন করলে ক্লাউডে সেভ হবে</span>
               )}
             </span>
-            {lastSavedAt && (
-              <span className="text-[10px] text-slate-400 block">
-                শেষ সেভ: {new Date(lastSavedAt).toLocaleString('en-BD', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              onClick={handleSave}
-              disabled={isSaving}
+              onClick={onIntegratedSave}
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 gap-1.5 shadow-sm"
             >
-              {isSaving ? (
-                <Check className="w-3.5 h-3.5 animate-bounce" />
-              ) : user ? (
-                <Cloud className="w-3.5 h-3.5" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-              {isSaving ? "সেভ হচ্ছে..." : user ? "ক্লাউডে সেভ করুন" : "সেভ করুন"}
+              <Save className="w-3.5 h-3.5" />
+              সেভ করুন
             </Button>
             <Button
               size="sm"
@@ -631,3 +523,4 @@ export function DailySiteManagementDialog({
     </Dialog>
   );
 }
+

@@ -180,6 +180,10 @@ export default function EstimatorClient() {
     electric: 0, fittings: 0, paint: 0, others: 0
   });
 
+  // Site Ledger State managed at top level for persistence
+  const [materialsLedger, setMaterialsLedger] = useState<any[]>([]);
+  const [laborLedger, setLaborLedger] = useState<any[]>([]);
+
   const [localPropX, setLocalPropX] = useState("");
   const [localPropY, setLocalPropY] = useState("");
   const [localPropW, setLocalPropW] = useState("");
@@ -698,7 +702,11 @@ export default function EstimatorClient() {
       estimations: {
         foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells
       },
-      prices: prices
+      prices: prices,
+      ledger: {
+        materials: materialsLedger,
+        labor: laborLedger
+      }
     };
     setDoc(docRef, data, { merge: true }).then(() => {
       toast({ 
@@ -711,7 +719,7 @@ export default function EstimatorClient() {
       const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
       errorEmitter.emit('permission-error', permissionError);
     });
-  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, user, toast]);
+  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, materialsLedger, laborLedger, user, toast]);
 
   const duplicateProject = useCallback(() => {
     const newId = Math.random().toString(36).substr(2, 9);
@@ -755,6 +763,8 @@ export default function EstimatorClient() {
       cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0,
       electric: 0, fittings: 0, paint: 0, others: 0
     });
+    setMaterialsLedger([]);
+    setLaborLedger([]);
     toast({ title: "নতুন পেজ", description: "ক্যানভাস এবং হিসাব পরিষ্কার করা হয়েছে।" });
   };
 
@@ -812,6 +822,10 @@ export default function EstimatorClient() {
           if (est.soakWells) setSoakWells(est.soakWells);
         }
         if (data.prices) setPrices(data.prices);
+        if (data.ledger) {
+          if (data.ledger.materials) setMaterialsLedger(data.ledger.materials);
+          if (data.ledger.labor) setLaborLedger(data.ledger.labor);
+        }
         setIsOpenDialogOpen(false);
         toast({ title: "সফল", description: "ডিজাইন এবং হিসাব লোড করা হয়েছে।" });
       }
@@ -1382,7 +1396,7 @@ export default function EstimatorClient() {
           <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<LayoutGrid />} label="All" onClick={selectAll} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0" />
-          <RibbonButton icon={<Trash2 />} label="Delete" onClick={deleteSelected} color="destructive" className="shrink-0" />
+          <Trash2 className="w-4 h-4 text-red-500 cursor-pointer ml-1" onClick={deleteSelected} />
         </div>
 
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
@@ -1809,6 +1823,11 @@ export default function EstimatorClient() {
         projectName={projectName}
         currentDesignId={currentDesignId}
         grandTotalEstimatedCost={pdfReportPayload?.grandTotalCost || 0}
+        materialsLedger={materialsLedger}
+        setMaterialsLedger={setMaterialsLedger}
+        laborLedger={laborLedger}
+        setLaborLedger={setLaborLedger}
+        onIntegratedSave={saveToFirestore}
       />
     </div>
   );
@@ -2330,7 +2349,7 @@ function SectionResult({ res }: { res: any }) {
 
 function ResultRow({ label, value, unit, small, dark }: { label: string, value: number, unit: string, small?: boolean, dark?: boolean }) {
   return (
-    <div className={cn("flex justify-between items-center rounded-lg border shadow-sm", small ? "p-1.5 bg-white" : "p-2 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
+    <div className={cn("flex justify-between architecture-box rounded-lg border shadow-sm", small ? "p-1.5 bg-white" : "p-2 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
       <span className={cn("font-black uppercase", small ? "text-[8px]" : "text-[10px]", dark ? "text-emerald-900" : "text-slate-700")}>{label}</span>
       <span className={cn("font-black", small ? "text-[9px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
     </div>
