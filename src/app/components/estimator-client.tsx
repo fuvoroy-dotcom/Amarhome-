@@ -80,6 +80,7 @@ type DesignObject = {
   isBold?: boolean;
   isJoined?: boolean; 
   stepCount?: number;
+  points?: {x: number, y: number}[]; // Points for polygon area markers
 };
 
 type SavedDesignRef = {
@@ -113,12 +114,13 @@ export default function EstimatorClient() {
   const [designObjects, setDesignObjects] = useState<DesignObject[]>([]);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<DesignObject[]>([]);
-  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting' | 'pasting' | 'panning'>('none');
+  const [interactionMode, setInteractionMode] = useState<'none' | 'dragging' | 'resizing' | 'rotating' | 'drawing' | 'selecting' | 'pasting' | 'panning' | 'drawing-poly'>('none');
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [drawStart, setDrawStart] = useState<{x: number, y: number} | null>(null);
   const [tempDrawEnd, setTempDrawEnd] = useState<{x: number, y: number} | null>(null);
   const [dragOffsets, setDragOffsets] = useState<{ [id: string]: { x: number, y: number } }>({});
   const [lastPanPos, setLastPanPos] = useState<{ x: number, y: number } | null>(null);
+  const [polyPoints, setPolyPoints] = useState<{x: number, y: number}[]>([]);
   
   const [zoom, setZoom] = useState(40);
   const [scrollX, setScrollX] = useState(0);
@@ -433,6 +435,10 @@ export default function EstimatorClient() {
           objDiv.style.fontFamily = 'Inter, sans-serif';
           objDiv.style.fontWeight = obj.isBold ? '900' : 'normal';
           objDiv.style.fontSize = `${(obj.fontSize || 14) * (exportZoom / 16)}px`;
+        } else if (obj.subType === 'area-marker' && obj.points) {
+          // Polygon rendering for export
+          const pts = obj.points.map(p => `${(p.x - obj.x) * exportZoom},${(p.y - obj.y) * exportZoom}`).join(' ');
+          svgContent = `<svg width="100%" height="100%" style="overflow: visible"><polygon points="${pts}" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4" /></svg>`;
         }
 
         if (svgContent) {
@@ -977,12 +983,47 @@ export default function EstimatorClient() {
     const { x: curX, y: curY, rawX, rawY } = coords;
     const snappedX = Math.round(curX / ARCH_SNAP) * ARCH_SNAP;
     const snappedY = Math.round(curY / ARCH_SNAP) * ARCH_SNAP;
+
     if (selectedTool === 'move') {
       setInteractionMode('panning');
       setLastPanPos({ x: rawX, y: rawY });
       if (e.cancelable) e.preventDefault();
       return;
     }
+
+    if (selectedTool === 'area-marker') {
+      const point = { x: snappedX, y: snappedY };
+      
+      // If we click near the first point and have at least 3 points, close it
+      if (polyPoints.length >= 3) {
+        const first = polyPoints[0];
+        const dist = Math.sqrt(Math.pow(snappedX - first.x, 2) + Math.pow(snappedY - first.y, 2));
+        if (dist < 0.6) {
+          // Close Polygon
+          const minX = Math.min(...polyPoints.map(p => p.x));
+          const maxX = Math.max(...polyPoints.map(p => p.x));
+          const minY = Math.min(...polyPoints.map(p => p.y));
+          const maxY = Math.max(...polyPoints.map(p => p.y));
+          
+          addObjectAt('shape', 'area-marker', 'রুম এলাকা', minX, minY, {
+            w: maxX - minX,
+            h: maxY - minY,
+            points: [...polyPoints],
+            fillColor: 'rgba(59, 130, 246, 0.15)'
+          });
+          setPolyPoints([]);
+          setInteractionMode('none');
+          setSelectedTool('select');
+          toast({ title: "সফল", description: "রুম এরিয়া পলিনগন সম্পন্ন হয়েছে।" });
+          return;
+        }
+      }
+
+      setPolyPoints([...polyPoints, point]);
+      setInteractionMode('drawing-poly');
+      return;
+    }
+
     if (interactionMode === 'pasting' && clipboard.length > 0) {
       const minX = Math.min(...clipboard.map(obj => obj.x));
       const minY = Math.min(...clipboard.map(obj => obj.y));
@@ -997,8 +1038,9 @@ export default function EstimatorClient() {
       saveToHistory(next); setInteractionMode('none');
       return;
     }
+
     if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
-        if (selectedTool === 'wall' || selectedTool === 'area-marker') { 
+        if (selectedTool === 'wall') { 
           const start = { x: snappedX, y: snappedY }; 
           setDrawStart(start); 
           setTempDrawEnd(start); 
@@ -1047,6 +1089,11 @@ export default function EstimatorClient() {
     const coords = getCoords(e);
     if (!coords) return;
     const { x: curX, y: curY, rawX, rawY } = coords;
+
+    if (selectedTool === 'area-marker' && interactionMode === 'drawing-poly') {
+      setTempDrawEnd({ x: Math.round(curX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(curY / ARCH_SNAP) * ARCH_SNAP });
+    }
+
     if (interactionMode === 'panning' && lastPanPos && canvasRef.current) {
       if (e.cancelable) e.preventDefault();
       const dx = (rawX - lastPanPos.x) * 1.5;
@@ -1118,7 +1165,18 @@ export default function EstimatorClient() {
 
       const dx = tx - mainObj.x, dy = ty - mainObj.y;
       if (dx !== 0 || dy !== 0) {
-        setDesignObjects(prev => prev.map(o => selectedObjectIds.includes(o.id) && !o.isJoined ? { ...o, x: o.x + dx, y: o.y + dy } : o));
+        setDesignObjects(prev => prev.map(o => {
+          if (selectedObjectIds.includes(o.id) && !o.isJoined) {
+            const nextX = o.x + dx;
+            const nextY = o.y + dy;
+            const updates: any = { x: nextX, y: nextY };
+            if (o.points) {
+              updates.points = o.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+            }
+            return { ...o, ...updates };
+          }
+          return o;
+        }));
       }
     }
   };
@@ -1129,14 +1187,6 @@ export default function EstimatorClient() {
         const dx = tempDrawEnd.x - drawStart.x, dy = tempDrawEnd.y - drawStart.y;
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len > 0.1) addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
-      } else if (selectedTool === 'area-marker') {
-        const xMin = Math.min(drawStart.x, tempDrawEnd.x);
-        const yMin = Math.min(drawStart.y, tempDrawEnd.y);
-        const w = Math.abs(tempDrawEnd.x - drawStart.x);
-        const h = Math.abs(tempDrawEnd.y - drawStart.y);
-        if (w > 0.5 && h > 0.5) {
-          addObjectAt('shape', 'area-marker', 'রুম এলাকা', xMin, yMin, { w, h, fillColor: 'rgba(59, 130, 246, 0.15)' });
-        }
       }
       setDrawStart(null); setTempDrawEnd(null);
     } else if (interactionMode === 'selecting' && selectionBox) {
@@ -1144,8 +1194,9 @@ export default function EstimatorClient() {
       const yMin = Math.min(selectionBox.y1, selectionBox.y2), yMax = Math.max(selectionBox.y1, selectionBox.y2);
       const inBox = designObjects.filter(obj => obj.x >= xMin && obj.x <= xMax && obj.y >= yMin && obj.y <= yMax).map(o => o.id);
       setSelectedObjectIds(inBox); setSelectionBox(null);
-    } else if (interactionMode !== 'none' && interactionMode !== 'pasting') saveToHistory(designObjects);
-    if (interactionMode !== 'pasting') setInteractionMode('none');
+    } else if (interactionMode !== 'none' && interactionMode !== 'pasting' && interactionMode !== 'drawing-poly') saveToHistory(designObjects);
+    
+    if (interactionMode !== 'pasting' && interactionMode !== 'drawing-poly') setInteractionMode('none');
     setLastPanPos(null);
     setActiveSnapGuides(null);
   };
@@ -1209,10 +1260,41 @@ export default function EstimatorClient() {
     );
   };
 
+  const calculatePolygonArea = (points: {x: number, y: number}[]) => {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+      let j = (i + 1) % points.length;
+      area += points[i].x * points[j].y;
+      area -= points[j].x * points[i].y;
+    }
+    return Math.abs(area / 2);
+  };
+
   const renderObjectContent = (obj: DesignObject) => {
     const sw = 1 / displayZoom;
     if (obj.subType === 'area-marker') {
-      const areaSqFt = Math.round(obj.w * obj.h);
+      const areaSqFt = obj.points ? Math.round(calculatePolygonArea(obj.points)) : Math.round(obj.w * obj.h);
+      
+      if (obj.points) {
+        const minX = Math.min(...obj.points.map(p => p.x));
+        const minY = Math.min(...obj.points.map(p => p.y));
+        const pts = obj.points.map(p => `${(p.x - minX) * displayZoom},${(p.y - minY) * displayZoom}`).join(' ');
+        
+        return (
+          <div className="w-full h-full relative pointer-events-none">
+            <svg width="100%" height="100%" className="overflow-visible">
+              <polygon points={pts} fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm border border-blue-200 flex flex-col items-center">
+                <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{obj.label || "রুম এলাকা"}</span>
+                <span className="text-[12px] font-black text-slate-900 leading-none">{areaSqFt} Sq.ft</span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-blue-500/10 border-2 border-dashed border-blue-400/60 rounded-sm pointer-events-none">
           <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm flex flex-col items-center">
@@ -1369,6 +1451,7 @@ export default function EstimatorClient() {
     if (obj.rotation === 90) ox = obj.h; 
     else if (obj.rotation === 180) { ox = obj.w; oy = obj.h; } 
     else if (obj.rotation === 270) oy = obj.w;
+    
     const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
     return { 
       left: (obj.x + ox) * displayZoom + CANVAS_OFFSET, top: (obj.y + oy) * displayZoom + CANVAS_OFFSET, width: obj.w * displayZoom, height: obj.h * displayZoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
@@ -1467,7 +1550,7 @@ export default function EstimatorClient() {
                     {selectedObjectIds.includes(obj.id) && !obj.isJoined && (
                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-8 h-8 bg-white border border-slate-300 rounded-full flex items-center justify-center cursor-alias shadow-sm hover:bg-slate-50 z-[60] rotation-handle" onMouseDown={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }} onTouchStart={(e) => { e.stopPropagation(); setInteractionMode('rotating'); }}><RotateCw className="w-4 h-4 text-blue-500" /></div>
                     )}
-                    {showDimensions && (
+                    {showDimensions && !obj.points && (
                       <>
                         <div className="absolute -top-8 left-0 right-0 flex items-center justify-between pointer-events-none z-[50] dimension-label"><div className="w-[1.5px] h-4 bg-slate-500" /><div className="flex-1 h-[1px] bg-slate-400 mx-0.5 relative flex items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatDimension(obj.w)}</span></div></div><div className="w-[1.5px] h-4 bg-slate-500" /></div>
                         <div className="absolute top-0 bottom-0 -right-10 flex flex-col items-center justify-between pointer-events-none z-[50] dimension-label"><div className="h-[1.5px] w-4 bg-slate-500" /><div className="flex-1 w-[1px] bg-slate-400 my-0.5 relative flex flex-col items-center justify-center"><div className="bg-white/95 px-2 py-0.5 rounded-sm border border-slate-400 shadow-sm rotate-90"><span className="text-[10px] font-black text-slate-900" style={{ fontSize: Math.max(8, 10 * gridConfig.labelScale) + 'px' }}>{formatDimension(obj.h)}</span></div></div><div className="h-[1.5px] w-4 bg-slate-500" /></div>
@@ -1476,16 +1559,20 @@ export default function EstimatorClient() {
                   </div>
                 ))}
                 {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                  selectedTool === 'area-marker' ? (
-                    <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ 
-                      left: Math.min(drawStart.x, tempDrawEnd.x) * displayZoom + CANVAS_OFFSET, 
-                      top: Math.min(drawStart.y, tempDrawEnd.y) * displayZoom + CANVAS_OFFSET, 
-                      width: Math.abs(tempDrawEnd.x - drawStart.x) * displayZoom, 
-                      height: Math.abs(tempDrawEnd.y - drawStart.y) * displayZoom 
-                    }} />
-                  ) : (
-                    <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: currentWallThickness * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
-                  )
+                  <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: currentWallThickness * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
+                )}
+                {interactionMode === 'drawing-poly' && polyPoints.length > 0 && (
+                   <div className="absolute inset-0 pointer-events-none" style={{ left: CANVAS_OFFSET, top: CANVAS_OFFSET }}>
+                      <svg width="20000" height="20000" className="overflow-visible">
+                        <polyline 
+                          points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} 
+                          fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" 
+                        />
+                        {polyPoints.map((p, i) => (
+                          <circle key={i} cx={p.x * displayZoom} cy={p.y * displayZoom} r={4} fill={i === 0 ? "#ef4444" : "#3b82f6"} stroke="white" strokeWidth={1} />
+                        ))}
+                      </svg>
+                   </div>
                 )}
                 {interactionMode === 'selecting' && selectionBox && (
                   <div className="absolute border-2 border-blue-500 bg-blue-500/10 z-[70]" style={{ left: Math.min(selectionBox.x1, selectionBox.x2) * displayZoom + CANVAS_OFFSET, top: Math.min(selectionBox.y1, selectionBox.y2) * displayZoom + CANVAS_OFFSET, width: Math.abs(selectionBox.x2 - selectionBox.x1) * displayZoom, height: Math.abs(selectionBox.y2 - selectionBox.y1) * displayZoom }} />
@@ -2387,7 +2474,7 @@ function CostRow({ label, value, unit, price, onPriceChange }: { label: string, 
         </div>
         <div className="text-right flex flex-col items-end">
           <span className="text-[6.5px] uppercase font-black text-slate-400 tracking-tight">Sub-total</span>
-          <span className="text-[11px] font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
+          <span className="text-11px font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
         </div>
       </div>
       <div className="flex items-center gap-1.5">

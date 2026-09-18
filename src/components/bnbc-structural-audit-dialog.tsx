@@ -24,6 +24,7 @@ interface DesignObject {
   id: string; type: string; subType: string;
   x: number; y: number; w: number; h: number;
   label?: string; textContent?: string;
+  points?: {x: number, y: number}[];
 }
 
 interface BnbcStructuralAuditDialogProps {
@@ -56,15 +57,38 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
     return t.includes('bath') || t.includes('toilet') || t.includes('washroom') || t.includes('wc') || t.includes('বাথ') || t.includes('টয়লেট') || t.includes('প্রসাধন');
   }), [textLabels]);
 
+  const calculatePolygonArea = (points: {x: number, y: number}[]) => {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+      let j = (i + 1) % points.length;
+      area += points[i].x * points[j].y;
+      area -= points[j].x * points[i].y;
+    }
+    return Math.abs(area / 2);
+  };
+
   const estimatedFloorArea = useMemo(() => {
     const areaMarkers = designObjects.filter(o => o.subType === 'area-marker');
     if (areaMarkers.length > 0) {
-      return Math.round(areaMarkers.reduce((acc, obj) => acc + (obj.w * obj.h), 0));
+      // Precise sum of all polygon markers
+      return Math.round(areaMarkers.reduce((acc, obj) => {
+        if (obj.points) {
+          return acc + calculatePolygonArea(obj.points);
+        }
+        return acc + (obj.w * obj.h);
+      }, 0));
     }
+    
+    // Fallback to bounding box logic if no markers
     const src = walls.length > 0 ? walls : designObjects.filter(o => o.w > 1 && o.h > 1);
     if (src.length === 0) return 0;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    src.forEach(s => { minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x + s.w); minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y + s.h); });
+    src.forEach(s => { 
+      minX = Math.min(minX, s.x); 
+      maxX = Math.max(maxX, s.x + s.w); 
+      minY = Math.min(minY, s.y); 
+      maxY = Math.max(maxY, s.y + s.h); 
+    });
     return Math.max(0, Math.round((maxX - minX) * (maxY - minY) * 0.80));
   }, [walls, designObjects]);
 
@@ -277,7 +301,7 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                   { label: 'কলাম সংখ্যা', value: `${pillars.length} টি`, sub: pillars.length > 0 ? `সর্বোচ্চ স্প্যান: ${columnSpanAnalysis.maxDistance.toFixed(1)}'` : '⚠️ কলাম নেই!' },
                   { label: 'সিঁড়ি প্রস্থ', value: stairs.length > 0 ? `${Math.min(stairs[0].w, stairs[0].h).toFixed(1)}'` : 'নাই', sub: stairs.length > 0 ? (stairAnalysis.compliant ? '✅ BNBC সম্মত' : '⚠️ পর্যালোচনা দরকার') : 'সিঁড়ি যোগ করুন' },
                   { label: 'জানালা ও বাতাস', value: `${ventilationAnalysis.pct.toFixed(1)}%`, sub: ventilationAnalysis.status === 'good' ? '✅ পর্যাপ্ত' : '⚠️ ঘাটতি আছে' },
-                  { label: 'ফ্লোর এরিয়া', value: `${estimatedFloorArea} Sq.ft`, sub: designObjects.some(o => o.subType === 'area-marker') ? '✅ মার্কার অনুযায়ী' : '⚠️ আনুমানিক বাউন্ডারি' },
+                  { label: 'ফ্লোর এরিয়া', value: `${estimatedFloorArea} Sq.ft`, sub: designObjects.some(o => o.subType === 'area-marker') ? '✅ মার্কার অনুযায়ী' : '⚠️ বাউন্ডারি হিসাব' },
                 ].map((s, i) => (
                   <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">{s.label}</span>
