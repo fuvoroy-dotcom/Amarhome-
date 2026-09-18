@@ -180,7 +180,6 @@ export default function EstimatorClient() {
     electric: 0, fittings: 0, paint: 0, others: 0
   });
 
-  // Site Ledger State managed at top level for persistence
   const [materialsLedger, setMaterialsLedger] = useState<any[]>([]);
   const [laborLedger, setLaborLedger] = useState<any[]>([]);
 
@@ -562,7 +561,6 @@ export default function EstimatorClient() {
             } else {
               printW = availableH * canvasRatio;
             }
-            // Downscale canvas to max 1000px for cloud PDF to guarantee size < 150KB (well within 1MB limit)
             const maxDim = 1000;
             let targetW = pW;
             let targetH = pH;
@@ -1000,10 +998,15 @@ export default function EstimatorClient() {
       return;
     }
     if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
-        if (selectedTool === 'wall') { const start = { x: snappedX, y: snappedY }; setDrawStart(start); setTempDrawEnd(start); setInteractionMode('drawing'); return; }
+        if (selectedTool === 'wall' || selectedTool === 'area-marker') { 
+          const start = { x: snappedX, y: snappedY }; 
+          setDrawStart(start); 
+          setTempDrawEnd(start); 
+          setInteractionMode('drawing'); 
+          return; 
+        }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
         else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 1, h: 1 });
-        else if (selectedTool === 'area-marker') addObjectAt('shape', 'area-marker', 'রুম এলাকা', snappedX, snappedY, { w: 12, h: 10, fillColor: 'rgba(59, 130, 246, 0.15)' });
         else if (selectedTool === 'door-1') addObjectAt('opening', 'door-1', 'Door 1', snappedX, snappedY);
         else if (selectedTool === 'door-2') addObjectAt('opening', 'door-2', 'Door 2', snappedX, snappedY);
         else if (selectedTool === 'door-3') addObjectAt('opening', 'door-3', 'Door 3', snappedX, snappedY);
@@ -1056,7 +1059,10 @@ export default function EstimatorClient() {
     if (interactionMode === 'drawing' && drawStart) {
       if (e.cancelable) e.preventDefault();
       let endX = curX, endY = curY;
-      if (e.shiftKey || e.ctrlKey) { if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) endY = drawStart.y; else endX = drawStart.x; }
+      if (selectedTool === 'wall' && (e.shiftKey || e.ctrlKey)) { 
+        if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) endY = drawStart.y; 
+        else endX = drawStart.x; 
+      }
       setTempDrawEnd({ x: Math.round(endX / ARCH_SNAP) * ARCH_SNAP, y: Math.round(endY / ARCH_SNAP) * ARCH_SNAP });
     } else if (interactionMode === 'selecting' && selectionBox) {
       if (e.cancelable) e.preventDefault();
@@ -1077,15 +1083,13 @@ export default function EstimatorClient() {
       let tx = Math.round((curX - mainOffset.x) / ARCH_SNAP) * ARCH_SNAP;
       let ty = Math.round((curY - mainOffset.y) / ARCH_SNAP) * ARCH_SNAP;
 
-      // Magnetic Smart-Snapping (AutoCAD style alignment to nearest pillar/wall edges or centers)
       if (isSmartSnapEnabled) {
-        const SNAP_THRESHOLD = 0.6; // ft
+        const SNAP_THRESHOLD = 0.6; 
         let guideX: number | undefined = undefined;
         let guideY: number | undefined = undefined;
 
         for (const other of designObjects) {
           if (selectedObjectIds.includes(other.id)) continue;
-          // Check alignment with other.x (left edge), other.x + other.w/2 (center), other.x + other.w (right edge)
           const targetXs = [other.x, other.x + other.w / 2, other.x + other.w];
           for (const candX of targetXs) {
             if (Math.abs(tx - candX) < SNAP_THRESHOLD) {
@@ -1094,8 +1098,6 @@ export default function EstimatorClient() {
               break;
             }
           }
-
-          // Check alignment with other.y (top edge), other.y + other.h/2 (center), other.y + other.h (bottom edge)
           const targetYs = [other.y, other.y + other.h / 2, other.y + other.h];
           for (const candY of targetYs) {
             if (Math.abs(ty - candY) < SNAP_THRESHOLD) {
@@ -1105,7 +1107,6 @@ export default function EstimatorClient() {
             }
           }
         }
-
         if (guideX !== undefined || guideY !== undefined) {
           setActiveSnapGuides({ x: guideX, y: guideY });
         } else {
@@ -1124,9 +1125,19 @@ export default function EstimatorClient() {
 
   const handleMouseUp = () => {
     if (interactionMode === 'drawing' && drawStart && tempDrawEnd) {
-      const dx = tempDrawEnd.x - drawStart.x, dy = tempDrawEnd.y - drawStart.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len > 0.1) addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
+      if (selectedTool === 'wall') {
+        const dx = tempDrawEnd.x - drawStart.x, dy = tempDrawEnd.y - drawStart.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 0.1) addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
+      } else if (selectedTool === 'area-marker') {
+        const xMin = Math.min(drawStart.x, tempDrawEnd.x);
+        const yMin = Math.min(drawStart.y, tempDrawEnd.y);
+        const w = Math.abs(tempDrawEnd.x - drawStart.x);
+        const h = Math.abs(tempDrawEnd.y - drawStart.y);
+        if (w > 0.5 && h > 0.5) {
+          addObjectAt('shape', 'area-marker', 'রুম এলাকা', xMin, yMin, { w, h, fillColor: 'rgba(59, 130, 246, 0.15)' });
+        }
+      }
       setDrawStart(null); setTempDrawEnd(null);
     } else if (interactionMode === 'selecting' && selectionBox) {
       const xMin = Math.min(selectionBox.x1, selectionBox.x2), xMax = Math.max(selectionBox.x1, selectionBox.x2);
@@ -1205,7 +1216,7 @@ export default function EstimatorClient() {
       return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-blue-500/10 border-2 border-dashed border-blue-400/60 rounded-sm pointer-events-none">
           <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm flex flex-col items-center">
-            <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{obj.label || "রুম এরিয়া"}</span>
+            <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{obj.label || "রুম এলাকা"}</span>
             <span className="text-[12px] font-black text-slate-900 leading-none">{areaSqFt} Sq.ft</span>
           </div>
         </div>
@@ -1294,10 +1305,8 @@ export default function EstimatorClient() {
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f1f5f9" stroke="#334155" strokeWidth={sw * 2} rx="0.2" />
           <rect x={obj.w * 0.05} y={obj.h * 0.04} width={obj.w * 0.9} height={obj.h * 0.18} fill="#94a3b8" stroke="#475569" strokeWidth={sw} rx="0.1" />
-          {/* Pillows */}
           <rect x={obj.w * 0.1} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" />
           <rect x={obj.w * 0.55} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" />
-          {/* Blanket fold */}
           <rect x={obj.w * 0.08} y={obj.h * 0.48} width={obj.w * 0.84} height={obj.h * 0.48} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={sw} rx="0.1" />
           <line x1={obj.w * 0.08} y1={obj.h * 0.6} x2={obj.w * 0.92} y2={obj.h * 0.6} stroke="#cbd5e1" strokeWidth={sw} />
         </svg>
@@ -1307,12 +1316,9 @@ export default function EstimatorClient() {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="#e0e7ff" stroke="#4338ca" strokeWidth={sw * 2} rx="0.3" />
-          {/* Backrest */}
           <rect x={obj.w * 0.05} y="0" width={obj.w * 0.9} height={obj.h * 0.35} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" />
-          {/* Arms */}
           <rect x="0" y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" />
           <rect x={obj.w * 0.88} y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" />
-          {/* Cushions */}
           <line x1={obj.w * 0.38} y1={obj.h * 0.35} x2={obj.w * 0.38} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} />
           <line x1={obj.w * 0.62} y1={obj.h * 0.35} x2={obj.w * 0.62} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} />
         </svg>
@@ -1321,9 +1327,7 @@ export default function EstimatorClient() {
     if (obj.subType === 'dining') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          {/* Table Top */}
           <rect x={obj.w * 0.12} y={obj.h * 0.18} width={obj.w * 0.76} height={obj.h * 0.64} fill="#fef3c7" stroke="#b45309" strokeWidth={sw * 2} rx="0.2" />
-          {/* 6 Chairs */}
           <rect x={obj.w * 0.22} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
           <rect x={obj.w * 0.56} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
           <rect x={obj.w * 0.22} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
@@ -1337,10 +1341,8 @@ export default function EstimatorClient() {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f8fafc" stroke="#475569" strokeWidth={sw * 2} />
-          {/* Sink */}
           <rect x={obj.w * 0.1} y={obj.h * 0.18} width={obj.w * 0.28} height={obj.h * 0.64} fill="#e2e8f0" stroke="#64748b" strokeWidth={sw} rx="0.1" />
           <circle cx={obj.w * 0.24} cy={obj.h * 0.5} r={obj.h * 0.1} fill="#94a3b8" />
-          {/* Stove 2 Burners */}
           <rect x={obj.w * 0.55} y={obj.h * 0.15} width={obj.w * 0.35} height={obj.h * 0.7} fill="#1e293b" stroke="#0f172a" strokeWidth={sw} rx="0.1" />
           <circle cx={obj.w * 0.55} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
           <circle cx={obj.w * 0.75} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
@@ -1351,10 +1353,8 @@ export default function EstimatorClient() {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f0fdfa" stroke="#0d9488" strokeWidth={sw * 2} rx="0.2" />
-          {/* Commode */}
           <rect x={obj.w * 0.1} y={obj.h * 0.1} width={obj.w * 0.3} height={obj.h * 0.2} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} rx="0.05" />
           <ellipse cx={obj.w * 0.25} cy={obj.h * 0.55} rx={obj.w * 0.18} ry={obj.h * 0.28} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} />
-          {/* Basin */}
           <ellipse cx={obj.w * 0.72} cy={obj.h * 0.4} rx={obj.w * 0.18} ry={obj.h * 0.22} fill="#ffffff" stroke="#0f766e" strokeWidth={sw} />
           <circle cx={obj.w * 0.72} cy={obj.h * 0.4} r={obj.h * 0.06} fill="#0d9488" />
         </svg>
@@ -1476,12 +1476,20 @@ export default function EstimatorClient() {
                   </div>
                 ))}
                 {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                  <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: currentWallThickness * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
+                  selectedTool === 'area-marker' ? (
+                    <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ 
+                      left: Math.min(drawStart.x, tempDrawEnd.x) * displayZoom + CANVAS_OFFSET, 
+                      top: Math.min(drawStart.y, tempDrawEnd.y) * displayZoom + CANVAS_OFFSET, 
+                      width: Math.abs(tempDrawEnd.x - drawStart.x) * displayZoom, 
+                      height: Math.abs(tempDrawEnd.y - drawStart.y) * displayZoom 
+                    }} />
+                  ) : (
+                    <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: currentWallThickness * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
+                  )
                 )}
                 {interactionMode === 'selecting' && selectionBox && (
                   <div className="absolute border-2 border-blue-500 bg-blue-500/10 z-[70]" style={{ left: Math.min(selectionBox.x1, selectionBox.x2) * displayZoom + CANVAS_OFFSET, top: Math.min(selectionBox.y1, selectionBox.y2) * displayZoom + CANVAS_OFFSET, width: Math.abs(selectionBox.x2 - selectionBox.x1) * displayZoom, height: Math.abs(selectionBox.y2 - selectionBox.y1) * displayZoom }} />
                 )}
-                {/* AutoCAD-style Dynamic Magnetic Smart-Snap Alignment Guidelines */}
                 {activeSnapGuides && (
                   <>
                     {activeSnapGuides.x !== undefined && (
@@ -1517,7 +1525,6 @@ export default function EstimatorClient() {
                   </>
                 )}
 
-                {/* Auto Room Carpet Area Overlays for Enclosed Rooms */}
                 {designObjects.filter(o => (o.subType === 'room' || (o.type === 'structure' && o.w > 4 && o.h > 4 && !o.subType.includes('wall') && !o.subType.includes('stair') && !o.subType.includes('door') && !o.subType.includes('window')))).map(rm => {
                   const areaSqFt = Math.round(rm.w * rm.h);
                   const areaSqm = (areaSqFt * 0.092903).toFixed(1);
