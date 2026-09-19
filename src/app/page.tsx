@@ -1,12 +1,13 @@
-
 "use client";
 
 import EstimatorClient from "@/app/components/estimator-client";
 import { useAuth } from "@/firebase/auth-context";
 import { AuthDialog } from "@/components/auth-dialog";
 import { useState } from "react";
-import { Loader2, Building2, Layout, Sparkles, ArrowRight } from "lucide-react";
+import { Loader2, Layout, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 /**
  * @fileOverview Root page component with authentication logic.
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/button";
 export default function Home() {
   const { user, loading } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  const logo = PlaceHolderImages.find(img => img.id === 'app-logo');
 
   // Loading state with a clean professional spinner
   if (loading) {
@@ -36,8 +39,19 @@ export default function Home() {
 
         <div className="max-w-md w-full space-y-10 text-center z-10">
           <div className="space-y-6">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/20 transform rotate-6 hover:rotate-0 transition-all duration-500 border border-white/10">
-              <Building2 className="w-12 h-12 text-white" />
+            <div className="mx-auto w-24 h-24 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/20 transform rotate-6 hover:rotate-0 transition-all duration-500 border border-white/10 overflow-hidden">
+              {logo ? (
+                <Image 
+                  src={logo.imageUrl} 
+                  alt={logo.description} 
+                  width={96} 
+                  height={96} 
+                  className="object-cover w-full h-full"
+                  data-ai-hint={logo.imageHint}
+                />
+              ) : (
+                <div className="w-12 h-12 bg-white/20 rounded-lg animate-pulse" />
+              )}
             </div>
             <div className="space-y-2">
               <h1 className="text-5xl font-black text-white tracking-tighter">আমার বাড়ি</h1>

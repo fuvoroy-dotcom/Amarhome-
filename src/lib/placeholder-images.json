@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "app-logo",
+      "description": "App Logo",
+      "imageUrl": "https://i.ibb.co.com/Jjx168kK/image.jpg",
+      "imageHint": "house logo"
+    }
+  ]
 }
