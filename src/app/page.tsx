@@ -39,7 +39,7 @@ export default function Home() {
 
         <div className="max-w-md w-full space-y-10 text-center z-10">
           <div className="space-y-6">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/20 transform rotate-6 hover:rotate-0 transition-all duration-500 border border-white/10 overflow-hidden">
+            <div className="mx-auto w-24 h-24 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl shadow-blue-500/20 transform rotate-6 hover:rotate-0 transition-all duration-500 border border-white/10 overflow-hidden">
               {logo ? (
                 <Image 
                   src={logo.imageUrl} 
