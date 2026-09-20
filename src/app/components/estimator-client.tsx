@@ -67,7 +67,7 @@ import { getConstructionAdvice } from "@/app/actions";
 
 type DesignObject = {
   id: string;
-  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair';
+  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair' | 'furniture';
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
@@ -384,15 +384,15 @@ export default function EstimatorClient() {
           if (obj.subType === 'window') {
             svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 3}"/><line x1="0" y1="${obj.h * 0.25}" x2="${obj.w}" y2="${obj.h * 0.25}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/><line x1="0" y1="${obj.h * 0.75}" x2="${obj.w}" y2="${obj.h * 0.75}" stroke="${obj.color}" stroke-width="${sw * 1.5}"/></svg>`;
           } else if (obj.subType === 'door-1') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" strokeDasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'door-2') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" strokeDasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'door-3') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="0" x2="${obj.w}" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="${obj.w}" y1="0" x2="${obj.w}" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" strokeDasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'door-4') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="0" x2="0" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="0" x2="0" y2="${obj.w}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" strokeDasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'double-door') {
-            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2} " stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" stroke-dasharray="${sw*3},${sw*3}"/></svg>`;
+            svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="none"/><line x1="0" y1="${obj.h}" x2="0" y2="${obj.h - obj.w/2} " stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" strokeDasharray="${sw*3},${sw*3}"/><line x1="${obj.w}" y1="${obj.h}" x2="${obj.w}" y2="${obj.h - obj.w/2}" stroke="${obj.color}" stroke-width="${sw * 4}"/><path d="M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}" strokeDasharray="${sw*3},${sw*3}"/></svg>`;
           } else if (obj.subType === 'sliding-door') {
             svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="${obj.h*0.25}" width="${obj.w}" height="${obj.h*0.5}" fill="none" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4}" y1="${obj.h*0.25}" x2="${obj.w * 0.4}" y2="${obj.h*0.75}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w * 0.4} " y1="${obj.h*0.5}" x2="${obj.w * 0.9}" y2="${obj.h*0.5}" stroke="${obj.color}" stroke-width="${sw * 4}"/></svg>`;
           }
@@ -424,14 +424,14 @@ export default function EstimatorClient() {
             stairLines += `<line x1="0" y1="${landingH + (i+1) * stepH}" x2="${flightW}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
             stairLines += `<line x1="${obj.w - flightW}" y1="${landingH + (i+1) * stepH}" x2="${obj.w}" y2="${landingH + (i+1) * stepH}" stroke="${obj.color}" stroke-width="${sw}"/>`;
           }
-          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
+          svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.type === 'text') {
           const labelText = obj.textContent || obj.label;
           const dimText = `(${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))})`;
           objDiv.innerHTML = `<div style="color:${obj.color}; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:Inter, sans-serif; font-weight:${obj.isBold ? '900' : 'normal'}; font-size:${(obj.fontSize || 14) * (exportZoom / 16)}px; width:100%; height:100%; text-transform:uppercase;"><div>${labelText}</div><div style="font-size:0.85em; opacity:0.8;">${dimText}</div></div>`;
         } else if (obj.subType === 'area-marker' && obj.points) {
           const pts = obj.points.map(p => `${(p.x - obj.x) * exportZoom},${(p.y - obj.y) * exportZoom}`).join(' ');
-          svgContent = `<svg width="100%" height="100%" style="overflow: visible"><polygon points="${pts}" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4" /></svg>`;
+          svgContent = `<svg width="100%" height="100%" style="overflow: visible"><polygon points="${pts}" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" stroke-width="2" strokeDasharray="4,4" /></svg>`;
         }
 
         if (svgContent) {
@@ -926,6 +926,12 @@ export default function EstimatorClient() {
     if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
     if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
     
+    // Default Furniture sizes
+    if (subType === 'furniture-bed') { newObj.w = 6.5; newObj.h = 5; }
+    if (subType === 'furniture-sofa') { newObj.w = 6; newObj.h = 2.5; }
+    if (subType === 'furniture-dining') { newObj.w = 4.5; newObj.h = 3.5; }
+    if (subType === 'furniture-kitchen') { newObj.w = 6; newObj.h = 2; }
+
     const next = [...designObjects, newObj];
     setDesignObjects(next);
     setSelectedObjectIds([newObj.id]);
@@ -1104,6 +1110,12 @@ export default function EstimatorClient() {
         else if (selectedTool === 'room-label-mandir') addObjectAt('text', 'room-label-mandir', 'Mandir', snappedX, snappedY);
         else if (selectedTool === 'room-label-stair') addObjectAt('text', 'room-label-stair', 'Stair Room', snappedX, snappedY);
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
+        // Furniture tools
+        else if (selectedTool === 'furniture-bed') addObjectAt('furniture', 'furniture-bed', 'Bed', snappedX, snappedY);
+        else if (selectedTool === 'furniture-sofa') addObjectAt('furniture', 'furniture-sofa', 'Sofa', snappedX, snappedY);
+        else if (selectedTool === 'furniture-dining') addObjectAt('furniture', 'furniture-dining', 'Dining Table', snappedX, snappedY);
+        else if (selectedTool === 'furniture-kitchen') addObjectAt('furniture', 'furniture-kitchen', 'Kitchen Set', snappedX, snappedY);
+
         setSelectedTool('select'); return;
     }
     if (id) {
@@ -1329,19 +1341,19 @@ export default function EstimatorClient() {
             <g><rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 3} /><line x1="0" y1={obj.h * 0.25} x2={obj.w} y2={obj.h * 0.25} stroke={obj.color} strokeWidth={sw * 1.5} /><line x1="0" y1={obj.h * 0.75} x2={obj.w} y2={obj.h * 0.75} stroke={obj.color} strokeWidth={sw * 1.5} /></g>
           )}
           {obj.subType === 'door-1' && (
-            <g><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-2' && (
-            <g><line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-3' && (
-            <g><line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-4' && (
-            <g><line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'double-door' && (
-            <g><line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'sliding-door' && (
             <g><rect x="0" y={obj.h*0.25} width={obj.w} height={obj.h*0.5} fill="none" stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w * 0.4} y1={obj.h*0.25} x2={obj.w * 0.4} y2={obj.h*0.75} stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w * 0.4} y1={obj.h*0.5} x2={obj.w * 0.9} y2={obj.h*0.5} stroke={obj.color} strokeWidth={sw * 4} /></g>
@@ -1377,11 +1389,23 @@ export default function EstimatorClient() {
     }
     if (obj.type === 'text') {
       const labelText = obj.textContent || obj.label;
-      const dimText = `${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))}`;
+      const bounds = findRoomBoundaries(obj.x, obj.y);
+      const dimText = `${formatDimension(Math.max(bounds.w, bounds.h))} × ${formatDimension(Math.min(bounds.w, bounds.h))}`;
       return (
         <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? '900' : 'normal' }}>
           <div className="whitespace-nowrap uppercase tracking-tighter">{labelText}</div>
           <div className="text-[0.85em] opacity-80 whitespace-nowrap">({dimText})</div>
+        </div>
+      );
+    }
+    // Furniture rendering
+    if (obj.type === 'furniture') {
+      return (
+        <div className="w-full h-full border-2 border-slate-400 bg-slate-200/50 flex items-center justify-center pointer-events-none">
+          {obj.subType === 'furniture-bed' && <Bed className="w-1/2 h-1/2 text-slate-600" />}
+          {obj.subType === 'furniture-sofa' && <Armchair className="w-1/2 h-1/2 text-slate-600" />}
+          {obj.subType === 'furniture-dining' && <UtensilsCrossed className="w-1/2 h-1/2 text-slate-600" />}
+          {obj.subType === 'furniture-kitchen' && <CookingPot className="w-1/2 h-1/2 text-slate-600" />}
         </div>
       );
     }
@@ -1443,9 +1467,9 @@ export default function EstimatorClient() {
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className="w-full md:w-[85px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
+        <div className="w-full md:w-[102px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 z-30 shrink-0 flex flex-col shadow-inner overflow-hidden">
           <ScrollArea orientation="both" className="h-full w-full">
-            <div className="flex md:flex-col gap-1 p-0.5 md:p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
+            <div className="flex md:flex-col gap-1.5 p-1 items-center md:items-stretch min-w-max md:min-w-0 pr-10 md:pr-0">
               <SymbolButton active={selectedTool === 'select'} icon={<MousePointer2 />} label="Select" onClick={() => setSelectedTool('select')} color="blue" />
               <SymbolButton active={selectedTool === 'move'} icon={<Hand />} label="Move" onClick={() => setSelectedTool('move')} color="amber" />
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
@@ -1454,6 +1478,7 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'area-marker'} icon={<Maximize2 className="w-4 h-4" />} label="রুম এরিয়া" onClick={() => setSelectedTool('area-marker')} color="sky" />
               
               <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
+              <span className="text-[8px] font-black text-slate-500 uppercase text-center hidden md:block">Labels</span>
               
               <SymbolButton active={selectedTool === 'room-label-bed'} icon={<Bed className="w-4 h-4" />} label="Bed" onClick={() => setSelectedTool('room-label-bed')} color="blue" />
               <SymbolButton active={selectedTool === 'room-label-bath'} icon={<Bath className="w-4 h-4" />} label="Bath" onClick={() => setSelectedTool('room-label-bath')} color="teal" />
@@ -1465,11 +1490,18 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Custom" onClick={() => setSelectedTool('label')} color="cyan" />
 
               <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
+              <span className="text-[8px] font-black text-slate-500 uppercase text-center hidden md:block">Furniture</span>
+              <SymbolButton active={selectedTool === 'furniture-bed'} icon={<Bed className="w-4 h-4" />} label="BED" onClick={() => setSelectedTool('furniture-bed')} color="blue" />
+              <SymbolButton active={selectedTool === 'furniture-sofa'} icon={<Armchair className="w-4 h-4" />} label="SOFA" onClick={() => setSelectedTool('furniture-sofa')} color="indigo" />
+              <SymbolButton active={selectedTool === 'furniture-dining'} icon={<UtensilsCrossed className="w-4 h-4" />} label="DINING" onClick={() => setSelectedTool('furniture-dining')} color="amber" />
+              <SymbolButton active={selectedTool === 'furniture-kitchen'} icon={<CookingPot className="w-4 h-4" />} label="KITCHEN" onClick={() => setSelectedTool('furniture-kitchen')} color="emerald" />
+
+              <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
               <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
               <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
               
               <div className="w-px h-3 bg-slate-800 mx-0.5 md:hidden" />
-              <div className="flex md:flex-col gap-1 items-center md:items-stretch">
+              <div className="flex md:flex-col gap-1.5 items-center md:items-stretch">
                 <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="D1" onClick={() => setSelectedTool('door-1')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-2'} icon={<DoorOpen />} label="D2" onClick={() => setSelectedTool('door-2')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="D3" onClick={() => setSelectedTool('door-3')} color="teal" />
@@ -1513,7 +1545,7 @@ export default function EstimatorClient() {
                 {interactionMode === 'drawing-poly' && polyPoints.length > 0 && (
                    <div className="absolute inset-0 pointer-events-none" style={{ left: CANVAS_OFFSET, top: CANVAS_OFFSET }}>
                       <svg width="20000" height="20000" className="overflow-visible">
-                        <polyline points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} fill="none" stroke="#3b82f6" strokeWidth={2} stroke-dasharray="4,4" />
+                        <polyline points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
                         {polyPoints.map((p, i) => <circle key={i} cx={p.x * displayZoom} cy={p.y * displayZoom} r={4} fill={i === 0 ? "#ef4444" : "#3b82f6"} stroke="white" strokeWidth={1} />)}
                       </svg>
                    </div>
@@ -1523,8 +1555,8 @@ export default function EstimatorClient() {
                 )}
                 {activeSnapGuides && (
                   <>
-                    {activeSnapGuides.x !== undefined && <div className="absolute pointer-events-none z-[80] border-l-2 border-dashed border-cyan-400 opacity-90 shadow-sm" style={{ left: activeSnapGuides.x * displayZoom + CANVAS_OFFSET, top: 0, bottom: 0, height: 20000 }}><div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute top-2 left-1">X: {activeSnapGuides.x.toFixed(1)}'</div></div>}
-                    {activeSnapGuides.y !== undefined && <div className="absolute pointer-events-none z-[80] border-t-2 border-dashed border-cyan-400 opacity-90 shadow-sm" style={{ top: activeSnapGuides.y * displayZoom + CANVAS_OFFSET, left: 0, right: 0, width: 20000 }}><div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute left-2 top-1">Y: {activeSnapGuides.y.toFixed(1)}'</div></div>}
+                    {activeSnapGuides.x !== undefined && <div className="absolute pointer-none z-[80] border-l-2 border-dashed border-cyan-400 opacity-90 shadow-sm" style={{ left: activeSnapGuides.x * displayZoom + CANVAS_OFFSET, top: 0, bottom: 0, height: 20000 }}><div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute top-2 left-1">X: {activeSnapGuides.x.toFixed(1)}'</div></div>}
+                    {activeSnapGuides.y !== undefined && <div className="absolute pointer-none z-[80] border-t-2 border-dashed border-cyan-400 opacity-90 shadow-sm" style={{ top: activeSnapGuides.y * displayZoom + CANVAS_OFFSET, left: 0, right: 0, width: 20000 }}><div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute left-2 top-1">Y: {activeSnapGuides.y.toFixed(1)}'</div></div>}
                   </>
                 )}
               </div>
@@ -1913,7 +1945,7 @@ function RibbonButton({ icon, label, onClick, active, color, className }: { icon
 function SymbolButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
   const colorMap = { blue: "bg-blue-500 border-blue-700 shadow-[0_2px_0_0_#1d4ed8]", amber: "bg-amber-500 border-amber-700 shadow-[0_2px_0_0_#b45309]", emerald: "bg-emerald-500 border-emerald-700 shadow-[0_2px_0_0_#059669]", indigo: "bg-indigo-500 border-indigo-700 shadow-[0_2px_0_0_#4338ca]", slate: "bg-slate-700 border-slate-900 shadow-[0_2px_0_0_#0f172a]", violet: "bg-violet-500 border-violet-700 shadow-[0_2px_0_0_#6d28d9]", purple: "bg-purple-500 border-purple-700 shadow-[0_2px_0_0_#7e22ce]", cyan: "bg-cyan-500 border-cyan-700 shadow-[0_2px_0_0_#0891b2]", teal: "bg-teal-500 border-teal-700 shadow-[0_2px_0_0_#0f766e]", pink: "bg-pink-500 border-pink-700 shadow-[0_2px_0_0_#be185d]", sky: "bg-sky-500 border-sky-700 shadow-[0_2px_0_0_#0369a1]" };
   const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-slate-800 border-slate-700 shadow-[0_1px_0_0_rgba(0,0,0,0.3)]";
-  return (<div onClick={onClick} className={cn("flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 w-[60px] md:w-[65px] mx-auto overflow-visible", baseColor, active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : "")}><div className="shrink-0 text-white">{React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}</div><span className="text-[7px] md:text-[8px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span></div>);
+  return (<div onClick={onClick} className={cn("flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-10 md:h-11 w-[72px] md:w-[78px] mx-auto overflow-visible", baseColor, active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : "")}><div className="shrink-0 text-white">{React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}</div><span className="text-[9px] md:text-[10px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span></div>);
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
