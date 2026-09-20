@@ -16,7 +16,8 @@ import {
   Hand, Calculator, ArrowLeft, Send, Loader2,
   Layers, Boxes, Plus, X,
   ArrowUpToLine, FileText, Download, Type as TypeIcon, Cloud,
-  TrendingUp, Sparkles, ShieldCheck, ClipboardList, Bed, Armchair, UtensilsCrossed, Bath, Magnet, CookingPot, Maximize2
+  TrendingUp, Sparkles, ShieldCheck, ClipboardList, Bed, Armchair, UtensilsCrossed, Bath, Magnet, CookingPot, Maximize2,
+  ArrowUpRight as StairIcon
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -425,16 +426,9 @@ export default function EstimatorClient() {
           }
           svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.type === 'text') {
-          objDiv.innerText = obj.textContent || obj.label;
-          objDiv.style.color = obj.color;
-          objDiv.style.display = 'flex';
-          objDiv.style.alignItems = 'center';
-          objDiv.style.justifyContent = 'center';
-          objDiv.style.padding = '4px';
-          objDiv.style.textAlign = 'center';
-          objDiv.style.fontFamily = 'Inter, sans-serif';
-          objDiv.style.fontWeight = obj.isBold ? '900' : 'normal';
-          objDiv.style.fontSize = `${(obj.fontSize || 14) * (exportZoom / 16)}px`;
+          const labelText = obj.textContent || obj.label;
+          const dimText = `(${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))})`;
+          objDiv.innerHTML = `<div style="color:${obj.color}; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:Inter, sans-serif; font-weight:${obj.isBold ? '900' : 'normal'}; font-size:${(obj.fontSize || 14) * (exportZoom / 16)}px; width:100%; height:100%; text-transform:uppercase;"><div>${labelText}</div><div style="font-size:0.85em; opacity:0.8;">${dimText}</div></div>`;
         } else if (obj.subType === 'area-marker' && obj.points) {
           const pts = obj.points.map(p => `${(p.x - obj.x) * exportZoom},${(p.y - obj.y) * exportZoom}`).join(' ');
           svgContent = `<svg width="100%" height="100%" style="overflow: visible"><polygon points="${pts}" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4" /></svg>`;
@@ -912,6 +906,7 @@ export default function EstimatorClient() {
       else if (subType === 'room-label-living') finalText = `LIVING-${padded}`;
       else if (subType === 'room-label-dining') finalText = `DINING-${padded}`;
       else if (subType === 'room-label-mandir') finalText = `MANDIR-${padded}`;
+      else if (subType === 'room-label-stair') finalText = `STAIR-${padded}`;
     }
 
     const newObj: DesignObject = {
@@ -1107,6 +1102,7 @@ export default function EstimatorClient() {
         else if (selectedTool === 'room-label-living') addObjectAt('text', 'room-label-living', 'Living Room', snappedX, snappedY);
         else if (selectedTool === 'room-label-dining') addObjectAt('text', 'room-label-dining', 'Dining Room', snappedX, snappedY);
         else if (selectedTool === 'room-label-mandir') addObjectAt('text', 'room-label-mandir', 'Mandir', snappedX, snappedY);
+        else if (selectedTool === 'room-label-stair') addObjectAt('text', 'room-label-stair', 'Stair Room', snappedX, snappedY);
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
         setSelectedTool('select'); return;
     }
@@ -1333,19 +1329,19 @@ export default function EstimatorClient() {
             <g><rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 3} /><line x1="0" y1={obj.h * 0.25} x2={obj.w} y2={obj.h * 0.25} stroke={obj.color} strokeWidth={sw * 1.5} /><line x1="0" y1={obj.h * 0.75} x2={obj.w} y2={obj.h * 0.75} stroke={obj.color} strokeWidth={sw * 1.5} /></g>
           )}
           {obj.subType === 'door-1' && (
-            <g><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 0 0 ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-2' && (
-            <g><line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={0} y1={obj.h} x2={0} y2={obj.h - obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w} A ${obj.w} ${obj.w} 0 0 1 ${obj.w} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-3' && (
-            <g><line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={obj.w} y1={0} x2={obj.w} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.w} A ${obj.w} ${obj.w} 0 0 1 0 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'door-4' && (
-            <g><line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1={0} y1={0} x2={0} y2={obj.w} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.w} A ${obj.w} ${obj.w} 0 0 0 ${obj.w} 0`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'double-door' && (
-            <g><line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} strokeDasharray={`${sw*3},${sw*3}`} /></g>
+            <g><line x1="0" y1={obj.h} x2="0" y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M 0 ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 1 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /><line x1={obj.w} y1={obj.h} x2={obj.w} y2={obj.h - obj.w/2} stroke={obj.color} strokeWidth={sw * 4} /><path d={`M ${obj.w} ${obj.h - obj.w/2} A ${obj.w/2} ${obj.w/2} 0 0 0 ${obj.w/2} ${obj.h}`} fill="none" stroke={obj.color} strokeWidth={sw * 2} stroke-dasharray={`${sw*3},${sw*3}`} /></g>
           )}
           {obj.subType === 'sliding-door' && (
             <g><rect x="0" y={obj.h*0.25} width={obj.w} height={obj.h*0.5} fill="none" stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w * 0.4} y1={obj.h*0.25} x2={obj.w * 0.4} y2={obj.h*0.75} stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w * 0.4} y1={obj.h*0.5} x2={obj.w * 0.9} y2={obj.h*0.5} stroke={obj.color} strokeWidth={sw * 4} /></g>
@@ -1379,47 +1375,11 @@ export default function EstimatorClient() {
         </svg>
       );
     }
-    if (obj.subType === 'bed') {
-      return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f1f5f9" stroke="#334155" strokeWidth={sw * 2} rx="0.2" /><rect x={obj.w * 0.05} y={obj.h * 0.04} width={obj.w * 0.9} height={obj.h * 0.18} fill="#94a3b8" stroke="#475569" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.1} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.55} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.08} y={obj.h * 0.48} width={obj.w * 0.84} height={obj.h * 0.48} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={sw} rx="0.1" /><line x1={obj.w * 0.08} y1={obj.h * 0.6} x2={obj.w * 0.92} y2={obj.h * 0.6} stroke="#cbd5e1" strokeWidth={sw} />
-        </svg>
-      );
-    }
-    if (obj.subType === 'sofa') {
-      return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#e0e7ff" stroke="#4338ca" strokeWidth={sw * 2} rx="0.3" /><rect x={obj.w * 0.05} y="0" width={obj.w * 0.9} height={obj.h * 0.35} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" /><rect x="0" y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" /><rect x={obj.w * 0.88} y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" /><line x1={obj.w * 0.38} y1={obj.h * 0.35} x2={obj.w * 0.38} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} /><line x1={obj.w * 0.62} y1={obj.h * 0.35} x2={obj.w * 0.62} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} />
-        </svg>
-      );
-    }
-    if (obj.subType === 'dining') {
-      return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x={obj.w * 0.12} y={obj.h * 0.18} width={obj.w * 0.76} height={obj.h * 0.64} fill="#fef3c7" stroke="#b45309" strokeWidth={sw * 2} rx="0.2" /><rect x={obj.w * 0.22} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.56} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.22} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.56} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x="0" y={obj.h * 0.35} width={obj.w * 0.1} height={obj.h * 0.3} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.9} y={obj.h * 0.35} width={obj.w * 0.1} height={obj.h * 0.3} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
-        </svg>
-      );
-    }
-    if (obj.subType === 'kitchen') {
-      return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f8fafc" stroke="#475569" strokeWidth={sw * 2} /><rect x={obj.w * 0.1} y={obj.h * 0.18} width={obj.w * 0.28} height={obj.h * 0.64} fill="#e2e8f0" stroke="#64748b" strokeWidth={sw} rx="0.1" /><circle cx={obj.w * 0.24} cy={obj.h * 0.5} r={obj.h * 0.1} fill="#94a3b8" /><rect x={obj.w * 0.55} y={obj.h * 0.15} width={obj.w * 0.35} height={obj.h * 0.7} fill="#1e293b" stroke="#0f172a" strokeWidth={sw} rx="0.1" /><circle cx={obj.w * 0.55} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} /><circle cx={obj.w * 0.75} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
-        </svg>
-      );
-    }
-    if (obj.subType === 'bath') {
-      return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f0fdfa" stroke="#0d9488" strokeWidth={sw * 2} rx="0.2" /><rect x={obj.w * 0.1} y={obj.h * 0.1} width={obj.w * 0.3} height={obj.h * 0.2} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} rx="0.05" /><ellipse cx={obj.w * 0.25} cy={obj.h * 0.55} rx={obj.w * 0.18} ry={obj.h * 0.28} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} /><ellipse cx={obj.w * 0.72} cy={obj.h * 0.4} rx={obj.w * 0.18} ry={obj.h * 0.22} fill="#ffffff" stroke="#0f766e" strokeWidth={sw} /><circle cx={obj.w * 0.72} cy={obj.h * 0.4} r={obj.h * 0.06} fill="#0d9488" />
-        </svg>
-      );
-    }
     if (obj.type === 'text') {
       const labelText = obj.textContent || obj.label;
-      const dimText = `${formatDimension(obj.w)} × ${formatDimension(obj.h)}`;
-      const isRoomLabel = obj.subType.startsWith('room-label');
+      const dimText = `${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))}`;
       return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: isRoomLabel ? '#3b82f6' : obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? '900' : 'normal' }}>
+        <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? '900' : 'normal' }}>
           <div className="whitespace-nowrap uppercase tracking-tighter">{labelText}</div>
           <div className="text-[0.85em] opacity-80 whitespace-nowrap">({dimText})</div>
         </div>
@@ -1501,6 +1461,7 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'room-label-living'} icon={<Armchair className="w-4 h-4" />} label="Living" onClick={() => setSelectedTool('room-label-living')} color="indigo" />
               <SymbolButton active={selectedTool === 'room-label-dining'} icon={<UtensilsCrossed className="w-4 h-4" />} label="Dining" onClick={() => setSelectedTool('room-label-dining')} color="amber" />
               <SymbolButton active={selectedTool === 'room-label-mandir'} icon={<Magnet className="w-4 h-4" />} label="Mandir" onClick={() => setSelectedTool('room-label-mandir')} color="purple" />
+              <SymbolButton active={selectedTool === 'room-label-stair'} icon={<StairIcon className="w-4 h-4" />} label="Stair Room" onClick={() => setSelectedTool('room-label-stair')} color="violet" />
               <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Custom" onClick={() => setSelectedTool('label')} color="cyan" />
 
               <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
@@ -1552,7 +1513,7 @@ export default function EstimatorClient() {
                 {interactionMode === 'drawing-poly' && polyPoints.length > 0 && (
                    <div className="absolute inset-0 pointer-events-none" style={{ left: CANVAS_OFFSET, top: CANVAS_OFFSET }}>
                       <svg width="20000" height="20000" className="overflow-visible">
-                        <polyline points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
+                        <polyline points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} fill="none" stroke="#3b82f6" strokeWidth={2} stroke-dasharray="4,4" />
                         {polyPoints.map((p, i) => <circle key={i} cx={p.x * displayZoom} cy={p.y * displayZoom} r={4} fill={i === 0 ? "#ef4444" : "#3b82f6"} stroke="white" strokeWidth={1} />)}
                       </svg>
                    </div>
@@ -1958,4 +1919,3 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
