@@ -1442,7 +1442,16 @@ export default function EstimatorClient() {
         </svg>
       );
     }
-    if (obj.type === 'text') return <div className="w-full h-full flex items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? 'black' : 'normal' }}>{obj.textContent || obj.label}</div>;
+    if (obj.type === 'text') {
+      const labelText = obj.textContent || obj.label;
+      const dimText = `${formatDimension(obj.w)} × ${formatDimension(obj.h)}`;
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? 'black' : 'normal' }}>
+          <div className="whitespace-nowrap">{labelText}</div>
+          <div className="text-[0.85em] opacity-80 whitespace-nowrap">({dimText})</div>
+        </div>
+      );
+    }
     return null;
   };
 
@@ -1998,7 +2007,7 @@ function EstimationView({
     if (type === 'foundation') setFoundations(foundations.filter(f => f.id !== id));
     if (type === 'column') setColumns(columns.filter(f => f.id !== id));
     if (type === 'beam') setBeams(beams.filter(f => f.id !== id));
-    if (type === 'slab') setSlabs(slabs.filter(f => f.id !== id));
+    if (type === 'slab') setSlabs(slabs.filter(s => s.id !== id));
     if (type === 'stair') setStairs(stairs.filter(f => f.id !== id));
     if (type === 'brickwork') setBrickworks(brickworks.filter(f => f.id !== id));
     if (type === 'plaster') setPlasters(plasters.filter(p => p.id !== id));
