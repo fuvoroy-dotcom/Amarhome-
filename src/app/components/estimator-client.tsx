@@ -80,7 +80,7 @@ type DesignObject = {
   isBold?: boolean;
   isJoined?: boolean; 
   stepCount?: number;
-  points?: {x: number, y: number}[]; // Points for polygon area markers
+  points?: {x: number, y: number}[]; 
 };
 
 type SavedDesignRef = {
@@ -436,7 +436,6 @@ export default function EstimatorClient() {
           objDiv.style.fontWeight = obj.isBold ? '900' : 'normal';
           objDiv.style.fontSize = `${(obj.fontSize || 14) * (exportZoom / 16)}px`;
         } else if (obj.subType === 'area-marker' && obj.points) {
-          // Polygon rendering for export
           const pts = obj.points.map(p => `${(p.x - obj.x) * exportZoom},${(p.y - obj.y) * exportZoom}`).join(' ');
           svgContent = `<svg width="100%" height="100%" style="overflow: visible"><polygon points="${pts}" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4" /></svg>`;
         }
@@ -869,21 +868,69 @@ export default function EstimatorClient() {
     });
   }, [selectedObjectIds, saveToHistory]);
 
+  const findRoomBoundaries = (x: number, y: number) => {
+    const walls = designObjects.filter(obj => obj.subType === 'wall');
+    let left = -Infinity, right = Infinity, top = -Infinity, bottom = Infinity;
+    const TOL = 0.5;
+
+    walls.forEach(w => {
+      const isVert = Math.abs(w.rotation % 180) === 90;
+      if (isVert) {
+        if (y >= w.y - TOL && y <= w.y + w.w + TOL) {
+           if (w.x < x) left = Math.max(left, w.x + w.h);
+           else if (w.x > x) right = Math.min(right, w.x);
+        }
+      } else {
+        if (x >= w.x - TOL && x <= w.x + w.w + TOL) {
+          if (w.y < y) top = Math.max(top, w.y + w.h);
+          else if (w.y > y) bottom = Math.min(bottom, w.y);
+        }
+      }
+    });
+
+    const w = (right !== Infinity && left !== -Infinity) ? (right - left) : 8;
+    const h = (bottom !== Infinity && top !== -Infinity) ? (bottom - top) : 8;
+    const finalX = left !== -Infinity ? left : x;
+    const finalY = top !== -Infinity ? top : y;
+
+    return { x: finalX, y: finalY, w, h };
+  };
+
   const addObjectAt = useCallback((type: DesignObject['type'], subType: string, label: string, x: number, y: number, overrides = {}) => {
+    let finalX = x, finalY = y, finalW = 2, finalH = 2, finalText = label;
+
+    if (type === 'text' && subType.startsWith('room-label')) {
+      const bounds = findRoomBoundaries(x, y);
+      finalX = bounds.x; finalY = bounds.y; finalW = bounds.w; finalH = bounds.h;
+      
+      const count = designObjects.filter(o => o.subType === subType).length + 1;
+      const padded = count.toString().padStart(2, '0');
+      
+      if (subType === 'room-label-bed') finalText = `B ROOM-${padded}`;
+      else if (subType === 'room-label-bath') finalText = `BATH-${padded}`;
+      else if (subType === 'room-label-kitchen') finalText = `KITCHEN-${padded}`;
+      else if (subType === 'room-label-living') finalText = `LIVING-${padded}`;
+      else if (subType === 'room-label-dining') finalText = `DINING-${padded}`;
+      else if (subType === 'room-label-mandir') finalText = `MANDIR-${padded}`;
+    }
+
     const newObj: DesignObject = {
       id: Math.random().toString(36).substr(2, 9),
-      type, subType, x, y, w: 2, h: 2, label, 
+      type, subType, x: finalX, y: finalY, w: finalW, h: finalH, label, 
       color: '#000000', fillColor: '#ffffff',
       strokeWidth: 2, strokeStyle: 'solid', rotation: 0,
-      isJoined: false, fontSize: 14, isBold: false, stepCount: 10,
+      isJoined: false, fontSize: 14, isBold: true, stepCount: 10,
+      textContent: finalText,
       ...overrides
     };
+
     if (subType === 'pillar') newObj.fillColor = '#000000';
     if (subType.startsWith('door') || subType === 'sliding-door') { newObj.w = 3.5; newObj.h = currentWallThickness; }
     if (subType === 'double-door') { newObj.w = 6; newObj.h = currentWallThickness; }
     if (subType === 'window') { newObj.w = 4; newObj.h = currentWallThickness; }
     if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
     if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
+    
     const next = [...designObjects, newObj];
     setDesignObjects(next);
     setSelectedObjectIds([newObj.id]);
@@ -993,13 +1040,10 @@ export default function EstimatorClient() {
 
     if (selectedTool === 'area-marker') {
       const point = { x: snappedX, y: snappedY };
-      
-      // If we click near the first point and have at least 3 points, close it
       if (polyPoints.length >= 3) {
         const first = polyPoints[0];
         const dist = Math.sqrt(Math.pow(snappedX - first.x, 2) + Math.pow(snappedY - first.y, 2));
         if (dist < 0.6) {
-          // Close Polygon
           const minX = Math.min(...polyPoints.map(p => p.x));
           const maxX = Math.max(...polyPoints.map(p => p.x));
           const minY = Math.min(...polyPoints.map(p => p.y));
@@ -1014,11 +1058,10 @@ export default function EstimatorClient() {
           setPolyPoints([]);
           setInteractionMode('none');
           setSelectedTool('select');
-          toast({ title: "সফল", description: "রুম এরিয়া পলিনগন সম্পন্ন হয়েছে।" });
+          toast({ title: "সফল", description: "রুম এরিয়া সম্পন্ন হয়েছে।" });
           return;
         }
       }
-
       setPolyPoints([...polyPoints, point]);
       setInteractionMode('drawing-poly');
       return;
@@ -1058,11 +1101,12 @@ export default function EstimatorClient() {
         else if (selectedTool === 'window') addObjectAt('opening', 'window', 'Window', snappedX, snappedY);
         else if (selectedTool === 'stair-u') addObjectAt('stair', 'stair-u', 'Stair 1', snappedX, snappedY);
         else if (selectedTool === 'stair-dogleg') addObjectAt('stair', 'stair-dogleg', 'Stair 2', snappedX, snappedY);
-        else if (selectedTool === 'bed') addObjectAt('structure', 'bed', 'Master Bed', snappedX, snappedY, { w: 6.5, h: 7 });
-        else if (selectedTool === 'sofa') addObjectAt('structure', 'sofa', 'Sofa Set', snappedX, snappedY, { w: 6.5, h: 3 });
-        else if (selectedTool === 'dining') addObjectAt('structure', 'dining', 'Dining Table', snappedX, snappedY, { w: 5, h: 3.5 });
-        else if (selectedTool === 'kitchen') addObjectAt('structure', 'kitchen', 'Kitchen Counter', snappedX, snappedY, { w: 6, h: 2.2 });
-        else if (selectedTool === 'bath') addObjectAt('structure', 'bath', 'Bath Fixture', snappedX, snappedY, { w: 4, h: 3 });
+        else if (selectedTool === 'room-label-bed') addObjectAt('text', 'room-label-bed', 'Bed Room', snappedX, snappedY);
+        else if (selectedTool === 'room-label-bath') addObjectAt('text', 'room-label-bath', 'Bath Room', snappedX, snappedY);
+        else if (selectedTool === 'room-label-kitchen') addObjectAt('text', 'room-label-kitchen', 'Kitchen', snappedX, snappedY);
+        else if (selectedTool === 'room-label-living') addObjectAt('text', 'room-label-living', 'Living Room', snappedX, snappedY);
+        else if (selectedTool === 'room-label-dining') addObjectAt('text', 'room-label-dining', 'Dining Room', snappedX, snappedY);
+        else if (selectedTool === 'room-label-mandir') addObjectAt('text', 'room-label-mandir', 'Mandir', snappedX, snappedY);
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
         setSelectedTool('select'); return;
     }
@@ -1139,26 +1183,14 @@ export default function EstimatorClient() {
           if (selectedObjectIds.includes(other.id)) continue;
           const targetXs = [other.x, other.x + other.w / 2, other.x + other.w];
           for (const candX of targetXs) {
-            if (Math.abs(tx - candX) < SNAP_THRESHOLD) {
-              tx = candX;
-              guideX = candX;
-              break;
-            }
+            if (Math.abs(tx - candX) < SNAP_THRESHOLD) { tx = candX; guideX = candX; break; }
           }
           const targetYs = [other.y, other.y + other.h / 2, other.y + other.h];
           for (const candY of targetYs) {
-            if (Math.abs(ty - candY) < SNAP_THRESHOLD) {
-              ty = candY;
-              guideY = candY;
-              break;
-            }
+            if (Math.abs(ty - candY) < SNAP_THRESHOLD) { ty = candY; guideY = candY; break; }
           }
         }
-        if (guideX !== undefined || guideY !== undefined) {
-          setActiveSnapGuides({ x: guideX, y: guideY });
-        } else {
-          setActiveSnapGuides(null);
-        }
+        setActiveSnapGuides(guideX !== undefined || guideY !== undefined ? { x: guideX, y: guideY } : null);
       } else {
         setActiveSnapGuides(null);
       }
@@ -1167,12 +1199,9 @@ export default function EstimatorClient() {
       if (dx !== 0 || dy !== 0) {
         setDesignObjects(prev => prev.map(o => {
           if (selectedObjectIds.includes(o.id) && !o.isJoined) {
-            const nextX = o.x + dx;
-            const nextY = o.y + dy;
+            const nextX = o.x + dx, nextY = o.y + dy;
             const updates: any = { x: nextX, y: nextY };
-            if (o.points) {
-              updates.points = o.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
-            }
+            if (o.points) updates.points = o.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
             return { ...o, ...updates };
           }
           return o;
@@ -1240,11 +1269,8 @@ export default function EstimatorClient() {
     const safeZoom = Math.max(displayZoom, 0.1); 
     const startUnit = Math.floor((scrollVal - CANVAS_OFFSET) / (interval * safeZoom)) * interval;
     const count = Math.min(Math.ceil(2000 / (interval * safeZoom)), 500); 
-    
     const units = [];
-    for (let t = 0; t <= count; t++) {
-      units.push(startUnit + t * interval);
-    }
+    for (let t = 0; t <= count; t++) units.push(startUnit + t * interval);
 
     return (
       <div className={cn("bg-slate-900 border-slate-800 ruler-container", orientation === 'horizontal' ? "h-8 border-b w-full relative shrink-0" : "w-8 border-r h-full relative shrink-0")}>
@@ -1274,17 +1300,13 @@ export default function EstimatorClient() {
     const sw = 1 / displayZoom;
     if (obj.subType === 'area-marker') {
       const areaSqFt = obj.points ? Math.round(calculatePolygonArea(obj.points)) : Math.round(obj.w * obj.h);
-      
       if (obj.points) {
         const minX = Math.min(...obj.points.map(p => p.x));
         const minY = Math.min(...obj.points.map(p => p.y));
         const pts = obj.points.map(p => `${(p.x - minX) * displayZoom},${(p.y - minY) * displayZoom}`).join(' ');
-        
         return (
           <div className="w-full h-full relative pointer-events-none">
-            <svg width="100%" height="100%" className="overflow-visible">
-              <polygon points={pts} fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
-            </svg>
+            <svg width="100%" height="100%" className="overflow-visible"><polygon points={pts} fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" /></svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm border border-blue-200 flex flex-col items-center">
                 <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{obj.label || "রুম এলাকা"}</span>
@@ -1294,7 +1316,6 @@ export default function EstimatorClient() {
           </div>
         );
       }
-      
       return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-blue-500/10 border-2 border-dashed border-blue-400/60 rounded-sm pointer-events-none">
           <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm flex flex-col items-center">
@@ -1333,121 +1354,73 @@ export default function EstimatorClient() {
       );
     }
     if (obj.subType === 'stair-u') {
-      const steps = obj.stepCount || 15; 
-      const landingH = obj.h * 0.25; 
-      const flightW = obj.w * 0.3;
-      const midFlightH = obj.h - 2 * landingH;
-      const sCount = Math.floor(steps / 3);
-      const oStepH = midFlightH / sCount;
-      const oStepW = (obj.w - 2 * flightW) / sCount;
+      const steps = obj.stepCount || 15; const landingH = obj.h * 0.25; const flightW = obj.w * 0.3;
+      const midFlightH = obj.h - 2 * landingH; const sCount = Math.floor(steps / 3);
+      const oStepH = midFlightH / sCount; const oStepW = (obj.w - 2 * flightW) / sCount;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={flightW} y1={0} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={obj.w - flightW} y1={0} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={flightW} y1={obj.h - landingH} x2={obj.w - flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`f1-${i}`} x1="0" y1={obj.h - landingH - (i * oStepH)} x2={flightW} y2={obj.h - landingH - (i * oStepH)} stroke={obj.color} strokeWidth={sw} />
-          ))}
-          {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`f2-${i}`} x1={flightW + (i * oStepW)} y1={landingH} x2={flightW + (i * oStepW)} y2={0} stroke={obj.color} strokeWidth={sw} />
-          ))}
-          {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`f3-${i}`} x1={obj.w - flightW} y1={landingH + (i * oStepH)} x2={obj.w} y2={landingH + (i * oStepH)} stroke={obj.color} strokeWidth={sw} />
-          ))}
+          <line x1={flightW} y1={0} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w - flightW} y1={0} x2={obj.w - flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW} y1={obj.h - landingH} x2={obj.w - flightW} y2={obj.h - landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {Array.from({ length: sCount }).map((_, i) => <line key={`f1-${i}`} x1="0" y1={obj.h - landingH - (i * oStepH)} x2={flightW} y2={obj.h - landingH - (i * oStepH)} stroke={obj.color} strokeWidth={sw} />)}
+          {Array.from({ length: sCount }).map((_, i) => <line key={`f2-${i}`} x1={flightW + (i * oStepW)} y1={landingH} x2={flightW + (i * oStepW)} y2={0} stroke={obj.color} strokeWidth={sw} />)}
+          {Array.from({ length: sCount }).map((_, i) => <line key={`f3-${i}`} x1={obj.w - flightW} y1={landingH + (i * oStepH)} x2={obj.w} y2={landingH + (i * oStepH)} stroke={obj.color} strokeWidth={sw} />)}
         </svg>
       );
     }
     if (obj.subType === 'stair-dogleg') {
-      const steps = obj.stepCount || 10; 
-      const landingH = obj.h * 0.2; 
-      const railW = obj.w * 0.1;
-      const flightW = (obj.w - railW) / 2;
-      const midH = obj.h - landingH;
-      const sCount = Math.floor(steps / 2);
-      const oStepH = midH / sCount;
+      const steps = obj.stepCount || 10; const landingH = obj.h * 0.2; const railW = obj.w * 0.1;
+      const flightW = (obj.w - railW) / 2; const midH = obj.h - landingH; const sCount = Math.floor(steps / 2); const oStepH = midH / sCount;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
           <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} />
-          <line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
-          {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * oStepH} x2={flightW} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />
-          ))}
-          {Array.from({ length: sCount }).map((_, i) => (
-            <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * oStepH} x2={obj.w} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />
-          ))}
+          <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
+          {Array.from({ length: sCount }).map((_, i) => <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * oStepH} x2={flightW} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />)}
+          {Array.from({ length: sCount }).map((_, i) => <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * oStepH} x2={obj.w} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />)}
         </svg>
       );
     }
     if (obj.subType === 'bed') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f1f5f9" stroke="#334155" strokeWidth={sw * 2} rx="0.2" />
-          <rect x={obj.w * 0.05} y={obj.h * 0.04} width={obj.w * 0.9} height={obj.h * 0.18} fill="#94a3b8" stroke="#475569" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.1} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.55} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.08} y={obj.h * 0.48} width={obj.w * 0.84} height={obj.h * 0.48} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={sw} rx="0.1" />
-          <line x1={obj.w * 0.08} y1={obj.h * 0.6} x2={obj.w * 0.92} y2={obj.h * 0.6} stroke="#cbd5e1" strokeWidth={sw} />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f1f5f9" stroke="#334155" strokeWidth={sw * 2} rx="0.2" /><rect x={obj.w * 0.05} y={obj.h * 0.04} width={obj.w * 0.9} height={obj.h * 0.18} fill="#94a3b8" stroke="#475569" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.1} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.55} y={obj.h * 0.26} width={obj.w * 0.35} height={obj.h * 0.18} fill="#ffffff" stroke="#cbd5e1" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.08} y={obj.h * 0.48} width={obj.w * 0.84} height={obj.h * 0.48} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={sw} rx="0.1" /><line x1={obj.w * 0.08} y1={obj.h * 0.6} x2={obj.w * 0.92} y2={obj.h * 0.6} stroke="#cbd5e1" strokeWidth={sw} />
         </svg>
       );
     }
     if (obj.subType === 'sofa') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#e0e7ff" stroke="#4338ca" strokeWidth={sw * 2} rx="0.3" />
-          <rect x={obj.w * 0.05} y="0" width={obj.w * 0.9} height={obj.h * 0.35} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" />
-          <rect x="0" y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" />
-          <rect x={obj.w * 0.88} y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" />
-          <line x1={obj.w * 0.38} y1={obj.h * 0.35} x2={obj.w * 0.38} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} />
-          <line x1={obj.w * 0.62} y1={obj.h * 0.35} x2={obj.w * 0.62} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#e0e7ff" stroke="#4338ca" strokeWidth={sw * 2} rx="0.3" /><rect x={obj.w * 0.05} y="0" width={obj.w * 0.9} height={obj.h * 0.35} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" /><rect x="0" y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" /><rect x={obj.w * 0.88} y={obj.h * 0.1} width={obj.w * 0.12} height={obj.h * 0.85} fill="#c7d2fe" stroke="#4338ca" strokeWidth={sw} rx="0.2" /><line x1={obj.w * 0.38} y1={obj.h * 0.35} x2={obj.w * 0.38} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} /><line x1={obj.w * 0.62} y1={obj.h * 0.35} x2={obj.w * 0.62} y2={obj.h * 0.95} stroke="#818cf8" strokeWidth={sw * 1.5} />
         </svg>
       );
     }
     if (obj.subType === 'dining') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x={obj.w * 0.12} y={obj.h * 0.18} width={obj.w * 0.76} height={obj.h * 0.64} fill="#fef3c7" stroke="#b45309" strokeWidth={sw * 2} rx="0.2" />
-          <rect x={obj.w * 0.22} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.56} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.22} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.56} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
-          <rect x="0" y={obj.h * 0.35} width={obj.w * 0.1} height={obj.h * 0.3} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
-          <rect x={obj.w * 0.9} y={obj.h * 0.35} width={obj.w * 0.1} height={obj.h * 0.3} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
+          <rect x={obj.w * 0.12} y={obj.h * 0.18} width={obj.w * 0.76} height={obj.h * 0.64} fill="#fef3c7" stroke="#b45309" strokeWidth={sw * 2} rx="0.2" /><rect x={obj.w * 0.22} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.56} y="0" width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.22} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.56} y={obj.h * 0.85} width={obj.w * 0.22} height={obj.h * 0.15} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x="0" y={obj.h * 0.35} width={obj.w * 0.1} height={obj.h * 0.3} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" /><rect x={obj.w * 0.9} y={obj.h * 0.35} width={obj.w * 0.1} height={obj.h * 0.3} fill="#d97706" stroke="#92400e" strokeWidth={sw} rx="0.1" />
         </svg>
       );
     }
     if (obj.subType === 'kitchen') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f8fafc" stroke="#475569" strokeWidth={sw * 2} />
-          <rect x={obj.w * 0.1} y={obj.h * 0.18} width={obj.w * 0.28} height={obj.h * 0.64} fill="#e2e8f0" stroke="#64748b" strokeWidth={sw} rx="0.1" />
-          <circle cx={obj.w * 0.24} cy={obj.h * 0.5} r={obj.h * 0.1} fill="#94a3b8" />
-          <rect x={obj.w * 0.55} y={obj.h * 0.15} width={obj.w * 0.35} height={obj.h * 0.7} fill="#1e293b" stroke="#0f172a" strokeWidth={sw} rx="0.1" />
-          <circle cx={obj.w * 0.55} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
-          <circle cx={obj.w * 0.75} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f8fafc" stroke="#475569" strokeWidth={sw * 2} /><rect x={obj.w * 0.1} y={obj.h * 0.18} width={obj.w * 0.28} height={obj.h * 0.64} fill="#e2e8f0" stroke="#64748b" strokeWidth={sw} rx="0.1" /><circle cx={obj.w * 0.24} cy={obj.h * 0.5} r={obj.h * 0.1} fill="#94a3b8" /><rect x={obj.w * 0.55} y={obj.h * 0.15} width={obj.w * 0.35} height={obj.h * 0.7} fill="#1e293b" stroke="#0f172a" strokeWidth={sw} rx="0.1" /><circle cx={obj.w * 0.55} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} /><circle cx={obj.w * 0.75} cy={obj.h * 0.5} r={obj.h * 0.2} fill="none" stroke="#f97316" strokeWidth={sw * 1.5} />
         </svg>
       );
     }
     if (obj.subType === 'bath') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f0fdfa" stroke="#0d9488" strokeWidth={sw * 2} rx="0.2" />
-          <rect x={obj.w * 0.1} y={obj.h * 0.1} width={obj.w * 0.3} height={obj.h * 0.2} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} rx="0.05" />
-          <ellipse cx={obj.w * 0.25} cy={obj.h * 0.55} rx={obj.w * 0.18} ry={obj.h * 0.28} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} />
-          <ellipse cx={obj.w * 0.72} cy={obj.h * 0.4} rx={obj.w * 0.18} ry={obj.h * 0.22} fill="#ffffff" stroke="#0f766e" strokeWidth={sw} />
-          <circle cx={obj.w * 0.72} cy={obj.h * 0.4} r={obj.h * 0.06} fill="#0d9488" />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="#f0fdfa" stroke="#0d9488" strokeWidth={sw * 2} rx="0.2" /><rect x={obj.w * 0.1} y={obj.h * 0.1} width={obj.w * 0.3} height={obj.h * 0.2} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} rx="0.05" /><ellipse cx={obj.w * 0.25} cy={obj.h * 0.55} rx={obj.w * 0.18} ry={obj.h * 0.28} fill="#ffffff" stroke="#14b8a6" strokeWidth={sw} /><ellipse cx={obj.w * 0.72} cy={obj.h * 0.4} rx={obj.w * 0.18} ry={obj.h * 0.22} fill="#ffffff" stroke="#0f766e" strokeWidth={sw} /><circle cx={obj.w * 0.72} cy={obj.h * 0.4} r={obj.h * 0.06} fill="#0d9488" />
         </svg>
       );
     }
     if (obj.type === 'text') {
       const labelText = obj.textContent || obj.label;
       const dimText = `${formatDimension(obj.w)} × ${formatDimension(obj.h)}`;
+      const isRoomLabel = obj.subType.startsWith('room-label');
       return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? 'black' : 'normal' }}>
-          <div className="whitespace-nowrap">{labelText}</div>
+        <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: isRoomLabel ? '#3b82f6' : obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? '900' : 'normal' }}>
+          <div className="whitespace-nowrap uppercase tracking-tighter">{labelText}</div>
           <div className="text-[0.85em] opacity-80 whitespace-nowrap">({dimText})</div>
         </div>
       );
@@ -1519,9 +1492,21 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} color="indigo" />
               <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} color="slate" />
               <SymbolButton active={selectedTool === 'area-marker'} icon={<Maximize2 className="w-4 h-4" />} label="রুম এরিয়া" onClick={() => setSelectedTool('area-marker')} color="sky" />
+              
+              <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
+              
+              <SymbolButton active={selectedTool === 'room-label-bed'} icon={<Bed className="w-4 h-4" />} label="Bed" onClick={() => setSelectedTool('room-label-bed')} color="blue" />
+              <SymbolButton active={selectedTool === 'room-label-bath'} icon={<Bath className="w-4 h-4" />} label="Bath" onClick={() => setSelectedTool('room-label-bath')} color="teal" />
+              <SymbolButton active={selectedTool === 'room-label-kitchen'} icon={<CookingPot className="w-4 h-4" />} label="Kitchen" onClick={() => setSelectedTool('room-label-kitchen')} color="emerald" />
+              <SymbolButton active={selectedTool === 'room-label-living'} icon={<Armchair className="w-4 h-4" />} label="Living" onClick={() => setSelectedTool('room-label-living')} color="indigo" />
+              <SymbolButton active={selectedTool === 'room-label-dining'} icon={<UtensilsCrossed className="w-4 h-4" />} label="Dining" onClick={() => setSelectedTool('room-label-dining')} color="amber" />
+              <SymbolButton active={selectedTool === 'room-label-mandir'} icon={<Magnet className="w-4 h-4" />} label="Mandir" onClick={() => setSelectedTool('room-label-mandir')} color="purple" />
+              <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Custom" onClick={() => setSelectedTool('label')} color="cyan" />
+
+              <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
               <SymbolButton active={selectedTool === 'stair-u'} icon={<Rows />} label="Stair 1" onClick={() => setSelectedTool('stair-u')} color="violet" />
               <SymbolButton active={selectedTool === 'stair-dogleg'} icon={<Rows />} label="Stair 2" onClick={() => setSelectedTool('stair-dogleg')} color="purple" />
-              <SymbolButton active={selectedTool === 'label'} icon={<TypeIcon />} label="Label" onClick={() => setSelectedTool('label')} color="cyan" />
+              
               <div className="w-px h-3 bg-slate-800 mx-0.5 md:hidden" />
               <div className="flex md:flex-col gap-1 items-center md:items-stretch">
                 <SymbolButton active={selectedTool === 'door-1'} icon={<DoorOpen />} label="D1" onClick={() => setSelectedTool('door-1')} color="teal" />
@@ -1531,12 +1516,6 @@ export default function EstimatorClient() {
                 <SymbolButton active={selectedTool === 'double-door'} icon={<LayoutGrid />} label="DBL" onClick={() => setSelectedTool('double-door')} color="pink" />
                 <SymbolButton active={selectedTool === 'sliding-door'} icon={<RectangleHorizontal />} label="SLD" onClick={() => setSelectedTool('sliding-door')} color="pink" />
                 <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="WIN" onClick={() => setSelectedTool('window')} color="sky" />
-                <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
-                <SymbolButton active={selectedTool === 'bed'} icon={<Bed className="w-4 h-4" />} label="Bed" onClick={() => setSelectedTool('bed')} color="blue" />
-                <SymbolButton active={selectedTool === 'sofa'} icon={<Armchair className="w-4 h-4" />} label="Sofa" onClick={() => setSelectedTool('sofa')} color="indigo" />
-                <SymbolButton active={selectedTool === 'dining'} icon={<UtensilsCrossed className="w-4 h-4" />} label="Dining" onClick={() => setSelectedTool('dining')} color="amber" />
-                <SymbolButton active={selectedTool === 'kitchen'} icon={<CookingPot className="w-4 h-4" />} label="Kitchen" onClick={() => setSelectedTool('kitchen')} color="emerald" />
-                <SymbolButton active={selectedTool === 'bath'} icon={<Bath className="w-4 h-4" />} label="Bath" onClick={() => setSelectedTool('bath')} color="teal" />
               </div>
             </div>
           </ScrollArea>
@@ -1573,13 +1552,8 @@ export default function EstimatorClient() {
                 {interactionMode === 'drawing-poly' && polyPoints.length > 0 && (
                    <div className="absolute inset-0 pointer-events-none" style={{ left: CANVAS_OFFSET, top: CANVAS_OFFSET }}>
                       <svg width="20000" height="20000" className="overflow-visible">
-                        <polyline 
-                          points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} 
-                          fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" 
-                        />
-                        {polyPoints.map((p, i) => (
-                          <circle key={i} cx={p.x * displayZoom} cy={p.y * displayZoom} r={4} fill={i === 0 ? "#ef4444" : "#3b82f6"} stroke="white" strokeWidth={1} />
-                        ))}
+                        <polyline points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
+                        {polyPoints.map((p, i) => <circle key={i} cx={p.x * displayZoom} cy={p.y * displayZoom} r={4} fill={i === 0 ? "#ef4444" : "#3b82f6"} stroke="white" strokeWidth={1} />)}
                       </svg>
                    </div>
                 )}
@@ -1588,65 +1562,10 @@ export default function EstimatorClient() {
                 )}
                 {activeSnapGuides && (
                   <>
-                    {activeSnapGuides.x !== undefined && (
-                      <div 
-                        className="absolute pointer-events-none z-[80] border-l-2 border-dashed border-cyan-400 opacity-90 shadow-sm"
-                        style={{
-                          left: activeSnapGuides.x * displayZoom + CANVAS_OFFSET,
-                          top: 0,
-                          bottom: 0,
-                          height: 20000
-                        }}
-                      >
-                        <div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute top-2 left-1">
-                          X: {activeSnapGuides.x.toFixed(1)}'
-                        </div>
-                      </div>
-                    )}
-                    {activeSnapGuides.y !== undefined && (
-                      <div 
-                        className="absolute pointer-events-none z-[80] border-t-2 border-dashed border-cyan-400 opacity-90 shadow-sm"
-                        style={{
-                          top: activeSnapGuides.y * displayZoom + CANVAS_OFFSET,
-                          left: 0,
-                          right: 0,
-                          width: 20000
-                        }}
-                      >
-                        <div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute left-2 top-1">
-                          Y: {activeSnapGuides.y.toFixed(1)}'
-                        </div>
-                      </div>
-                    )}
+                    {activeSnapGuides.x !== undefined && <div className="absolute pointer-events-none z-[80] border-l-2 border-dashed border-cyan-400 opacity-90 shadow-sm" style={{ left: activeSnapGuides.x * displayZoom + CANVAS_OFFSET, top: 0, bottom: 0, height: 20000 }}><div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute top-2 left-1">X: {activeSnapGuides.x.toFixed(1)}'</div></div>}
+                    {activeSnapGuides.y !== undefined && <div className="absolute pointer-events-none z-[80] border-t-2 border-dashed border-cyan-400 opacity-90 shadow-sm" style={{ top: activeSnapGuides.y * displayZoom + CANVAS_OFFSET, left: 0, right: 0, width: 20000 }}><div className="bg-cyan-500 text-white text-[8px] font-mono px-1 rounded absolute left-2 top-1">Y: {activeSnapGuides.y.toFixed(1)}'</div></div>}
                   </>
                 )}
-
-                {designObjects.filter(o => (o.subType === 'room' || (o.type === 'structure' && o.w > 4 && o.h > 4 && !o.subType.includes('wall') && !o.subType.includes('stair') && !o.subType.includes('door') && !o.subType.includes('window')))).map(rm => {
-                  const areaSqFt = Math.round(rm.w * rm.h);
-                  const areaSqm = (areaSqFt * 0.092903).toFixed(1);
-                  return (
-                    <div 
-                      key={`room-poly-${rm.id}`} 
-                      className="absolute pointer-events-none z-20 flex flex-col items-center justify-center p-1 rounded-lg border border-indigo-300/40 bg-indigo-50/20"
-                      style={{
-                        left: rm.x * displayZoom + CANVAS_OFFSET,
-                        top: rm.y * displayZoom + CANVAS_OFFSET,
-                        width: rm.w * displayZoom,
-                        height: rm.h * displayZoom,
-                      }}
-                    >
-                      <div className="bg-indigo-950/80 text-white px-2 py-1 rounded shadow-md border border-indigo-400/30 flex flex-col items-center backdrop-blur-xs">
-                        <span className="text-[10px] font-black text-indigo-200 uppercase tracking-wider">{rm.label || "রুম"}</span>
-                        <span className="text-[11px] font-black text-amber-300">
-                          {unitSystem === 'metric' ? `${areaSqm} m²` : `${areaSqFt} sqft`}
-                        </span>
-                        <span className="text-[8px] text-slate-300">
-                          {unitSystem === 'metric' ? `${(rm.w * 0.3048).toFixed(1)}m × ${(rm.h * 0.3048).toFixed(1)}m` : `${Math.round(rm.w)}' × ${Math.round(rm.h)}'`}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             </div>
             <div className="absolute bottom-4 right-4 flex flex-col items-center gap-1 z-[60] bg-white/50 p-2 rounded-xl backdrop-blur-sm border border-slate-200">
@@ -1663,50 +1582,17 @@ export default function EstimatorClient() {
               <ZoomOut className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.max(5, z - 1))} />
               <Slider value={[zoom]} max={250} min={0} step={1} className="w-20 md:w-32" onValueChange={(val) => setZoom(val[0])} />
               <ZoomIn className="w-3.5 h-3.5 text-slate-400 cursor-pointer" onClick={() => setZoom(z => Math.min(250, z + 1))} />
-              <div className="flex items-center gap-1 ml-1 md:ml-2">
-                <Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-5 w-12 text-[10px] md:text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white p-0" />
-                <span className="text-[8px] font-black text-slate-400 uppercase">%</span>
-              </div>
+              <div className="flex items-center gap-1 ml-1 md:ml-2"><Input type="number" value={zoom === 0 ? "" : zoom} onChange={(e) => { const val = parseInt(e.target.value); setZoom(isNaN(val) ? 0 : Math.min(250, val)); }} onBlur={() => { if (zoom < 5) setZoom(5); }} className="h-5 w-12 text-[10px] md:text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white p-0" /><span className="text-[8px] font-black text-slate-400 uppercase">%</span></div>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
               <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">Pillar Line</span><Checkbox checked={showPillarDistances} onCheckedChange={(val) => setShowPillarDistances(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
               <div className="flex items-center gap-1 md:gap-2"><span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">Dimensions</span><Checkbox checked={showDimensions} onCheckedChange={(val) => setShowDimensions(!!val)} className="scale-75 border-slate-600 data-[state=checked]:bg-blue-600" /></div>
-              <div className="flex items-center bg-slate-800 p-0.5 rounded border border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setUnitSystem('imperial')}
-                  className={cn("px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black transition-colors", unitSystem === 'imperial' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")}
-                  title="ফুট-ইঞ্চি মোড"
-                >
-                  ft-in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUnitSystem('metric')}
-                  className={cn("px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black transition-colors", unitSystem === 'metric' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")}
-                  title="মিটার-সেমি মোড"
-                >
-                  m-cm
-                </button>
-              </div>
+              <div className="flex items-center bg-slate-800 p-0.5 rounded border border-slate-700"><button type="button" onClick={() => setUnitSystem('imperial')} className={cn("px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black transition-colors", unitSystem === 'imperial' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")} title="ফুট-ইঞ্চি মোড">ft-in</button><button type="button" onClick={() => setUnitSystem('metric')} className={cn("px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black transition-colors", unitSystem === 'metric' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")} title="মিটার-সেমি মোড">m-cm</button></div>
             </div>
           </div>
-          
           <div className="h-10 w-full bg-slate-900 border-t border-slate-800 flex items-center shrink-0 z-40 relative group/bbar overflow-hidden">
-            <Button 
-              variant="secondary" 
-              size="icon" 
-              className="absolute left-0 h-full w-6 z-50 rounded-none border-r border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md p-0"
-              onClick={() => scrollBottomBar('left')}
-            >
-              <ChevronLeft className="w-3 h-3 text-white" />
-            </Button>
-            
-            <div 
-              ref={bottomBarRef} 
-              className="flex-1 h-full overflow-x-auto overflow-y-hidden select-none"
-              style={{ scrollbarWidth: 'none' }}
-            >
+            <Button variant="secondary" size="icon" className="absolute left-0 h-full w-6 z-50 rounded-none border-r border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md p-0" onClick={() => scrollBottomBar('left')}><ChevronLeft className="w-3 h-3 text-white" /></Button>
+            <div ref={bottomBarRef} className="flex-1 h-full overflow-x-auto overflow-y-hidden select-none" style={{ scrollbarWidth: 'none' }}>
               <div className="flex items-center px-8 gap-4 min-w-max h-full text-[11px]">
                 {firstSelectedObject ? (
                   <div className="flex items-center gap-4 flex-nowrap py-0">
@@ -1725,31 +1611,14 @@ export default function EstimatorClient() {
                           <Button variant={firstSelectedObject.isBold ? "default" : "outline"} size="icon" className="h-5 w-5 ml-0.5 border-slate-700 bg-slate-800 text-white p-0" onClick={() => updateObject(firstSelectedObject.id, { isBold: !firstSelectedObject.isBold }, true)}><BoldIcon className="w-2.5 h-2.5" /></Button>
                         </>
                       )}
-                      <div className="flex items-center gap-0.5 border-l border-slate-800 pl-1 flex-nowrap">
-                        <Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" /></Button>
-                        <Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" style={{ transform: 'rotate(180deg)' }} /></Button>
-                      </div>
+                      <div className="flex items-center gap-0.5 border-l border-slate-800 pl-1 flex-nowrap"><Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" /></Button><Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" style={{ transform: 'rotate(180deg)' }} /></Button></div>
                     </div>
-                    <div className="flex items-center gap-0.5 border-l border-slate-800 pl-2 flex-nowrap">
-                      {COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-3 h-3 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-1 ring-red-600" : "border-slate-700")} style={{ backgroundColor: c }} />)}
-                    </div>
+                    <div className="flex items-center gap-0.5 border-l border-slate-800 pl-2 flex-nowrap">{COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-3 h-3 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-1 ring-red-600" : "border-slate-700")} style={{ backgroundColor: c }} />)}</div>
                   </div>
-                ) : (
-                  <div className="w-full flex items-center justify-center text-slate-500 italic text-[8px] uppercase tracking-widest font-black">
-                    Select Object to View Properties
-                  </div>
-                )}
+                ) : <div className="w-full flex items-center justify-center text-slate-500 italic text-[8px] uppercase tracking-widest font-black">Select Object to View Properties</div>}
               </div>
             </div>
-
-            <Button 
-              variant="secondary" 
-              size="icon" 
-              className="absolute right-0 h-full w-6 z-50 rounded-none border-l border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md p-0"
-              onClick={() => scrollBottomBar('right')}
-            >
-              <ChevronRight className="w-3 h-3 text-white" />
-            </Button>
+            <Button variant="secondary" size="icon" className="absolute right-0 h-full w-6 z-50 rounded-none border-l border-slate-700 opacity-100 bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow-md p-0" onClick={() => scrollBottomBar('right')}><ChevronRight className="w-3 h-3 text-white" /></Button>
           </div>
         </div>
       </div>
@@ -1772,220 +1641,39 @@ export default function EstimatorClient() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isExportDialogOpen} onOpenChange={(open) => {
-        setIsExportDialogOpen(open);
-        if (open) {
-          fetchSavedDesigns();
-          setExportSettings(prev => ({ ...prev, targetProjectId: currentDesignId }));
-        }
-      }}>
+      <Dialog open={isExportDialogOpen} onOpenChange={(open) => { setIsExportDialogOpen(open); if (open) { fetchSavedDesigns(); setExportSettings(prev => ({ ...prev, targetProjectId: currentDesignId })); } }}>
         <DialogContent className="max-w-md bg-white rounded-xl border shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Download className="w-5 h-5 text-blue-500" /> Export Design</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Download className="w-5 h-5 text-blue-500" /> Export Design</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label className="font-black text-slate-700 uppercase text-[10px]">Select Project to Export</Label>
-              <Select value={exportSettings.targetProjectId} onValueChange={(v) => setExportSettings({...exportSettings, targetProjectId: v})}>
-                <SelectTrigger className="font-black h-12">
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={currentDesignId} className="font-black">{projectName} (Current)</SelectItem>
-                  {savedDesigns.filter(d => d.id !== currentDesignId).map(d => (
-                    <SelectItem key={d.id} value={d.id} className="font-black">{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-black text-slate-700 uppercase text-[10px]">Export Format</Label>
-              <Select value={exportSettings.format} onValueChange={(v: any) => setExportSettings({...exportSettings, format: v})}>
-                <SelectTrigger className="font-black h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="png" className="font-black">Image (PNG)</SelectItem>
-                  <SelectItem value="pdf" className="font-black">Document (PDF - A4)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-black text-slate-700 uppercase text-[10px]">Select Area</Label>
-              <Select value={exportSettings.area} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}>
-                <SelectTrigger className="font-black h-12">
-                  <SelectValue placeholder="Select Area" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="font-black">Full Workspace</SelectItem>
-                  <SelectItem value="custom" className="font-black">Custom Area Range</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            <div className="space-y-2"><Label className="font-black text-slate-700 uppercase text-[10px]">Select Project to Export</Label><Select value={exportSettings.targetProjectId} onValueChange={(v) => setExportSettings({...exportSettings, targetProjectId: v})}><SelectTrigger className="font-black h-12"><SelectValue placeholder="Select a project" /></SelectTrigger><SelectContent><SelectItem value={currentDesignId} className="font-black">{projectName} (Current)</SelectItem>{savedDesigns.filter(d => d.id !== currentDesignId).map(d => <SelectItem key={d.id} value={d.id} className="font-black">{d.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label className="font-black text-slate-700 uppercase text-[10px]">Export Format</Label><Select value={exportSettings.format} onValueChange={(v: any) => setExportSettings({...exportSettings, format: v})}><SelectTrigger className="font-black h-12"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="png" className="font-black">Image (PNG)</SelectItem><SelectItem value="pdf" className="font-black">Document (PDF - A4)</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label className="font-black text-slate-700 uppercase text-[10px]">Select Area</Label><Select value={exportSettings.area} onValueChange={(v: any) => setExportSettings({...exportSettings, area: v})}><SelectTrigger className="font-black h-12"><SelectValue placeholder="Select Area" /></SelectTrigger><SelectContent><SelectItem value="all" className="font-black">Full Workspace</SelectItem><SelectItem value="custom" className="font-black">Custom Area Range</SelectItem></SelectContent></Select></div>
             {exportSettings.area === 'custom' && (
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Length From (ft)</Label>
-                  <Input type="number" value={exportSettings.xStart} onChange={e => setExportSettings({...exportSettings, xStart: parseFloat(e.target.value) || 0})} className="font-black" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Length To (ft)</Label>
-                  <Input type="number" value={exportSettings.xEnd} onChange={e => setExportSettings({...exportSettings, xEnd: parseFloat(e.target.value) || 0})} className="font-black" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Width From (ft)</Label>
-                  <Input type="number" value={exportSettings.yStart} onChange={e => setExportSettings({...exportSettings, yStart: parseFloat(e.target.value) || 0})} className="font-black" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-slate-400">Width To (ft)</Label>
-                  <Input type="number" value={exportSettings.yEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" />
-                </div>
+                <div className="space-y-1"><Label className="text-[9px] font-black uppercase text-slate-400">Length From (ft)</Label><Input type="number" value={exportSettings.xStart} onChange={e => setExportSettings({...exportSettings, xStart: parseFloat(e.target.value) || 0})} className="font-black" /></div>
+                <div className="space-y-1"><Label className="text-[9px] font-black uppercase text-slate-400">Length To (ft)</Label><Input type="number" value={exportSettings.xEnd} onChange={e => setExportSettings({...exportSettings, xEnd: parseFloat(e.target.value) || 0})} className="font-black" /></div>
+                <div className="space-y-1"><Label className="text-[9px] font-black uppercase text-slate-400">Width From (ft)</Label><Input type="number" value={exportSettings.yStart} onChange={e => setExportSettings({...exportSettings, yStart: parseFloat(e.target.value) || 0})} className="font-black" /></div>
+                <div className="space-y-1"><Label className="text-[9px] font-black uppercase text-slate-400">Width To (ft)</Label><Input type="number" value={exportSettings.yEnd} onChange={e => setExportSettings({...exportSettings, yEnd: parseFloat(e.target.value) || 0})} className="font-black" /></div>
               </div>
             )}
-
-            <div className="flex items-center gap-6 py-2 border-t pt-4">
-              <div className="flex items-center gap-2">
-                <Checkbox id="exp-dim" checked={exportSettings.showDimensions} onCheckedChange={(v) => setExportSettings({...exportSettings, showDimensions: !!v})} />
-                <Label htmlFor="exp-dim" className="text-[10px] font-black uppercase cursor-pointer">Show Dimensions</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="exp-pill" checked={exportSettings.showPillars} onCheckedChange={(v) => setExportSettings({...exportSettings, showPillars: !!v})} />
-                <Label htmlFor="exp-pill" className="text-[10px] font-black uppercase cursor-pointer">Pillar Lines</Label>
-              </div>
-            </div>
+            <div className="flex items-center gap-6 py-2 border-t pt-4"><div className="flex items-center gap-2"><Checkbox id="exp-dim" checked={exportSettings.showDimensions} onCheckedChange={(v) => setExportSettings({...exportSettings, showDimensions: !!v})} /><Label htmlFor="exp-dim" className="text-[10px] font-black uppercase cursor-pointer">Show Dimensions</Label></div><div className="flex items-center gap-2"><Checkbox id="exp-pill" checked={exportSettings.showPillars} onCheckedChange={(v) => setExportSettings({...exportSettings, showPillars: !!v})} /><Label htmlFor="exp-pill" className="text-[10px] font-black uppercase cursor-pointer">Pillar Lines</Label></div></div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={() => handleExport('download')} className="flex-1 bg-blue-600 hover:bg-blue-700 font-black gap-2 h-11">
-              {exportSettings.format === 'png' ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-              ডাউনলোড {exportSettings.format.toUpperCase()}
-            </Button>
-            <Button 
-              onClick={() => handleExport('cloud')} 
-              disabled={isCloudUploading}
-              variant="outline"
-              className="flex-1 border-cyan-500/60 text-cyan-600 hover:bg-cyan-50 font-black gap-2 h-11"
-            >
-              {isCloudUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4 text-cyan-500" />}
-              ক্লাউডে সেভ করুন
-            </Button>
-          </DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2"><Button onClick={() => handleExport('download')} className="flex-1 bg-blue-600 hover:bg-blue-700 font-black gap-2 h-11">{exportSettings.format === 'png' ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}ডাউনলোড {exportSettings.format.toUpperCase()}</Button><Button onClick={() => handleExport('cloud')} disabled={isCloudUploading} variant="outline" className="flex-1 border-cyan-500/60 text-cyan-600 hover:bg-cyan-50 font-black gap-2 h-11">{isCloudUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4 text-cyan-500" />}ক্লাউডে সেভ করুন</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <CloudGalleryDialog open={isCloudGalleryOpen} onOpenChange={setIsCloudGalleryOpen} />
-
       <ThreeDViewDialog open={is3DViewOpen} onOpenChange={setIs3DViewOpen} designObjects={designObjects} projectName={projectName} />
-
-      <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}>
-        <DialogContent className="max-w-[92vw] lg:max-w-5xl w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden">
-          <EstimationView 
-            designObjects={designObjects} 
-            onBack={() => setIsEstimationDialogOpen(false)}
-            onSave={saveToFirestore}
-            foundations={foundations} setFoundations={setFoundations}
-            columns={columns} setColumns={setColumns}
-            beams={beams} setBeams={setBeams}
-            slabs={slabs} setSlabs={setSlabs}
-            stairs={stairs} setStairs={setStairs}
-            brickworks={brickworks} setBrickworks={setBrickworks}
-            plasters={plasters} setPlasters={setPlasters}
-            floorTiles={floorTiles} setFloorTiles={setFloorTiles}
-            wallTiles={wallTiles} setWallTiles={setWallTiles}
-            septicTanks={septicTanks} setSepticTanks={setSepticTanks}
-            soakWells={soakWells} setSoakWells={setSoakWells}
-            prices={prices} setPrices={setPrices}
-            unitSystem={unitSystem}
-            onOpenMarketSync={() => setIsMarketSyncOpen(true)}
-            onOpenAdvancedPdfReport={(total, grandTotal) => {
-              setPdfReportPayload({ total, grandTotalCost: grandTotal });
-              setIsAdvancedPdfReportOpen(true);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <MarketPriceSyncDialog
-        open={isMarketSyncOpen}
-        onOpenChange={setIsMarketSyncOpen}
-        currentPrices={prices}
-        onApplyPrices={(newPrices) => setPrices(newPrices)}
-      />
-
-      <AdvancedPdfReportDialog
-        open={isAdvancedPdfReportOpen}
-        onOpenChange={setIsAdvancedPdfReportOpen}
-        projectName={projectName}
-        total={pdfReportPayload?.total || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 }}
-        prices={prices}
-        grandTotalCost={pdfReportPayload?.grandTotalCost || 0}
-        unitSystem={unitSystem}
-        foundationsCount={foundations.length}
-        columnsCount={columns.length}
-      />
-
-      <BnbcStructuralAuditDialog
-        open={isBnbcAuditOpen}
-        onOpenChange={setIsBnbcAuditOpen}
-        designObjects={designObjects}
-        projectName={projectName}
-      />
-
-      <DailySiteManagementDialog
-        open={isSiteLedgerOpen}
-        onOpenChange={setIsSiteLedgerOpen}
-        projectName={projectName}
-        currentDesignId={currentDesignId}
-        grandTotalEstimatedCost={pdfReportPayload?.grandTotalCost || 0}
-        materialsLedger={materialsLedger}
-        setMaterialsLedger={setMaterialsLedger}
-        laborLedger={laborLedger}
-        setLaborLedger={setLaborLedger}
-        onIntegratedSave={saveToFirestore}
-      />
+      <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}><DialogContent className="max-w-[92vw] lg:max-w-5xl w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden"><EstimationView designObjects={designObjects} onBack={() => setIsEstimationDialogOpen(false)} onSave={saveToFirestore} foundations={foundations} setFoundations={setFoundations} columns={columns} setColumns={setColumns} beams={beams} setBeams={setBeams} slabs={slabs} setSlabs={setSlabs} stairs={stairs} setStairs={setStairs} brickworks={brickworks} setBrickworks={setBrickworks} plasters={plasters} setPlasters={setPlasters} floorTiles={floorTiles} setFloorTiles={setFloorTiles} wallTiles={wallTiles} setWallTiles={setWallTiles} septicTanks={septicTanks} setSepticTanks={setSepticTanks} soakWells={soakWells} setSoakWells={setSoakWells} prices={prices} setPrices={setPrices} unitSystem={unitSystem} onOpenMarketSync={() => setIsMarketSyncOpen(true)} onOpenAdvancedPdfReport={(total, grandTotal) => { setPdfReportPayload({ total, grandTotalCost: grandTotal }); setIsAdvancedPdfReportOpen(true); }} /></DialogContent></Dialog>
+      <MarketPriceSyncDialog open={isMarketSyncOpen} onOpenChange={setIsMarketSyncOpen} currentPrices={prices} onApplyPrices={(newPrices) => setPrices(newPrices)} />
+      <AdvancedPdfReportDialog open={isAdvancedPdfReportOpen} onOpenChange={setIsAdvancedPdfReportOpen} projectName={projectName} total={pdfReportPayload?.total || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 }} prices={prices} grandTotalCost={pdfReportPayload?.grandTotalCost || 0} unitSystem={unitSystem} foundationsCount={foundations.length} columnsCount={columns.length} />
+      <BnbcStructuralAuditDialog open={isBnbcAuditOpen} onOpenChange={setIsBnbcAuditOpen} designObjects={designObjects} projectName={projectName} />
+      <DailySiteManagementDialog open={isSiteLedgerOpen} onOpenChange={setIsSiteLedgerOpen} projectName={projectName} currentDesignId={currentDesignId} grandTotalEstimatedCost={pdfReportPayload?.grandTotalCost || 0} materialsLedger={materialsLedger} setMaterialsLedger={setMaterialsLedger} laborLedger={laborLedger} setLaborLedger={setLaborLedger} onIntegratedSave={saveToFirestore} />
     </div>
   );
 }
 
-function EstimationView({ 
-  designObjects, onBack, onSave,
-  foundations, setFoundations,
-  columns, setColumns,
-  beams, setBeams,
-  slabs, setSlabs,
-  stairs, setStairs,
-  brickworks, setBrickworks,
-  plasters, setPlasters,
-  floorTiles, setFloorTiles,
-  wallTiles, setWallTiles,
-  septicTanks, setSepticTanks,
-  soakWells, setSoakWells,
-  prices, setPrices,
-  unitSystem = 'imperial',
-  onOpenMarketSync,
-  onOpenAdvancedPdfReport
-}: { 
-  designObjects: DesignObject[], 
-  onBack: () => void,
-  onSave: () => void,
-  foundations: any[], setFoundations: (v: any[]) => void,
-  columns: any[], setColumns: (v: any[]) => void,
-  beams: any[], setBeams: (v: any[]) => void,
-  slabs: any[], setSlabs: (v: any[]) => void,
-  stairs: any[], setStairs: (v: any[]) => void,
-  brickworks: any[], setBrickworks: (v: any[]) => void,
-  plasters: any[], setPlasters: (v: any[]) => void,
-  floorTiles: any[], setFloorTiles: (v: any[]) => void,
-  wallTiles: any[], setWallTiles: (v: any[]) => void,
-  septicTanks: any[], setSepticTanks: (v: any[]) => void,
-  soakWells: any[], setSoakWells: (v: any[]) => void,
-  prices: any, setPrices: (v: any) => void,
-  unitSystem?: 'imperial' | 'metric',
-  onOpenMarketSync?: () => void,
-  onOpenAdvancedPdfReport?: (total: any, grandTotalCost: number) => void
-}) {
+function EstimationView({ designObjects, onBack, onSave, foundations, setFoundations, columns, setColumns, beams, setBeams, slabs, setSlabs, stairs, setStairs, brickworks, setBrickworks, plasters, setPlasters, floorTiles, setFloorTiles, wallTiles, setWallTiles, septicTanks, setSepticTanks, soakWells, setSoakWells, prices, setPrices, unitSystem = 'imperial', onOpenMarketSync, onOpenAdvancedPdfReport }: { designObjects: DesignObject[], onBack: () => void, onSave: () => void, foundations: any[], setFoundations: (v: any[]) => void, columns: any[], setColumns: (v: any[]) => void, beams: any[], setBeams: (v: any[]) => void, slabs: any[], setSlabs: (v: any[]) => void, stairs: any[], setStairs: (v: any[]) => void, brickworks: any[], setBrickworks: (v: any[]) => void, plasters: any[], setPlasters: (v: any[]) => void, floorTiles: any[], setFloorTiles: (v: any[]) => void, wallTiles: any[], setWallTiles: (v: any[]) => void, septicTanks: any[], setSepticTanks: (v: any[]) => void, soakWells: any[], setSoakWells: (v: any[]) => void, prices: any, setPrices: (v: any) => void, unitSystem?: 'imperial' | 'metric', onOpenMarketSync?: () => void, onOpenAdvancedPdfReport?: (total: any, grandTotalCost: number) => void }) {
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
@@ -2017,8 +1705,7 @@ function EstimationView({
     if (type === 'soakWell') setSoakWells(soakWells.filter(s => s.id !== id));
   };
   const updateItem = (type: string, id: string, field: string, val: any) => {
-    const textFields = ['aggregateType'];
-    const value = textFields.includes(field) ? val : (parseFloat(val) || 0);
+    const textFields = ['aggregateType']; const value = textFields.includes(field) ? val : (parseFloat(val) || 0);
     if (type === 'foundation') setFoundations(foundations.map(f => f.id === id ? { ...f, [field]: value } : f));
     if (type === 'column') setColumns(columns.map(c => c.id === id ? { ...c, [field]: value } : c));
     if (type === 'beam') setBeams(beams.map(b => b.id === id ? { ...b, [field]: value } : b));
@@ -2055,20 +1742,15 @@ function EstimationView({
     sectionTotals.slab = processSection(slabs, 'slab');
     sectionTotals.stair = processSection(stairs, 'stair');
     sectionTotals.septicTank = processSection(septicTanks, 'septicTank');
-    let brRes = { cement: 0, sand: 0, bricks: 0 };
-    brickworks.forEach(b => { const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10)); brRes.bricks += count; const vol = (b.len * b.height * (b.thick / 12)); const dry = vol * 0.35; brRes.cement += (dry / 5) / 1.25; brRes.sand += (dry / 5) * 4; });
+    let brRes = { cement: 0, sand: 0, bricks: 0 }; brickworks.forEach(b => { const count = Math.ceil(b.len * b.height * (b.thick === 5 ? 5 : 10)); brRes.bricks += count; const vol = (b.len * b.height * (b.thick / 12)); const dry = vol * 0.35; brRes.cement += (dry / 5) / 1.25; brRes.sand += (dry / 5) * 4; });
     sectionTotals.brickwork = brRes;
-    let pRes = { cement: 0, sand: 0 };
-    plasters.forEach(p => { const area = p.len * p.height; const vol = (area * (p.thick / 12)) * p.sides; const dry = vol * 1.54; pRes.cement += (dry / 5) / 1.25; pRes.sand += (dry / 5) * 4; });
+    let pRes = { cement: 0, sand: 0 }; plasters.forEach(p => { const area = p.len * p.height; const vol = (area * (p.thick / 12)) * p.sides; const dry = vol * 1.54; pRes.cement += (dry / 5) / 1.25; pRes.sand += (dry / 5) * 4; });
     sectionTotals.plaster = pRes;
-    let ftRes = { floorTiles: 0, cement: 0, sand: 0 };
-    floorTiles.forEach(f => { const area = f.len * f.wid; if (area > 0 && f.tLen > 0 && f.tWid > 0) { ftRes.floorTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (1/12) * 1.54; ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4; } });
+    let ftRes = { floorTiles: 0, cement: 0, sand: 0 }; floorTiles.forEach(f => { const area = f.len * f.wid; if (area > 0 && f.tLen > 0 && f.tWid > 0) { ftRes.floorTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (1/12) * 1.54; ftRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4; } });
     sectionTotals.floorTiles = ftRes;
-    let wtRes = { wallTiles: 0, cement: 0, sand: 0 };
-    wallTiles.forEach(f => { const area = f.len * f.height; if (area > 0 && f.tLen > 0 && f.tWid > 0) { wtRes.wallTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (0.5/12) * 1.54; wtRes.cement += (dry / 5) / 1.25; ftRes.sand += (dry / 5) * 4; } });
+    let wtRes = { wallTiles: 0, cement: 0, sand: 0 }; wallTiles.forEach(f => { const area = f.len * f.height; if (area > 0 && f.tLen > 0 && f.tWid > 0) { wtRes.wallTiles += Math.ceil((area / ((f.tLen/12)*(f.tWid/12))) * (1 + f.wastage/100)); const dry = area * (0.5/12) * 1.54; wtRes.cement += (dry / 5) / 1.25; wtRes.sand += (dry / 5) * 4; } });
     sectionTotals.wallTiles = wtRes;
-    let swRes = { bricks: 0, cement: 0, sand: 0 };
-    soakWells.forEach(s => { const brickVol = (Math.PI * s.dia) * s.depth * (5/12); swRes.bricks += Math.ceil(brickVol * 5 * s.count); const dry = brickVol * 0.35 * s.count; swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4; });
+    let swRes = { bricks: 0, cement: 0, sand: 0 }; soakWells.forEach(s => { const brickVol = (Math.PI * s.dia) * s.depth * (5/12); swRes.bricks += Math.ceil(brickVol * 5 * s.count); const dry = brickVol * 0.35 * s.count; swRes.cement += (dry / 5) / 1.25; swRes.sand += (dry / 5) * 4; });
     sectionTotals.soakWell = swRes;
     Object.values(sectionTotals).forEach((res: any) => { total.cement += res.cement || 0; total.sand += res.sand || 0; total.stone += res.stone || 0; total.chips += res.chips || 0; total.rod += res.rod || 0; total.bricks += res.bricks || 0; total.floorTiles += (res.floorTiles || 0); total.wallTiles += (res.wallTiles || 0); });
     total.labor = slabs.reduce((acc, s) => acc + (s.len * s.wid), 0);
@@ -2079,68 +1761,19 @@ function EstimationView({
   const { total, sectionTotals } = calcAll();
   const currentRes = sectionTotals[activeTab as keyof typeof sectionTotals] || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0 };
   const grandTotalCost = useMemo(() => {
-    return (
-      Math.ceil(total.cement) * prices.cement +
-      Math.ceil(total.sand) * prices.sand +
-      Math.ceil(total.stone) * prices.stone +
-      Math.ceil(total.chips) * prices.chips +
-      Math.ceil(total.rod) * prices.rod +
-      Math.ceil(total.bricks) * prices.bricks +
-      Math.ceil(total.floorTiles) * prices.floorTiles +
-      Math.ceil(total.wallTiles) * prices.wallTiles +
-      Math.ceil(total.labor) * prices.labor +
-      total.doors * prices.doors +
-      total.windows * prices.windows +
-      prices.electric + prices.fittings + prices.paint + prices.others
-    );
+    return ( Math.ceil(total.cement) * prices.cement + Math.ceil(total.sand) * prices.sand + Math.ceil(total.stone) * prices.stone + Math.ceil(total.chips) * prices.chips + Math.ceil(total.rod) * prices.rod + Math.ceil(total.bricks) * prices.bricks + Math.ceil(total.floorTiles) * prices.floorTiles + Math.ceil(total.wallTiles) * prices.wallTiles + Math.ceil(total.labor) * prices.labor + total.doors * prices.doors + total.windows * prices.windows + prices.electric + prices.fittings + prices.paint + prices.others );
   }, [total, prices]);
   const getAdvice = async () => {
     setLoadingAdvice(true);
-    const result = await getConstructionAdvice({
-      baseCount: foundations[0].count, baseLengthFt: foundations[0].len, baseWidthFt: foundations[0].wid, baseThicknessIn: foundations[0].thick,
-      columnCount: columns[0].count, columnLengthIn: columns[0].len, columnWidthIn: columns[0].wid, columnHeightFt: columns[0].height,
-      columnRodCount: columns[0].rods, beamHeightIn: beams[0].height, beamWidthIn: beams[0].wid,
-      beamLengthFt: beams[0].len, beamRodCount: beams[0].rods, slabLengthFt: slabs[0].len,
-      slabWidthFt: slabs[0].wid, slabThicknessIn: slabs[0].thick, slabRodGapIn: slabs[0].rodGap,
-      baseRodLongitudinalCount: foundations[0].rodLong, baseRodWidthCount: foundations[0].rodWidth,
-      ringGapIn: columns[0].ringGap || 6, mainRodFactor: 0.48, ringRodFactor: 0.12
-    } as any);
+    const result = await getConstructionAdvice({ baseCount: foundations[0].count, baseLengthFt: foundations[0].len, baseWidthFt: foundations[0].wid, baseThicknessIn: foundations[0].thick, columnCount: columns[0].count, columnLengthIn: columns[0].len, columnWidthIn: columns[0].wid, columnHeightFt: columns[0].height, columnRodCount: columns[0].rods, beamHeightIn: beams[0].height, beamWidthIn: beams[0].wid, beamLengthFt: beams[0].len, beamRodCount: beams[0].rods, slabLengthFt: slabs[0].len, slabWidthFt: slabs[0].wid, slabThicknessIn: slabs[0].thick, slabRodGapIn: slabs[0].rodGap, baseRodLongitudinalCount: foundations[0].rodLong, baseRodWidthCount: foundations[0].rodWidth, ringGapIn: columns[0].ringGap || 6, mainRodFactor: 0.48, ringRodFactor: 0.12 } as any);
     if (result && 'advice' in result) setAdvice(result.advice);
     setLoadingAdvice(false);
   };
   return (
     <div className="flex-col h-full w-full bg-slate-50 overflow-hidden flex">
       <div className="h-14 bg-white/80 backdrop-blur-md border-b flex items-center px-4 justify-between shadow-sm shrink-0 z-30">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button>
-          <DialogTitle className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2">
-            <Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> <span className="font-bold">Estimation Calculator</span>
-          </DialogTitle>
-        </div>
-        <div className="flex items-center gap-1.5 md:gap-2">
-          {onOpenMarketSync && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onOpenMarketSync}
-              className="h-9 md:h-11 text-[10px] md:text-xs font-black gap-1.5 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 shadow-sm"
-              title="স্থানীয় বাজার দর সিঙ্ক করুন"
-            >
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> <span className="hidden sm:inline">বাজার দর সিঙ্ক</span><span className="sm:hidden">মার্কেট</span>
-            </Button>
-          )}
-          {onOpenAdvancedPdfReport && (
-            <Button 
-              onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)}
-              className="bg-slate-900 hover:bg-slate-800 text-white gap-1.5 h-9 md:h-11 text-[10px] md:text-xs font-black shadow-sm"
-              title="কাজের সময়সীমা ও লেবার শিডিউলসহ পূর্ণাঙ্গ PDF রিপোর্ট"
-            >
-              <FileText className="w-3.5 h-3.5 text-emerald-400" /> <span className="hidden sm:inline">পূর্ণাঙ্গ রিপোর্ট (PDF)</span><span className="sm:hidden">রিপোর্ট</span>
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="h-9 md:h-11 text-[10px] md:text-xs hover:bg-slate-100 font-black gap-1.5 border-slate-300" onClick={onSave}><Save className="w-3.5 h-3.5 text-green-600"/> SAVE</Button>
-          <Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-9 md:h-11 text-[10px] md:text-xs font-black">{loadingAdvice ? <Loader2 className="animate-spin w-3 h-3" /> : <Send className="w-3 h-3" />} AI Advice </Button>
-        </div>
+        <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9"><ArrowLeft className="w-5 h-5" /></Button><DialogTitle className="text-sm md:text-lg font-black text-slate-700 flex items-center gap-2"><Calculator className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" /> <span className="font-bold">Estimation Calculator</span></DialogTitle></div>
+        <div className="flex items-center gap-1.5 md:gap-2">{onOpenMarketSync && <Button variant="outline" size="sm" onClick={onOpenMarketSync} className="h-9 md:h-11 text-[10px] md:text-xs font-black gap-1.5 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 shadow-sm" title="স্থানীয় বাজার দর সিঙ্ক করুন"><TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> <span className="hidden sm:inline">বাজার দর সিঙ্ক</span><span className="sm:hidden">মার্কেট</span></Button>}{onOpenAdvancedPdfReport && <Button onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)} className="bg-slate-900 hover:bg-slate-800 text-white gap-1.5 h-9 md:h-11 text-[10px] md:text-xs font-black shadow-sm" title="কাজের সময়সীমা ও লেবার শিডিউলসহ পূর্ণাঙ্গ PDF রিপোর্ট"><FileText className="w-3.5 h-3.5 text-emerald-400" /> <span className="hidden sm:inline">পূর্ণাঙ্গ রিপোর্ট (PDF)</span><span className="sm:hidden">রিপোর্ট</span></Button>}<Button variant="outline" size="sm" className="h-9 md:h-11 text-[10px] md:text-xs hover:bg-slate-100 font-black gap-1.5 border-slate-300" onClick={onSave}><Save className="w-3.5 h-3.5 text-green-600"/> SAVE</Button><Button onClick={getAdvice} disabled={loadingAdvice} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-9 md:h-11 text-[10px] md:text-xs font-black">{loadingAdvice ? <Loader2 className="animate-spin w-3 h-3" /> : <Send className="w-3 h-3" />} AI Advice </Button></div>
       </div>
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-4 md:p-6 pb-24">
@@ -2148,260 +1781,115 @@ function EstimationView({
             <div className="lg:col-span-2 space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
                 <TabsList className="flex h-auto p-1 mb-6 bg-slate-100 overflow-x-auto no-scrollbar gap-1 justify-start">
-                  <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Foundation</TabsTrigger>
-                  <TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Column</TabsTrigger>
-                  <TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Beam</TabsTrigger>
-                  <TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Roof</TabsTrigger>
-                  <TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger>
-                  <TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Brickwork</TabsTrigger>
-                  <TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Plaster</TabsTrigger>
-                  <TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Floor Tiles</TabsTrigger>
-                  <TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Wall Tiles</TabsTrigger>
-                  <TabsTrigger value="septicTank" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Septic Tank</TabsTrigger>
-                  <TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Soak Well</TabsTrigger>
-                  <TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-black">Total Materials</TabsTrigger>
+                  <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Foundation</TabsTrigger><TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Column</TabsTrigger><TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Beam</TabsTrigger><TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Roof</TabsTrigger><TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger><TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Brickwork</TabsTrigger><TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Plaster</TabsTrigger><TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Floor Tiles</TabsTrigger><TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Wall Tiles</TabsTrigger><TabsTrigger value="septicTank" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Septic Tank</TabsTrigger><TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Soak Well</TabsTrigger><TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-black">Total Materials</TabsTrigger>
                 </TabsList>
                 <TabsContent value="foundation" className="space-y-6 m-0">
                   {foundations.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Base #{idx+1}</h4>{foundations.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('foundation', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Base Count" value={f.count} onChange={v => updateItem('foundation', f.id, 'count', v)} />
-                        <InputField label="Length (ft)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} />
-                        <InputField label="Width (ft)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} />
-                        <InputField label="Thickness (in)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} />
-                        <InputField label="Longitudinal Rods (count)" value={f.rodLong} onChange={v => updateItem('foundation', f.id, 'rodLong', v)} />
-                        <InputField label="Width-wise Rods (count)" value={f.rodWidth} onChange={v => updateItem('foundation', f.id, 'rodWidth', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={f.rodFactor.toString()} onValueChange={v => updateItem('foundation', f.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={f.aggregateType} onValueChange={v => updateItem('foundation', f.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Base Count" value={f.count} onChange={v => updateItem('foundation', f.id, 'count', v)} /><InputField label="Length (ft)" value={f.len} onChange={v => updateItem('foundation', f.id, 'len', v)} /><InputField label="Width (ft)" value={f.wid} onChange={v => updateItem('foundation', f.id, 'wid', v)} /><InputField label="Thickness (in)" value={f.thick} onChange={v => updateItem('foundation', f.id, 'thick', v)} /><InputField label="Longitudinal Rods (count)" value={f.rodLong} onChange={v => updateItem('foundation', f.id, 'rodLong', v)} /><InputField label="Width-wise Rods (count)" value={f.rodWidth} onChange={v => updateItem('foundation', f.id, 'rodWidth', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={f.rodFactor.toString()} onValueChange={v => updateItem('foundation', f.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={f.aggregateType} onValueChange={v => updateItem('foundation', f.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new base </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new base </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="column" className="space-y-6 m-0">
                   {columns.map((c, idx) => (
                     <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Column #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Column Count" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} />
-                        <InputField label="Length (in)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} />
-                        <InputField label="Width (in)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} />
-                        <InputField label="Height (ft)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} />
-                        <InputField label="Main Rods (count)" value={c.rods} onChange={v => updateItem('column', c.id, 'rods', v)} />
-                        <InputField label="Ring Gap (in)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={c.rodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Ring Rod size</Label><Select value={c.ringRodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'ringRodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Column Count" value={c.count} onChange={v => updateItem('column', c.id, 'count', v)} /><InputField label="Length (in)" value={c.len} onChange={v => updateItem('column', c.id, 'len', v)} /><InputField label="Width (in)" value={c.wid} onChange={v => updateItem('column', c.id, 'wid', v)} /><InputField label="Height (ft)" value={c.height} onChange={v => updateItem('column', c.id, 'height', v)} /><InputField label="Main Rods (count)" value={c.rods} onChange={v => updateItem('column', c.id, 'rods', v)} /><InputField label="Ring Gap (in)" value={c.ringGap} onChange={v => updateItem('column', c.id, 'ringGap', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={c.rodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Ring Rod size</Label><Select value={c.ringRodFactor.toString()} onValueChange={v => updateItem('column', c.id, 'ringRodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={c.aggregateType} onValueChange={v => updateItem('column', c.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="beam" className="space-y-6 m-0">
                   {beams.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Beam #{idx+1}</h4>{beams.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('beam', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Length (ft)" value={b.len} onChange={v => updateItem('beam', b.id, 'len', v)} />
-                        <InputField label="Width (in)" value={b.wid} onChange={v => updateItem('beam', b.id, 'wid', v)} />
-                        <InputField label="Height (in)" value={b.height} onChange={v => updateItem('beam', b.id, 'height', v)} />
-                        <InputField label="Main Rods (count)" value={b.rods} onChange={v => updateItem('beam', b.id, 'rods', v)} />
-                        <InputField label="Ring Gap (in)" value={b.ringGap} onChange={v => updateItem('beam', b.id, 'ringGap', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={b.rodFactor.toString()} onValueChange={v => updateItem('beam', b.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Ring Rod size</Label><Select value={b.ringRodFactor.toString()} onValueChange={v => updateItem('beam', b.id, 'ringRodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={b.aggregateType} onValueChange={v => updateItem('beam', b.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Length (ft)" value={b.len} onChange={v => updateItem('beam', b.id, 'len', v)} /><InputField label="Width (in)" value={b.wid} onChange={v => updateItem('beam', b.id, 'wid', v)} /><InputField label="Height (in)" value={b.height} onChange={v => updateItem('beam', b.id, 'height', v)} /><InputField label="Main Rods (count)" value={b.rods} onChange={v => updateItem('beam', b.id, 'rods', v)} /><InputField label="Ring Gap (in)" value={b.ringGap} onChange={v => updateItem('beam', b.id, 'ringGap', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={b.rodFactor.toString()} onValueChange={v => updateItem('beam', b.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Ring Rod size</Label><Select value={b.ringRodFactor.toString()} onValueChange={v => updateItem('beam', b.id, 'ringRodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 3).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={b.aggregateType} onValueChange={v => updateItem('beam', b.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new beam </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new beam </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="slab" className="space-y-6 m-0">
                   {slabs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Roof #{idx+1}</h4>{slabs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('slab', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Length (ft)" value={s.len} onChange={v => updateItem('slab', s.id, 'len', v)} />
-                        <InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} />
-                        <InputField label="Thickness (in)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} />
-                        <InputField label="Rod Gap (in)" value={s.rodGap} onChange={v => updateItem('slab', s.id, 'rodGap', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={s.rodFactor.toString()} onValueChange={v => updateItem('slab', s.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('slab', s.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Length (ft)" value={s.len} onChange={v => updateItem('slab', s.id, 'len', v)} /><InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('slab', s.id, 'wid', v)} /><InputField label="Thickness (in)" value={s.thick} onChange={v => updateItem('slab', s.id, 'thick', v)} /><InputField label="Rod Gap (in)" value={s.rodGap} onChange={v => updateItem('slab', s.id, 'rodGap', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={s.rodFactor.toString()} onValueChange={v => updateItem('slab', s.id, 'rodFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('slab', s.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new roof </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new roof </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="stair" className="space-y-6 m-0">
                   {stairs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Stair #{idx+1}</h4>{stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Stair Count" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} />
-                        <InputField label="Flight Length (ft)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} />
-                        <InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('stair', s.id, 'wid', v)} />
-                        <InputField label="Waist Slab Thickness (in)" value={s.thick} onChange={v => updateItem('stair', s.id, 'thick', v)} />
-                        <InputField label="Steps Count" value={s.steps} onChange={v => updateItem('stair', s.id, 'steps', v)} />
-                        <InputField label="Riser (in)" value={s.riser} onChange={v => updateItem('stair', s.id, 'riser', v)} />
-                        <InputField label="Tread (in)" value={s.tread} onChange={v => updateItem('stair', s.id, 'tread', v)} />
-                        <InputField label="Landing Length (ft)" value={s.lLen} onChange={v => updateItem('stair', s.id, 'lLen', v)} />
-                        <InputField label="Landing Width (ft)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} />
-                        <InputField label="Main Rod Gap (in)" value={s.mainGap} onChange={v => updateItem('stair', s.id, 'mainGap', v)} />
-                        <InputField label="Dist. Rod Gap (in)" value={s.distGap} onChange={v => updateItem('stair', s.id, 'distGap', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={s.mainFactor.toString()} onValueChange={v => updateItem('stair', s.id, 'mainFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Dist. Rod size</Label><Select value={s.distFactor.toString()} onValueChange={v => updateItem('stair', s.id, 'distFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('stair', s.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Stair Count" value={s.count} onChange={v => updateItem('stair', s.id, 'count', v)} /><InputField label="Flight Length (ft)" value={s.wLen} onChange={v => updateItem('stair', s.id, 'wLen', v)} /><InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('stair', s.id, 'wid', v)} /><InputField label="Waist Slab Thickness (in)" value={s.thick} onChange={v => updateItem('stair', s.id, 'thick', v)} /><InputField label="Steps Count" value={s.steps} onChange={v => updateItem('stair', s.id, 'steps', v)} /><InputField label="Riser (in)" value={s.riser} onChange={v => updateItem('stair', s.id, 'riser', v)} /><InputField label="Tread (in)" value={s.tread} onChange={v => updateItem('stair', s.id, 'tread', v)} /><InputField label="Landing Length (ft)" value={s.lLen} onChange={v => updateItem('stair', s.id, 'lLen', v)} /><InputField label="Landing Width (ft)" value={s.lWid} onChange={v => updateItem('stair', s.id, 'lWid', v)} /><InputField label="Main Rod Gap (in)" value={s.mainGap} onChange={v => updateItem('stair', s.id, 'mainGap', v)} /><InputField label="Dist. Rod Gap (in)" value={s.distGap} onChange={v => updateItem('stair', s.id, 'distGap', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Main Rod size</Label><Select value={s.mainFactor.toString()} onValueChange={v => updateItem('stair', s.id, 'mainFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Dist. Rod size</Label><Select value={s.distFactor.toString()} onValueChange={v => updateItem('stair', s.id, 'distFactor', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent>{ROD_OPTIONS.slice(0, 4).map(opt => <SelectItem key={opt.factor} value={opt.factor.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div><div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('stair', s.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new stair </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new stair </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="brickwork" className="space-y-6 m-0">
                   {brickworks.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Brickwork #{idx+1}</h4>{brickworks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('brickwork', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Length (ft)" value={b.len} onChange={v => updateItem('brickwork', b.id, 'len', v)} />
-                        <InputField label="Height (ft)" value={b.height} onChange={v => updateItem('brickwork', b.id, 'height', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Thickness (in)</Label><Select value={b.thick.toString()} onValueChange={v => updateItem('brickwork', b.id, 'thick', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="5">5 in</SelectItem><SelectItem value="10">10 in</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Length (ft)" value={b.len} onChange={v => updateItem('brickwork', b.id, 'len', v)} /><InputField label="Height (ft)" value={b.height} onChange={v => updateItem('brickwork', b.id, 'height', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Thickness (in)</Label><Select value={b.thick.toString()} onValueChange={v => updateItem('brickwork', b.id, 'thick', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="5">5 in</SelectItem><SelectItem value="10">10 in</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new brickwork </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new brickwork </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="plaster" className="space-y-6 m-0">
                   {plasters.map((p, idx) => (
                     <div key={p.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Plaster #{idx+1}</h4>{plasters.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('plaster', p.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Length (ft)" value={p.len} onChange={v => updateItem('plaster', p.id, 'len', v)} />
-                        <InputField label="Height (ft)" value={p.height} onChange={v => updateItem('plaster', p.id, 'height', v)} />
-                        <InputField label="Thickness (in)" value={p.thick} onChange={v => updateItem('plaster', p.id, 'thick', v)} />
-                        <div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Sides?</Label><Select value={p.sides.toString()} onValueChange={v => updateItem('plaster', p.id, 'sides', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">One side</SelectItem><SelectItem value="2">Both sides</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Length (ft)" value={p.len} onChange={v => updateItem('plaster', p.id, 'len', v)} /><InputField label="Height (ft)" value={p.height} onChange={v => updateItem('plaster', p.id, 'height', v)} /><InputField label="Thickness (in)" value={p.thick} onChange={v => updateItem('plaster', p.id, 'thick', v)} /><div className="col-span-1 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Sides?</Label><Select value={p.sides.toString()} onValueChange={v => updateItem('plaster', p.id, 'sides', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">One side</SelectItem><SelectItem value="2">Both sides</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new plaster </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new plaster </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="floorTiles" className="space-y-6 m-0">
                   {floorTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Floor Tiles #{idx+1}</h4>{floorTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('floorTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Room Length (ft)" value={f.len} onChange={v => updateItem('floorTiles', f.id, 'len', v)} />
-                        <InputField label="Room Width (ft)" value={f.wid} onChange={v => updateItem('floorTiles', f.id, 'wid', v)} />
-                        <InputField label="Tiles Length (in)" value={f.tLen} onChange={v => updateItem('floorTiles', f.id, 'tLen', v)} />
-                        <InputField label="Tiles Width (in)" value={f.tWid} onChange={v => updateItem('floorTiles', f.id, 'tWid', v)} />
-                        <InputField label="Wastage (%)" value={f.wastage} onChange={v => updateItem('floorTiles', f.id, 'wastage', v)} />
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Room Length (ft)" value={f.len} onChange={v => updateItem('floorTiles', f.id, 'len', v)} /><InputField label="Room Width (ft)" value={f.wid} onChange={v => updateItem('floorTiles', f.id, 'wid', v)} /><InputField label="Tiles Length (in)" value={f.tLen} onChange={v => updateItem('floorTiles', f.id, 'tLen', v)} /><InputField label="Tiles Width (in)" value={f.tWid} onChange={v => updateItem('floorTiles', f.id, 'tWid', v)} /><InputField label="Wastage (%)" value={f.wastage} onChange={v => updateItem('floorTiles', f.id, 'wastage', v)} /></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new floor tiles </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new floor tiles </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="wallTiles" className="space-y-6 m-0">
                   {wallTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Wall Tiles #{idx+1}</h4>{wallTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('wallTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Wall Length (ft)" value={f.len} onChange={v => updateItem('wallTiles', f.id, 'len', v)} />
-                        <InputField label="Wall Height (ft)" value={f.height} onChange={v => updateItem('wallTiles', f.id, 'height', v)} />
-                        <InputField label="Tiles Length (in)" value={f.tLen} onChange={v => updateItem('wallTiles', f.id, 'tLen', v)} />
-                        <InputField label="Tiles Width (in)" value={f.tWid} onChange={v => updateItem('wallTiles', f.id, 'tWid', v)} />
-                        <InputField label="Wastage (%)" value={f.wastage} onChange={v => updateItem('wallTiles', f.id, 'wastage', v)} />
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Wall Length (ft)" value={f.len} onChange={v => updateItem('wallTiles', f.id, 'len', v)} /><InputField label="Wall Height (ft)" value={f.height} onChange={v => updateItem('wallTiles', f.id, 'height', v)} /><InputField label="Tiles Length (in)" value={f.tLen} onChange={v => updateItem('wallTiles', f.id, 'tLen', v)} /><InputField label="Tiles Width (in)" value={f.tWid} onChange={v => updateItem('wallTiles', f.id, 'tWid', v)} /><InputField label="Wastage (%)" value={f.wastage} onChange={v => updateItem('wallTiles', f.id, 'wastage', v)} /></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new wall tiles </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new wall tiles </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="septicTank" className="space-y-6 m-0">
                   {septicTanks.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Septic Tank #{idx+1}</h4>{septicTanks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('septicTank', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Count" value={s.count} onChange={v => updateItem('septicTank', s.id, 'count', v)} />
-                        <InputField label="Length (ft)" value={s.len} onChange={v => updateItem('septicTank', s.id, 'len', v)} />
-                        <InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('septicTank', s.id, 'wid', v)} />
-                        <InputField label="Depth (ft)" value={s.depth} onChange={v => updateItem('septicTank', s.id, 'depth', v)} />
-                        <div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('septicTank', s.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div>
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Count" value={s.count} onChange={v => updateItem('septicTank', s.id, 'count', v)} /><InputField label="Length (ft)" value={s.len} onChange={v => updateItem('septicTank', s.id, 'len', v)} /><InputField label="Width (ft)" value={s.wid} onChange={v => updateItem('septicTank', s.id, 'wid', v)} /><InputField label="Depth (ft)" value={s.depth} onChange={v => updateItem('septicTank', s.id, 'depth', v)} /><div className="col-span-2 space-y-2"><Label className="text-xs font-black text-slate-600 uppercase">Stone/Khoya</Label><Select value={s.aggregateType} onValueChange={v => updateItem('septicTank', s.id, 'aggregateType', v)}><SelectTrigger className="h-10 bg-white border-slate-400 text-sm font-black shadow-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="stone">Stone</SelectItem><SelectItem value="chips">Khoya</SelectItem></SelectContent></Select></div></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new tank </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new tank </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="soakWell" className="space-y-6 m-0">
                   {soakWells.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Soak Well #{idx+1}</h4>{soakWells.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('soakWell', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Count" value={s.count} onChange={v => updateItem('soakWell', s.id, 'count', v)} />
-                        <InputField label="Diameter (ft)" value={s.dia} onChange={v => updateItem('soakWell', s.id, 'dia', v)} />
-                        <InputField label="Depth (ft)" value={s.depth} onChange={v => updateItem('soakWell', s.id, 'depth', v)} />
-                      </div>
+                      <div className="grid grid-cols-2 gap-4"><InputField label="Count" value={s.count} onChange={v => updateItem('soakWell', s.id, 'count', v)} /><InputField label="Diameter (ft)" value={s.dia} onChange={v => updateItem('soakWell', s.id, 'dia', v)} /><InputField label="Depth (ft)" value={s.depth} onChange={v => updateItem('soakWell', s.id, 'depth', v)} /></div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new soak well </Button>
-                  <SectionResult res={currentRes} />
+                  <Button variant="outline" size="sm" onClick={() => addItem('soakWell')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new soak well </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="total" className="space-y-4 m-0">
                   <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-4">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-100 pb-2 gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-black text-emerald-800 flex items-center gap-2 text-sm uppercase"><Boxes className="w-5 h-5" /> Summary </h3>
-                        {onOpenMarketSync && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onOpenMarketSync}
-                            className="h-7 text-[10px] font-black gap-1 border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-800"
-                          >
-                            <TrendingUp className="w-3 h-3 text-emerald-600" /> বাজার দর সিঙ্ক
-                          </Button>
-                        )}
-                        {onOpenAdvancedPdfReport && (
-                          <Button
-                            size="sm"
-                            onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)}
-                            className="h-7 text-[10px] font-black gap-1 bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
-                          >
-                            <FileText className="w-3 h-3 text-emerald-400" /> PDF রিপোর্ট
-                          </Button>
-                        )}
-                      </div>
-                      <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-md text-right w-full md:w-auto">
-                        <span className="text-[8px] uppercase font-black opacity-80 block">Grand Total:</span>
-                        <span className="text-sm font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span>
-                      </div>
-                    </div>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-100 pb-2 gap-2"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-emerald-800 flex items-center gap-2 text-sm uppercase"><Boxes className="w-5 h-5" /> Summary </h3>{onOpenMarketSync && <Button variant="outline" size="sm" onClick={onOpenMarketSync} className="h-7 text-[10px] font-black gap-1 border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-800"><TrendingUp className="w-3 h-3 text-emerald-600" /> বাজার দর সিঙ্ক</Button>}{onOpenAdvancedPdfReport && <Button size="sm" onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)} className="h-7 text-[10px] font-black gap-1 bg-slate-900 hover:bg-slate-800 text-white shadow-sm"><FileText className="w-3 h-3 text-emerald-400" /> PDF রিপোর্ট</Button>}</div><div className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-md text-right w-full md:w-auto"><span className="text-[8px] uppercase font-black opacity-80 block">Grand Total:</span><span className="text-sm font-black">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div></div>
                     <div className="space-y-3">
-                      <CostRow label="Cement" value={total.cement} unit="bag" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} />
-                      <CostRow label="Sand" value={total.sand} unit="CFT" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} />
-                      <CostRow label="Stone" value={total.stone} unit="CFT" price={prices.stone} onPriceChange={(v) => setPrices({...prices, stone: v})} />
-                      <CostRow label="Khoya" value={total.chips} unit="CFT" price={prices.chips} onPriceChange={(v) => setPrices({...prices, chips: v})} />
-                      <CostRow label="Rod" value={total.rod} unit="KG" price={prices.rod} onPriceChange={(v) => setPrices({...prices, rod: v})} />
-                      <CostRow label="Bricks" value={total.bricks} unit="pcs" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} />
-                      <CostRow label="Floor Tiles" value={total.floorTiles} unit="pcs" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} />
-                      <CostRow label="Wall Tiles" value={total.wallTiles} unit="pcs" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} />
-                      <CostRow label="Labor Cost" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} />
-                      <CostRow label="Doors" value={total.doors} unit="pcs" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} />
-                      <CostRow label="Windows" value={total.windows} unit="pcs" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
+                      <CostRow label="Cement" value={total.cement} unit="bag" price={prices.cement} onPriceChange={(v) => setPrices({...prices, cement: v})} /><CostRow label="Sand" value={total.sand} unit="CFT" price={prices.sand} onPriceChange={(v) => setPrices({...prices, sand: v})} /><CostRow label="Stone" value={total.stone} unit="CFT" price={prices.stone} onPriceChange={(v) => setPrices({...prices, stone: v})} /><CostRow label="Khoya" value={total.chips} unit="CFT" price={prices.chips} onPriceChange={(v) => setPrices({...prices, chips: v})} /><CostRow label="Rod" value={total.rod} unit="KG" price={prices.rod} onPriceChange={(v) => setPrices({...prices, rod: v})} /><CostRow label="Bricks" value={total.bricks} unit="pcs" price={prices.bricks} onPriceChange={(v) => setPrices({...prices, bricks: v})} /><CostRow label="Floor Tiles" value={total.floorTiles} unit="pcs" price={prices.floorTiles} onPriceChange={(v) => setPrices({...prices, floorTiles: v})} /><CostRow label="Wall Tiles" value={total.wallTiles} unit="pcs" price={prices.wallTiles} onPriceChange={(v) => setPrices({...prices, wallTiles: v})} /><CostRow label="Labor Cost" value={total.labor} unit="Sqft" price={prices.labor} onPriceChange={(v) => setPrices({...prices, labor: v})} /><CostRow label="Doors" value={total.doors} unit="pcs" price={prices.doors} onPriceChange={(v) => setPrices({...prices, doors: v})} /><CostRow label="Windows" value={total.windows} unit="pcs" price={prices.windows} onPriceChange={(v) => setPrices({...prices, windows: v})} />
                       <div className="pt-2 mt-4 border-t border-emerald-200 space-y-3">
                         <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1 flex items-center gap-1"><Plus className="w-3 h-3" /> Other Expenses</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                          <div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div>
-                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Electric</Label><Input type="number" value={prices.electric === 0 ? "" : prices.electric} onChange={e => setPrices({...prices, electric: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div><div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Fittings</Label><Input type="number" value={prices.fittings === 0 ? "" : prices.fittings} onChange={e => setPrices({...prices, fittings: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div><div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Paint</Label><Input type="number" value={prices.paint === 0 ? "" : prices.paint} onChange={e => setPrices({...prices, paint: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div><div className="space-y-1"><Label className="text-[9px] font-black text-slate-700 uppercase">Others</Label><Input type="number" value={prices.others === 0 ? "" : prices.others} onChange={e => setPrices({...prices, others: parseFloat(e.target.value) || 0})} className="h-10 text-xs font-black border-emerald-200 bg-white shadow-sm" placeholder="0" /></div></div>
                       </div>
                     </div>
                   </div>
@@ -2411,25 +1899,9 @@ function EstimationView({
             </div>
             <div className="space-y-4">
               <div className="bg-slate-800 text-white p-3 rounded-xl shadow-lg sticky top-6 space-y-2">
-                <h3 className="text-[11px] font-black border-b border-white/20 pb-1 flex items-center justify-between uppercase">
-                  <span className="flex items-center gap-1.5"><Calculator className="w-3.5 h-3.5 text-emerald-400" /> Summary</span>
-                  {unitSystem === 'metric' && <span className="text-[8px] text-slate-400 font-bold">Metric (m/cm)</span>}
-                </h3>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div>
-                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div>
-                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Rod:</span><span className="font-black">{Math.ceil(total.rod)} KG</span></div>
-                  <div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div>
-                  <div className="mt-1.5 pt-1.5 border-t border-white/20 flex flex-col gap-0.5"><span className="text-[8px] font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-xs font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div>
-                </div>
-                {onOpenAdvancedPdfReport && (
-                  <Button
-                    onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)}
-                    className="w-full h-8 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 mt-2"
-                  >
-                    <FileText className="w-3.5 h-3.5" /> পূর্ণাঙ্গ PDF রিপোর্ট
-                  </Button>
-                )}
+                <h3 className="text-[11px] font-black border-b border-white/20 pb-1 flex items-center justify-between uppercase"><span className="flex items-center gap-1.5"><Calculator className="w-3.5 h-3.5 text-emerald-400" /> Summary</span>{unitSystem === 'metric' && <span className="text-[8px] text-slate-400 font-bold">Metric (m/cm)</span>}</h3>
+                <div className="space-y-1.5"><div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Cement:</span><span className="font-black">{Math.ceil(total.cement)} bags</span></div><div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Sand:</span><span className="font-black">{Math.ceil(total.sand)} CFT</span></div><div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Rod:</span><span className="font-black">{Math.ceil(total.rod)} KG</span></div><div className="flex justify-between text-[8px] uppercase"><span className="opacity-70 font-black">Bricks:</span><span className="font-black">{total.bricks} pcs</span></div><div className="mt-1.5 pt-1.5 border-t border-white/20 flex flex-col gap-0.5"><span className="text-[8px] font-black text-emerald-400 uppercase">Total Cost:</span><span className="text-xs font-black text-emerald-400">৳ {grandTotalCost.toLocaleString('bn-BD')}</span></div></div>
+                {onOpenAdvancedPdfReport && <Button onClick={() => onOpenAdvancedPdfReport(total, grandTotalCost)} className="w-full h-8 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 mt-2"><FileText className="w-3.5 h-3.5" /> পূর্ণাঙ্গ PDF রিপোর্ট</Button>}
               </div>
             </div>
           </div>
@@ -2464,102 +1936,26 @@ function SectionResult({ res }: { res: any }) {
 }
 
 function ResultRow({ label, value, unit, small, dark }: { label: string, value: number, unit: string, small?: boolean, dark?: boolean }) {
-  return (
-    <div className={cn("flex justify-between architecture-box rounded-lg border shadow-sm", small ? "p-1.5 bg-white" : "p-2 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}>
-      <span className={cn("font-black uppercase", small ? "text-[8px]" : "text-[10px]", dark ? "text-emerald-900" : "text-slate-700")}>{label}</span>
-      <span className={cn("font-black", small ? "text-[9px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span>
-    </div>
-  );
+  return (<div className={cn("flex justify-between architecture-box rounded-lg border shadow-sm", small ? "p-1.5 bg-white" : "p-2 bg-white/10", dark ? "bg-white border-emerald-100" : "border-slate-100")}><span className={cn("font-black uppercase", small ? "text-[8px]" : "text-[10px]", dark ? "text-emerald-900" : "text-slate-700")}>{label}</span><span className={cn("font-black", small ? "text-[9px]" : "text-[12px]", dark ? "text-emerald-700" : "text-slate-900")}>{Math.ceil(value)} {unit}</span></div>);
 }
 
 function CostRow({ label, value, unit, price, onPriceChange }: { label: string, value: number, unit: string, price: number, onPriceChange: (v: number) => void }) {
   const qty = Math.ceil(value); const subTotal = qty * price;
-  return (
-    <div className="flex flex-col gap-1.5 p-2 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors">
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col">
-          <span className="text-[9px] font-black text-slate-700 uppercase leading-none">{label}</span>
-          <span className="text-[7.5px] font-black text-slate-400 uppercase mt-0.5">{qty} {unit}</span>
-        </div>
-        <div className="text-right flex flex-col items-end">
-          <span className="text-[6.5px] uppercase font-black text-slate-400 tracking-tight">Sub-total</span>
-          <span className="text-11px font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Label className="text-[7.5px] font-black text-slate-400 uppercase shrink-0">Rate (৳)</Label>
-        <Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-7 w-full text-[10px] font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="0" />
-      </div>
-    </div>
-  );
+  return (<div className="flex flex-col gap-1.5 p-2 bg-white border border-emerald-100 rounded-xl shadow-sm hover:border-emerald-300 transition-colors"><div className="flex justify-between items-start"><div className="flex flex-col"><span className="text-[9px] font-black text-slate-700 uppercase leading-none">{label}</span><span className="text-[7.5px] font-black text-slate-400 uppercase mt-0.5">{qty} {unit}</span></div><div className="text-right flex flex-col items-end"><span className="text-[6.5px] uppercase font-black text-slate-400 tracking-tight">Sub-total</span><span className="text-11px font-black text-emerald-600">৳ {subTotal.toLocaleString('bn-BD')}</span></div></div><div className="flex items-center gap-1.5"><Label className="text-[7.5px] font-black text-slate-400 uppercase shrink-0">Rate (৳)</Label><Input type="number" value={price === 0 ? "" : price} onChange={(e) => onPriceChange(parseFloat(e.target.value) || 0)} className="h-7 w-full text-[10px] font-black text-emerald-700 bg-white border-emerald-200 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="0" /></div></div>);
 }
 
 function RibbonButton({ icon, label, onClick, active, color, className }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string, className?: string }) {
-  const colorClasses = {
-    blue: "bg-blue-600 hover:bg-blue-700 text-white",
-    amber: "bg-amber-600 hover:bg-amber-700 text-white",
-    emerald: "bg-emerald-600 hover:bg-emerald-700 text-white",
-    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white",
-    teal: "bg-teal-600 hover:bg-teal-700 text-white",
-    default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700",
-    destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30"
-  };
-
-  return (
-    <Button 
-      variant="ghost" 
-      className={cn(
-        "flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold h-8 md:h-11 min-w-[40px] md:min-w-[48px] shrink-0 active:scale-[0.97] transition-transform",
-        color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default,
-        active ? "ring-2 ring-red-600 ring-offset-1 ring-offset-slate-900 bg-slate-700" : "",
-        className
-      )} 
-      onClick={onClick}
-    >
-      <div className="shrink-0 text-white mb-0.5 pointer-events-none">
-        {React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}
-      </div>
-      <span className="text-[9px] uppercase font-black leading-none tracking-tight text-white antialiased pointer-events-none">
-        {label}
-      </span>
-    </Button>
-  );
+  const colorClasses = { blue: "bg-blue-600 hover:bg-blue-700 text-white", amber: "bg-amber-600 hover:bg-amber-700 text-white", emerald: "bg-emerald-600 hover:bg-emerald-700 text-white", indigo: "bg-indigo-600 hover:bg-indigo-700 text-white", teal: "bg-teal-600 hover:bg-teal-700 text-white", default: "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700", destructive: "bg-slate-800 text-red-400 border border-slate-700 hover:bg-red-950/30" };
+  return (<Button variant="ghost" className={cn("flex flex-col items-center justify-center px-1.5 py-1 rounded-md font-bold h-8 md:h-11 min-w-[40px] md:min-w-[48px] shrink-0 active:scale-[0.97] transition-transform", color ? colorClasses[color as keyof typeof colorClasses] : colorClasses.default, active ? "ring-2 ring-red-600 ring-offset-1 ring-offset-slate-900 bg-slate-700" : "", className)} onClick={onClick}><div className="shrink-0 text-white mb-0.5 pointer-events-none">{React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}</div><span className="text-[9px] uppercase font-black leading-none tracking-tight text-white antialiased pointer-events-none">{label}</span></Button>);
 }
 
 function SymbolButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
-  const colorMap = {
-    blue: "bg-blue-500 border-blue-700 shadow-[0_2px_0_0_#1d4ed8]",
-    amber: "bg-amber-500 border-amber-700 shadow-[0_2px_0_0_#b45309]",
-    emerald: "bg-emerald-500 border-emerald-700 shadow-[0_2px_0_0_#059669]",
-    indigo: "bg-indigo-500 border-indigo-700 shadow-[0_2px_0_0_#4338ca]",
-    slate: "bg-slate-700 border-slate-900 shadow-[0_2px_0_0_#0f172a]",
-    violet: "bg-violet-500 border-violet-700 shadow-[0_2px_0_0_#6d28d9]",
-    purple: "bg-purple-500 border-purple-700 shadow-[0_2px_0_0_#7e22ce]",
-    cyan: "bg-cyan-500 border-cyan-700 shadow-[0_2px_0_0_#0891b2]",
-    teal: "bg-teal-500 border-teal-700 shadow-[0_2px_0_0_#0f766e]",
-    pink: "bg-pink-500 border-pink-700 shadow-[0_2px_0_0_#be185d]",
-    sky: "bg-sky-500 border-sky-700 shadow-[0_2px_0_0_#0369a1]",
-  };
-  
+  const colorMap = { blue: "bg-blue-500 border-blue-700 shadow-[0_2px_0_0_#1d4ed8]", amber: "bg-amber-500 border-amber-700 shadow-[0_2px_0_0_#b45309]", emerald: "bg-emerald-500 border-emerald-700 shadow-[0_2px_0_0_#059669]", indigo: "bg-indigo-500 border-indigo-700 shadow-[0_2px_0_0_#4338ca]", slate: "bg-slate-700 border-slate-900 shadow-[0_2px_0_0_#0f172a]", violet: "bg-violet-500 border-violet-700 shadow-[0_2px_0_0_#6d28d9]", purple: "bg-purple-500 border-purple-700 shadow-[0_2px_0_0_#7e22ce]", cyan: "bg-cyan-500 border-cyan-700 shadow-[0_2px_0_0_#0891b2]", teal: "bg-teal-500 border-teal-700 shadow-[0_2px_0_0_#0f766e]", pink: "bg-pink-500 border-pink-700 shadow-[0_2px_0_0_#be185d]", sky: "bg-sky-500 border-sky-700 shadow-[0_2px_0_0_#0369a1]" };
   const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-slate-800 border-slate-700 shadow-[0_1px_0_0_rgba(0,0,0,0.3)]";
-  
-  return (
-    <div 
-      onClick={onClick} 
-      className={cn(
-        "flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 w-[60px] md:w-[65px] mx-auto overflow-visible",
-        baseColor,
-        active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : ""
-      )}
-    >
-      <div className="shrink-0 text-white">
-        {React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}
-      </div>
-      <span className="text-[7px] md:text-[8px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span>
-    </div>
-  );
+  return (<div onClick={onClick} className={cn("flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-8 md:h-9 w-[60px] md:w-[65px] mx-auto overflow-visible", baseColor, active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : "")}><div className="shrink-0 text-white">{React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}</div><span className="text-[7px] md:text-[8px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span></div>);
 }
 
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
