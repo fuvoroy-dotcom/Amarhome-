@@ -427,8 +427,7 @@ export default function EstimatorClient() {
           svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.type === 'text') {
           const labelText = obj.textContent || obj.label;
-          const bounds = findRoomBoundaries(obj.x + obj.w / 2, obj.y + obj.h / 2);
-          const dimText = `${formatDimension(Math.max(bounds.w, bounds.h))} × ${formatDimension(Math.min(bounds.w, bounds.h))}`;
+          const dimText = `${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))}`;
           objDiv.innerHTML = `<div style="color:${obj.color}; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:Inter, sans-serif; font-weight:${obj.isBold ? '900' : 'normal'}; font-size:${(obj.fontSize || 14) * (exportZoom / 16)}px; width:100%; height:100%; text-transform:uppercase;"><div>${labelText}</div><div style="font-size:0.85em; opacity:0.8;">(${dimText})</div></div>`;
         } else if (obj.subType === 'area-marker' && obj.points) {
           const pts = obj.points.map(p => `${(p.x - obj.x) * exportZoom},${(p.y - obj.y) * exportZoom}`).join(' ');
@@ -927,7 +926,7 @@ export default function EstimatorClient() {
     if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
     if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
     
-    // Default Furniture sizes
+    // Default Furniture sizes from version 883a677
     if (subType === 'furniture-bed') { newObj.w = 6.5; newObj.h = 5; }
     if (subType === 'furniture-sofa') { newObj.w = 6; newObj.h = 2.5; }
     if (subType === 'furniture-dining') { newObj.w = 4.5; newObj.h = 3.5; }
@@ -1392,8 +1391,7 @@ export default function EstimatorClient() {
     }
     if (obj.type === 'text') {
       const labelText = obj.textContent || obj.label;
-      const bounds = findRoomBoundaries(obj.x + obj.w / 2, obj.y + obj.h / 2);
-      const dimText = `${formatDimension(Math.max(bounds.w, bounds.h))} × ${formatDimension(Math.min(bounds.w, bounds.h))}`;
+      const dimText = `${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))}`;
       return (
         <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? '900' : 'normal' }}>
           <div className="whitespace-nowrap uppercase tracking-tighter">{labelText}</div>
