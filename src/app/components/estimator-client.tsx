@@ -1761,6 +1761,239 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
   const [activeTab, setActiveTab] = useState("foundation");
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [buildingStoreys, setBuildingStoreys] = useState(3);
+  const [floorHeightFt, setFloorHeightFt] = useState(10);
+  const [wallHeightFt, setWallHeightFt] = useState(9);
+  const [tabStoreys, setTabStoreys] = useState<Record<string,number>>({ foundation: 1, column: 3, beam: 3, slab: 3, brickwork: 3, plaster: 3, stair: 1, floorTiles: 3, wallTiles: 3 });
+
+  const _polyArea = (pts: {x:number,y:number}[]) => { let a = 0; for (let i = 0; i < pts.length; i++) { const j = (i+1)%pts.length; a += pts[i].x*pts[j].y - pts[j].x*pts[i].y; } return Math.abs(a/2); };
+  const _polyPerim = (pts: {x:number,y:number}[]) => { let p = 0; for (let i = 0; i < pts.length; i++) { const j = (i+1)%pts.length; p += Math.sqrt(Math.pow(pts[j].x-pts[i].x,2)+Math.pow(pts[j].y-pts[i].y,2)); } return p; };
+
+  const detectedAreaMarkers = designObjects.filter(o => o.subType === 'area-marker');
+  const totalDetectedArea = Math.round(detectedAreaMarkers.reduce((acc,m) => acc + (m.points ? _polyArea(m.points) : m.w*m.h), 0));
+  const totalDetectedPerimeter = Math.round(detectedAreaMarkers.reduce((acc,m) => acc + (m.points ? _polyPerim(m.points) : 2*(m.w+m.h)), 0));
+
+  const _getAutoParams = (s: number, sqrtA: number) => {
+    const baySize = 15;
+    const nbX = Math.max(1, Math.ceil(sqrtA/baySize)); const nbY = Math.max(1, Math.ceil(sqrtA/baySize));
+    const numCols = (nbX+1)*(nbY+1);
+    const colSz = s<=2?10:s<=4?12:s<=5?15:18;
+    const bmH = s<=2?12:s<=4?14:16; const bmW = s<=4?10:12;
+    const slabTk = s<=2?4:s<=4?5:5.5; const mRods = s<=2?4:s<=4?6:8;
+    const ftSz = s<=2?4:s<=4?5:s<=5?6:7; const ftTk = s<=2?15:s<=4?18:s<=5?21:24;
+    const totalBmLen = (nbX*baySize + nbY*baySize)*s;
+    const slabSide = Math.round(sqrtA*10)/10;
+    return { nbX, nbY, numCols, colSz, bmH, bmW, slabTk, mRods, ftSz, ftTk, totalBmLen, slabSide, baySize };
+  };
+
+  const autoGenerateAll = () => {
+    const s = buildingStoreys; const flH = floorHeightFt; const wlH = wallHeightFt;
+    const sqrtA = totalDetectedArea > 0 ? Math.sqrt(totalDetectedArea) : 20;
+    const perim = totalDetectedPerimeter > 0 ? totalDetectedPerimeter : Math.round(4 * sqrtA);
+    const gid = () => Math.random().toString(36).substr(2, 9);
+    const p = _getAutoParams(s, sqrtA);
+
+    // --- Read real pillars from canvas ---
+    const canvasPillars = designObjects.filter(o => o.subType === 'pillar');
+    const pillarGroups = new Map<string, any[]>();
+    canvasPillars.forEach(pl => {
+      const wIn = Math.max(10, Math.round(pl.w * 12)); const hIn = Math.max(10, Math.round(pl.h * 12));
+      const key = `${wIn}x${hIn}`;
+      if (!pillarGroups.has(key)) pillarGroups.set(key, []);
+      pillarGroups.get(key)!.push(pl);
+    });
+    const pillarXs = [...new Set(canvasPillars.map(pl => Math.round(pl.x * 10) / 10))].sort((a, b) => a - b);
+    const pillarYs = [...new Set(canvasPillars.map(pl => Math.round(pl.y * 10) / 10))].sort((a, b) => a - b);
+    const xSpans = pillarXs.length > 1 ? pillarXs.slice(1).map((x, i) => Math.round((x - pillarXs[i]) * 10) / 10) : [];
+    const ySpans = pillarYs.length > 1 ? pillarYs.slice(1).map((y, i) => Math.round((y - pillarYs[i]) * 10) / 10) : [];
+
+    // FOUNDATION
+    if (canvasPillars.length > 0) {
+      const footItems = Array.from(pillarGroups.entries()).map(([key, pls]) => {
+        const [wIn, hIn] = key.split('x').map(Number);
+        const ftSz = Math.max(3, Math.ceil((Math.max(wIn, hIn) / 12 + (s <= 2 ? 2 : s <= 4 ? 2.5 : 3)) * 4) / 4);
+        const ftTk = s <= 2 ? 15 : s <= 4 ? 18 : s <= 5 ? 21 : 24;
+        const rodN = Math.ceil(ftSz * 12 / 6) + 1;
+        return { id: gid(), count: pls.length, len: ftSz, wid: ftSz, thick: ftTk, rodLong: rodN, rodWidth: rodN, rodFactor: 0.48, aggregateType: 'stone' };
+      });
+      setFoundations(footItems);
+    } else {
+      setFoundations([{ id: gid(), count: p.numCols, len: p.ftSz, wid: p.ftSz, thick: p.ftTk, rodLong: Math.max(5, p.nbX + 2), rodWidth: Math.max(5, p.nbY + 2), rodFactor: 0.48, aggregateType: 'stone' }]);
+    }
+
+    // COLUMN — separate item per unique pillar size group
+    if (canvasPillars.length > 0) {
+      const colItems = Array.from(pillarGroups.entries()).map(([key, pls]) => {
+        const [wIn, hIn] = key.split('x').map(Number);
+        const mRods = s <= 2 ? 4 : s <= 4 ? 6 : 8;
+        return { id: gid(), count: pls.length, len: wIn, wid: hIn, height: s * flH, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' };
+      });
+      setColumns(colItems);
+    } else {
+      setColumns([{ id: gid(), count: p.numCols, len: p.colSz, wid: p.colSz, height: s * flH, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    }
+
+    // BEAM — separate items per unique span direction
+    const bmH = p.bmH; const bmW = p.bmW; const mRods = p.mRods;
+    if (xSpans.length > 0 || ySpans.length > 0) {
+      const beamItems: any[] = [];
+      const uniqueXSpans = [...new Set(xSpans)];
+      uniqueXSpans.forEach(span => {
+        const cnt = xSpans.filter(x => x === span).length;
+        beamItems.push({ id: gid(), len: Math.round(span * cnt * (pillarYs.length || 1) * s), height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' });
+      });
+      const uniqueYSpans = [...new Set(ySpans)];
+      uniqueYSpans.forEach(span => {
+        const cnt = ySpans.filter(y => y === span).length;
+        beamItems.push({ id: gid(), len: Math.round(span * cnt * (pillarXs.length || 1) * s), height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' });
+      });
+      setBeams(beamItems.filter(b => b.len > 0).length > 0 ? beamItems.filter(b => b.len > 0) : [{ id: gid(), len: p.totalBmLen, height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    } else {
+      setBeams([{ id: gid(), len: p.totalBmLen, height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    }
+
+    // SLAB — one per area-marker per floor
+    const slabTk = p.slabTk;
+    if (detectedAreaMarkers.length > 0) {
+      const slabItems: any[] = [];
+      detectedAreaMarkers.forEach(m => {
+        const area = m.points ? _polyArea(m.points) : m.w * m.h;
+        const side = Math.round(Math.sqrt(area) * 10) / 10;
+        for (let fl = 0; fl < s; fl++) slabItems.push({ id: gid(), len: side, wid: side, thick: slabTk, rodGap: 6, rodFactor: 0.30, aggregateType: 'stone' });
+      });
+      setSlabs(slabItems);
+    } else {
+      setSlabs(Array.from({ length: s }, () => ({ id: gid(), len: p.slabSide, wid: p.slabSide, thick: slabTk, rodGap: 6, rodFactor: 0.30, aggregateType: 'stone' })));
+    }
+
+    // STAIR — one stair block with s-1 flights (one per floor connection)
+    const stairWid = 3.5; const stepsPerFlight = Math.round(flH * 12 / 7);
+    setStairs([{ id: gid(), count: Math.max(1, s - 1), wLen: Math.round(stepsPerFlight * 10 / 12 * 10) / 10, wid: stairWid, thick: 5, steps: stepsPerFlight, riser: 7, tread: 10, lLen: stairWid + 0.5, lWid: stairWid, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
+
+    // BRICKWORK — per area-marker per floor
+    if (detectedAreaMarkers.length > 0) {
+      const bwItems: any[] = [];
+      detectedAreaMarkers.forEach(m => {
+        const pm = m.points ? Math.round(_polyPerim(m.points)) : Math.round(2 * (m.w + m.h));
+        for (let fl = 0; fl < s; fl++) bwItems.push({ id: gid(), len: pm, height: wlH, thick: 5 });
+      });
+      setBrickworks(bwItems);
+    } else {
+      setBrickworks(Array.from({ length: s }, () => ({ id: gid(), len: perim, height: wlH, thick: 5 })));
+    }
+
+    // PLASTER — per area-marker per floor (2 sides)
+    if (detectedAreaMarkers.length > 0) {
+      const plItems: any[] = [];
+      detectedAreaMarkers.forEach(m => {
+        const pm = m.points ? Math.round(_polyPerim(m.points)) : Math.round(2 * (m.w + m.h));
+        for (let fl = 0; fl < s; fl++) plItems.push({ id: gid(), len: pm, height: wlH, thick: 0.5, sides: 2 });
+      });
+      setPlasters(plItems);
+    } else {
+      setPlasters(Array.from({ length: s }, () => ({ id: gid(), len: perim, height: wlH, thick: 0.5, sides: 2 })));
+    }
+
+    // FLOOR TILES — per area-marker per floor
+    if (totalDetectedArea > 0) {
+      const ftItems: any[] = [];
+      detectedAreaMarkers.forEach(m => {
+        const area = m.points ? _polyArea(m.points) : m.w * m.h;
+        const side = Math.round(Math.sqrt(area) * 10) / 10;
+        for (let fl = 0; fl < s; fl++) ftItems.push({ id: gid(), len: side, wid: side, tLen: 24, tWid: 24, wastage: 10 });
+      });
+      setFloorTiles(ftItems);
+    }
+
+    // WALL TILES — bathroom estimate (~10% of floor area) per floor
+    const bathArea = Math.max(25, Math.round(totalDetectedArea * 0.1));
+    const bathSide = Math.round(Math.sqrt(bathArea) * 10) / 10;
+    setWallTiles(Array.from({ length: s }, () => ({ id: gid(), len: 2 * (bathSide + bathSide), height: Math.min(7, wlH), tLen: 12, tWid: 12, wastage: 15 })));
+
+    // SEPTIC TANK — 1 per building
+    const sepLen = Math.max(3, Math.round(s * 0.8 + 2)); const sepWid = Math.max(2, Math.round(s * 0.5 + 1.5));
+    setSepticTanks([{ id: gid(), count: 1, len: sepLen, wid: sepWid, depth: 5, aggregateType: 'stone' }]);
+
+    // SOAK WELL — 1 per building
+    setSoakWells([{ id: gid(), count: 1, dia: 3, depth: Math.max(8, s * 2) }]);
+
+    setTabStoreys({ foundation: 1, column: s, beam: s, slab: s, brickwork: s, plaster: s, stair: Math.max(1, s - 1), floorTiles: s, wallTiles: s });
+  };
+
+  const autoGenerateTab = (type: string, ts: number) => {
+    const s = buildingStoreys; const flH = floorHeightFt; const wlH = wallHeightFt;
+    const sqrtA = totalDetectedArea > 0 ? Math.sqrt(totalDetectedArea) : 20;
+    const perim = totalDetectedPerimeter > 0 ? totalDetectedPerimeter : Math.round(4 * sqrtA);
+    const p = _getAutoParams(s, sqrtA);
+    const gid = () => Math.random().toString(36).substr(2, 9);
+    const canvasPillars = designObjects.filter(o => o.subType === 'pillar');
+    const pillarGroups = new Map<string, any[]>();
+    canvasPillars.forEach(pl => { const wIn = Math.max(10, Math.round(pl.w * 12)); const hIn = Math.max(10, Math.round(pl.h * 12)); const key = `${wIn}x${hIn}`; if (!pillarGroups.has(key)) pillarGroups.set(key, []); pillarGroups.get(key)!.push(pl); });
+    const pillarXs = [...new Set(canvasPillars.map(pl => Math.round(pl.x * 10) / 10))].sort((a, b) => a - b);
+    const pillarYs = [...new Set(canvasPillars.map(pl => Math.round(pl.y * 10) / 10))].sort((a, b) => a - b);
+    const xSpans = pillarXs.length > 1 ? pillarXs.slice(1).map((x, i) => Math.round((x - pillarXs[i]) * 10) / 10) : [];
+    const ySpans = pillarYs.length > 1 ? pillarYs.slice(1).map((y, i) => Math.round((y - pillarYs[i]) * 10) / 10) : [];
+
+    if (type === 'foundation') {
+      if (canvasPillars.length > 0) { setFoundations(Array.from(pillarGroups.entries()).map(([key, pls]) => { const [wIn, hIn] = key.split('x').map(Number); const ftSz = Math.max(3, Math.ceil((Math.max(wIn, hIn) / 12 + (s <= 2 ? 2 : s <= 4 ? 2.5 : 3)) * 4) / 4); const ftTk = s <= 2 ? 15 : s <= 4 ? 18 : 21; const rN = Math.ceil(ftSz * 12 / 6) + 1; return { id: gid(), count: pls.length, len: ftSz, wid: ftSz, thick: ftTk, rodLong: rN, rodWidth: rN, rodFactor: 0.48, aggregateType: 'stone' }; })); }
+      else setFoundations([{ id: gid(), count: p.numCols, len: p.ftSz, wid: p.ftSz, thick: p.ftTk, rodLong: Math.max(5, p.nbX + 2), rodWidth: Math.max(5, p.nbY + 2), rodFactor: 0.48, aggregateType: 'stone' }]);
+    }
+    if (type === 'column') {
+      if (canvasPillars.length > 0) { setColumns(Array.from(pillarGroups.entries()).map(([key, pls]) => { const [wIn, hIn] = key.split('x').map(Number); return { id: gid(), count: pls.length, len: wIn, wid: hIn, height: ts * flH, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }; })); }
+      else setColumns([{ id: gid(), count: p.numCols, len: p.colSz, wid: p.colSz, height: ts * flH, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    }
+    if (type === 'beam') {
+      if (xSpans.length > 0 || ySpans.length > 0) {
+        const beamItems: any[] = [];
+        [...new Set(xSpans)].forEach(span => { const cnt = xSpans.filter(x => x === span).length; beamItems.push({ id: gid(), len: Math.round(span * cnt * (pillarYs.length || 1) * ts), height: p.bmH, wid: p.bmW, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }); });
+        [...new Set(ySpans)].forEach(span => { const cnt = ySpans.filter(y => y === span).length; beamItems.push({ id: gid(), len: Math.round(span * cnt * (pillarXs.length || 1) * ts), height: p.bmH, wid: p.bmW, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }); });
+        setBeams(beamItems.filter(b => b.len > 0));
+      } else setBeams([{ id: gid(), len: (p.nbX * p.baySize + p.nbY * p.baySize) * ts, height: p.bmH, wid: p.bmW, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+    }
+    if (type === 'slab') {
+      if (detectedAreaMarkers.length > 0) { const items: any[] = []; detectedAreaMarkers.forEach(m => { const side = Math.round(Math.sqrt(m.points ? _polyArea(m.points) : m.w * m.h) * 10) / 10; for (let fl = 0; fl < ts; fl++) items.push({ id: gid(), len: side, wid: side, thick: p.slabTk, rodGap: 6, rodFactor: 0.30, aggregateType: 'stone' }); }); setSlabs(items); }
+      else setSlabs(Array.from({ length: ts }, () => ({ id: gid(), len: p.slabSide, wid: p.slabSide, thick: p.slabTk, rodGap: 6, rodFactor: 0.30, aggregateType: 'stone' })));
+    }
+    if (type === 'stair') { const stepsF = Math.round(flH * 12 / 7); const stWid = 3.5; setStairs([{ id: gid(), count: Math.max(1, ts - 1), wLen: Math.round(stepsF * 10 / 12 * 10) / 10, wid: stWid, thick: 5, steps: stepsF, riser: 7, tread: 10, lLen: stWid + 0.5, lWid: stWid, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]); }
+    if (type === 'brickwork') {
+      if (detectedAreaMarkers.length > 0) { const items: any[] = []; detectedAreaMarkers.forEach(m => { const pm = m.points ? Math.round(_polyPerim(m.points)) : Math.round(2 * (m.w + m.h)); for (let fl = 0; fl < ts; fl++) items.push({ id: gid(), len: pm, height: wlH, thick: 5 }); }); setBrickworks(items); }
+      else setBrickworks(Array.from({ length: ts }, () => ({ id: gid(), len: perim, height: wlH, thick: 5 })));
+    }
+    if (type === 'plaster') {
+      if (detectedAreaMarkers.length > 0) { const items: any[] = []; detectedAreaMarkers.forEach(m => { const pm = m.points ? Math.round(_polyPerim(m.points)) : Math.round(2 * (m.w + m.h)); for (let fl = 0; fl < ts; fl++) items.push({ id: gid(), len: pm, height: wlH, thick: 0.5, sides: 2 }); }); setPlasters(items); }
+      else setPlasters(Array.from({ length: ts }, () => ({ id: gid(), len: perim, height: wlH, thick: 0.5, sides: 2 })));
+    }
+    if (type === 'floorTiles' && totalDetectedArea > 0) { const items: any[] = []; detectedAreaMarkers.forEach(m => { const side = Math.round(Math.sqrt(m.points ? _polyArea(m.points) : m.w * m.h) * 10) / 10; for (let fl = 0; fl < ts; fl++) items.push({ id: gid(), len: side, wid: side, tLen: 24, tWid: 24, wastage: 10 }); }); setFloorTiles(items); }
+    if (type === 'wallTiles') { const bathArea = Math.max(25, Math.round(totalDetectedArea * 0.1)); const bathSide = Math.round(Math.sqrt(bathArea) * 10) / 10; setWallTiles(Array.from({ length: ts }, () => ({ id: gid(), len: 2 * (bathSide + bathSide), height: Math.min(7, wlH), tLen: 12, tWid: 12, wastage: 15 }))); }
+    if (type === 'septicTank') { const sepLen = Math.max(3, Math.round(s * 0.8 + 2)); const sepWid = Math.max(2, Math.round(s * 0.5 + 1.5)); setSepticTanks([{ id: gid(), count: ts, len: sepLen, wid: sepWid, depth: 5, aggregateType: 'stone' }]); }
+    if (type === 'soakWell') setSoakWells([{ id: gid(), count: ts, dia: 3, depth: Math.max(8, s * 2) }]);
+    setTabStoreys(prev => ({ ...prev, [type]: ts }));
+  };
+
+
+  const renderTabAutoHeader = (type: string) => (
+    <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100 mb-2 flex-wrap gap-2">
+      <span className="text-[10px] font-black text-blue-700 flex items-center gap-1.5">
+        <Calculator className="w-3 h-3" />
+        {tabStoreys[type] || buildingStoreys} তলার হিসাব
+        {totalDetectedArea > 0 && <span className="text-emerald-600 ml-1 font-black">| ক্যানভাস: {totalDetectedArea} Sq.ft ({detectedAreaMarkers.length}টি এরিয়া)</span>}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <Select value={String(tabStoreys[type] || buildingStoreys)} onValueChange={v => setTabStoreys(prev => ({...prev, [type]: parseInt(v)}))}>
+          <SelectTrigger className="h-6 w-20 text-[10px] font-black border-blue-300 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[1,2,3,4,5,6,7,8,9,10].map(n => <SelectItem key={n} value={String(n)} className="text-xs font-black">{n} তলা</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="outline" className="h-6 text-[10px] font-black gap-1 border-blue-400 text-blue-700 hover:bg-blue-50 px-2" onClick={() => autoGenerateTab(type, tabStoreys[type] || buildingStoreys)}>
+          <Plus className="w-2.5 h-2.5" /> অটো সেট
+        </Button>
+      </div>
+    </div>
+  );
+
   const addItem = (type: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     if (type === 'foundation') setFoundations([...foundations, { id, count: 0, len: 0, wid: 0, thick: 0, rodLong: 0, rodWidth: 0, rodFactor: 0.48, aggregateType: 'stone' }]);
@@ -1861,6 +2094,50 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       </div>
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-4 md:p-6 pb-24">
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border border-blue-200 rounded-xl p-3 md:p-4 mb-4 shadow-sm">
+            <div className="flex flex-wrap items-end gap-3 justify-between">
+              <div className="flex items-center gap-2 shrink-0">
+                <Layers className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-black text-slate-700 uppercase tracking-tight">বিল্ডিং কনফিগ</span>
+                {totalDetectedArea > 0 && (
+                  <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-200">
+                    ক্যানভাস: {totalDetectedArea} Sq.ft ({detectedAreaMarkers.length}টি এরিয়া)
+                  </span>
+                )}
+                {totalDetectedArea === 0 && (
+                  <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-200">
+                    ক্যানভাসে রুম এরিয়া মার্ক করুন
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="space-y-0.5">
+                  <Label className="text-[9px] font-black uppercase text-slate-500">মোট তলা</Label>
+                  <Select value={String(buildingStoreys)} onValueChange={v => setBuildingStoreys(parseInt(v))}>
+                    <SelectTrigger className="h-8 w-28 text-xs font-black border-blue-300 bg-white shadow-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['একতলা','দোতলা','তিনতলা','চারতলা','পাঁচতলা','ছয়তলা','সাততলা','আটতলা','নয়তলা','দশতলা'].map((t,i) => (
+                        <SelectItem key={i+1} value={String(i+1)} className="text-xs font-black">{t} (G+{i})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[9px] font-black uppercase text-slate-500">তলার উচ্চতা (ft)</Label>
+                  <Input type="number" value={floorHeightFt} onChange={e => setFloorHeightFt(parseFloat(e.target.value)||10)} className="h-8 w-20 text-xs font-black border-blue-300 shadow-sm" />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[9px] font-black uppercase text-slate-500">দেয়ালের উচ্চতা (ft)</Label>
+                  <Input type="number" value={wallHeightFt} onChange={e => setWallHeightFt(parseFloat(e.target.value)||9)} className="h-8 w-20 text-xs font-black border-blue-300 shadow-sm" />
+                </div>
+                <Button onClick={autoGenerateAll} className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black gap-1.5 px-3 shadow-sm">
+                  <Calculator className="w-3.5 h-3.5" /> সব অটো হিসাব জেনারেট করুন
+                </Button>
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
@@ -1868,6 +2145,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <TabsTrigger value="foundation" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Foundation</TabsTrigger><TabsTrigger value="column" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Column</TabsTrigger><TabsTrigger value="beam" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Beam</TabsTrigger><TabsTrigger value="slab" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Roof</TabsTrigger><TabsTrigger value="stair" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Stair</TabsTrigger><TabsTrigger value="brickwork" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Brickwork</TabsTrigger><TabsTrigger value="plaster" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Plaster</TabsTrigger><TabsTrigger value="floorTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Floor Tiles</TabsTrigger><TabsTrigger value="wallTiles" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Wall Tiles</TabsTrigger><TabsTrigger value="septicTank" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Septic Tank</TabsTrigger><TabsTrigger value="soakWell" className="text-[10px] md:text-xs px-3 py-2 shrink-0 font-black">Soak Well</TabsTrigger><TabsTrigger value="total" className="text-[10px] md:text-xs px-3 py-2 shrink-0 bg-emerald-100 text-emerald-700 font-black">Total Materials</TabsTrigger>
                 </TabsList>
                 <TabsContent value="foundation" className="space-y-6 m-0">
+                  {renderTabAutoHeader('foundation')}
                   {foundations.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Base #{idx+1}</h4>{foundations.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('foundation', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1877,6 +2155,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('foundation')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new base </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="column" className="space-y-6 m-0">
+                  {renderTabAutoHeader('column')}
                   {columns.map((c, idx) => (
                     <div key={c.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Column #{idx+1}</h4>{columns.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('column', c.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1886,6 +2165,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('column')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new column </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="beam" className="space-y-6 m-0">
+                  {renderTabAutoHeader('beam')}
                   {beams.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Beam #{idx+1}</h4>{beams.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('beam', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1895,6 +2175,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('beam')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new beam </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="slab" className="space-y-6 m-0">
+                  {renderTabAutoHeader('slab')}
                   {slabs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Roof #{idx+1}</h4>{slabs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('slab', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1904,6 +2185,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('slab')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new roof </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="stair" className="space-y-6 m-0">
+                  {renderTabAutoHeader('stair')}
                   {stairs.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Stair #{idx+1}</h4>{stairs.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('stair', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1913,6 +2195,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('stair')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new stair </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="brickwork" className="space-y-6 m-0">
+                  {renderTabAutoHeader('brickwork')}
                   {brickworks.map((b, idx) => (
                     <div key={b.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Brickwork #{idx+1}</h4>{brickworks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('brickwork', b.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1922,6 +2205,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('brickwork')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new brickwork </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="plaster" className="space-y-6 m-0">
+                  {renderTabAutoHeader('plaster')}
                   {plasters.map((p, idx) => (
                     <div key={p.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Plaster #{idx+1}</h4>{plasters.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('plaster', p.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1931,6 +2215,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('plaster')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new plaster </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="floorTiles" className="space-y-6 m-0">
+                  {renderTabAutoHeader('floorTiles')}
                   {floorTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Floor Tiles #{idx+1}</h4>{floorTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('floorTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1940,6 +2225,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('floorTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new floor tiles </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="wallTiles" className="space-y-6 m-0">
+                  {renderTabAutoHeader('wallTiles')}
                   {wallTiles.map((f, idx) => (
                     <div key={f.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Wall Tiles #{idx+1}</h4>{wallTiles.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('wallTiles', f.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1949,6 +2235,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('wallTiles')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new wall tiles </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="septicTank" className="space-y-6 m-0">
+                  {renderTabAutoHeader('septicTank')}
                   {septicTanks.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Septic Tank #{idx+1}</h4>{septicTanks.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('septicTank', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
@@ -1958,6 +2245,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
                   <Button variant="outline" size="sm" onClick={() => addItem('septicTank')} className="w-full h-12 gap-2 text-xs font-black border-dashed border-slate-400 uppercase"><Plus className="w-3 h-3" /> Add new tank </Button><SectionResult res={currentRes} />
                 </TabsContent>
                 <TabsContent value="soakWell" className="space-y-6 m-0">
+                  {renderTabAutoHeader('soakWell')}
                   {soakWells.map((s, idx) => (
                     <div key={s.id} className="p-4 border rounded-lg bg-slate-50 relative space-y-4">
                       <div className="flex justify-between items-center"><h4 className="font-black text-xs text-slate-500">Soak Well #{idx+1}</h4>{soakWells.length > 1 && <Button variant="ghost" size="icon" onClick={() => removeItem('soakWell', s.id)} className="h-6 w-6 text-red-500"><X className="w-4 h-4" /></Button>}</div>
