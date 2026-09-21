@@ -17,7 +17,8 @@ import {
   Layers, Boxes, Plus, X,
   ArrowUpToLine, FileText, Download, Type as TypeIcon, Cloud,
   TrendingUp, Sparkles, ShieldCheck, ClipboardList, Bed, Armchair, UtensilsCrossed, Bath, Magnet, CookingPot, Maximize2,
-  ArrowUpRight as StairIcon
+  ArrowUpRight as StairIcon,
+  Lightbulb, Fan, Zap, Droplets, Trees, Flower2, Car
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,13 +62,18 @@ import { MarketPriceSyncDialog, MaterialPrices } from '@/components/market-price
 import { AdvancedPdfReportDialog } from '@/components/advanced-pdf-report-dialog';
 import { BnbcStructuralAuditDialog } from '@/components/bnbc-structural-audit-dialog';
 import { DailySiteManagementDialog } from '@/components/daily-site-management-dialog';
+import { StructuralDetailingDialog } from '@/components/cad/structural-detailing-dialog';
+import { SectionGeneratorDialog } from '@/components/cad/section-generator-dialog';
+import { SitePlanSetbackDialog } from '@/components/cad/site-plan-setback-dialog';
+import { MepStudioDialog } from '@/components/cad/mep-studio-dialog';
+import { InteriorLandscapeDialog } from '@/components/cad/interior-landscape-dialog';
 import html2canvas from 'html2canvas';
 import { getConstructionAdvice } from "@/app/actions";
 
 
 type DesignObject = {
   id: string;
-  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair' | 'furniture';
+  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair' | 'furniture' | 'mep' | 'landscape';
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
@@ -141,6 +147,11 @@ export default function EstimatorClient() {
   const [pdfReportPayload, setPdfReportPayload] = useState<{ total: any; grandTotalCost: number } | null>(null);
   const [isBnbcAuditOpen, setIsBnbcAuditOpen] = useState(false);
   const [isSiteLedgerOpen, setIsSiteLedgerOpen] = useState(false);
+  const [isStructuralDetailingOpen, setIsStructuralDetailingOpen] = useState(false);
+  const [isSectionCutOpen, setIsSectionCutOpen] = useState(false);
+  const [isSitePlanSetbackOpen, setIsSitePlanSetbackOpen] = useState(false);
+  const [isMepStudioOpen, setIsMepStudioOpen] = useState(false);
+  const [isInteriorLandscapeOpen, setIsInteriorLandscapeOpen] = useState(false);
   const [isSmartSnapEnabled, setIsSmartSnapEnabled] = useState(true);
   const [activeSnapGuides, setActiveSnapGuides] = useState<{ x?: number; y?: number } | null>(null);
   const [selectionBox, setSelectionBox] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
@@ -932,6 +943,18 @@ export default function EstimatorClient() {
     if (subType === 'furniture-dining') { newObj.w = 4.5; newObj.h = 3.5; }
     if (subType === 'furniture-kitchen') { newObj.w = 6; newObj.h = 2; }
     if (subType === 'furniture-bath') { newObj.w = 2.5; newObj.h = 3; }
+    
+    // MEP tools dimensions
+    if (subType === 'mep-light') { newObj.w = 1.2; newObj.h = 1.2; }
+    if (subType === 'mep-fan') { newObj.w = 2.5; newObj.h = 2.5; }
+    if (subType === 'mep-socket') { newObj.w = 1.0; newObj.h = 1.0; }
+    if (subType === 'mep-pipe') { newObj.w = 6; newObj.h = 0.5; }
+    if (subType === 'mep-septic') { newObj.w = 8; newObj.h = 5; }
+
+    // Landscape tools dimensions
+    if (subType === 'landscape-tree') { newObj.w = 4; newObj.h = 4; }
+    if (subType === 'landscape-garden') { newObj.w = 10; newObj.h = 6; }
+    if (subType === 'landscape-car') { newObj.w = 7; newObj.h = 14; }
 
     const next = [...designObjects, newObj];
     setDesignObjects(next);
@@ -1117,6 +1140,16 @@ export default function EstimatorClient() {
         else if (selectedTool === 'furniture-dining') addObjectAt('furniture', 'furniture-dining', 'Dining Table', snappedX, snappedY);
         else if (selectedTool === 'furniture-kitchen') addObjectAt('furniture', 'furniture-kitchen', 'Kitchen Set', snappedX, snappedY);
         else if (selectedTool === 'furniture-bath') addObjectAt('furniture', 'furniture-bath', 'Commode', snappedX, snappedY);
+        // MEP tools
+        else if (selectedTool === 'mep-light') addObjectAt('mep', 'mep-light', 'Light', snappedX, snappedY);
+        else if (selectedTool === 'mep-fan') addObjectAt('mep', 'mep-fan', 'Fan', snappedX, snappedY);
+        else if (selectedTool === 'mep-socket') addObjectAt('mep', 'mep-socket', 'Power Socket', snappedX, snappedY);
+        else if (selectedTool === 'mep-pipe') addObjectAt('mep', 'mep-pipe', 'Water Pipe', snappedX, snappedY);
+        else if (selectedTool === 'mep-septic') addObjectAt('mep', 'mep-septic', 'Septic Tank', snappedX, snappedY);
+        // Landscape tools
+        else if (selectedTool === 'landscape-tree') addObjectAt('landscape', 'landscape-tree', 'Tree', snappedX, snappedY);
+        else if (selectedTool === 'landscape-garden') addObjectAt('landscape', 'landscape-garden', 'Lawn Garden', snappedX, snappedY);
+        else if (selectedTool === 'landscape-car') addObjectAt('landscape', 'landscape-car', 'Parking Spot', snappedX, snappedY);
 
         setSelectedTool('select'); return;
     }
@@ -1468,6 +1501,77 @@ export default function EstimatorClient() {
         </svg>
       );
     }
+    if (obj.type === 'mep') {
+      const sw = 1 / displayZoom;
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
+          {obj.subType === 'mep-light' && (
+            <g>
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.5} r={Math.min(obj.w, obj.h) * 0.4} fill="#fef08a" stroke="#ca8a04" strokeWidth={sw * 2} />
+              <line x1={obj.w * 0.2} y1={obj.h * 0.5} x2={obj.w * 0.8} y2={obj.h * 0.5} stroke="#ca8a04" strokeWidth={sw} />
+              <line x1={obj.w * 0.5} y1={obj.h * 0.2} x2={obj.w * 0.5} y2={obj.h * 0.8} stroke="#ca8a04" strokeWidth={sw} />
+            </g>
+          )}
+          {obj.subType === 'mep-fan' && (
+            <g>
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.5} r={Math.min(obj.w, obj.h) * 0.45} fill="none" stroke="#f59e0b" strokeWidth={sw * 1.5} strokeDasharray="2 2" />
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.5} r={Math.min(obj.w, obj.h) * 0.15} fill="#f59e0b" />
+              <line x1={obj.w * 0.5} y1={obj.h * 0.1} x2={obj.w * 0.5} y2={obj.h * 0.9} stroke="#f59e0b" strokeWidth={sw * 2} />
+              <line x1={obj.w * 0.1} y1={obj.h * 0.5} x2={obj.w * 0.9} y2={obj.h * 0.5} stroke="#f59e0b" strokeWidth={sw * 2} />
+            </g>
+          )}
+          {obj.subType === 'mep-socket' && (
+            <g>
+              <rect x={obj.w * 0.1} y={obj.h * 0.1} width={obj.w * 0.8} height={obj.h * 0.8} rx={obj.w * 0.1} fill="#1e293b" stroke="#38bdf8" strokeWidth={sw * 2} />
+              <circle cx={obj.w * 0.35} cy={obj.h * 0.5} r={obj.w * 0.08} fill="#ffffff" />
+              <circle cx={obj.w * 0.65} cy={obj.h * 0.5} r={obj.w * 0.08} fill="#ffffff" />
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.3} r={obj.w * 0.09} fill="#ffffff" />
+            </g>
+          )}
+          {obj.subType === 'mep-pipe' && (
+            <g>
+              <line x1={0} y1={obj.h * 0.5} x2={obj.w} y2={obj.h * 0.5} stroke="#06b6d4" strokeWidth={sw * 6} strokeLinecap="round" />
+              <line x1={0} y1={obj.h * 0.5} x2={obj.w} y2={obj.h * 0.5} stroke="#ffffff" strokeWidth={sw * 2} strokeDasharray="3 3" />
+            </g>
+          )}
+          {obj.subType === 'mep-septic' && (
+            <g>
+              <rect x={0} y={0} width={obj.w} height={obj.h} fill="#1e293b" stroke="#10b981" strokeWidth={sw * 2.5} rx={obj.w * 0.04} />
+              <line x1={obj.w * 0.35} y1={0} x2={obj.w * 0.35} y2={obj.h} stroke="#64748b" strokeWidth={sw * 2} />
+              <line x1={obj.w * 0.7} y1={0} x2={obj.w * 0.7} y2={obj.h} stroke="#64748b" strokeWidth={sw * 2} />
+              <text x={obj.w * 0.5} y={obj.h * 0.55} fill="#10b981" fontSize={Math.max(8, obj.w * 0.12)} fontWeight="bold" textAnchor="middle">SEPTIC TANK</text>
+            </g>
+          )}
+        </svg>
+      );
+    }
+    if (obj.type === 'landscape') {
+      const sw = 1 / displayZoom;
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
+          {obj.subType === 'landscape-tree' && (
+            <g>
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.5} r={Math.min(obj.w, obj.h) * 0.45} fill="#15803d" fillOpacity="0.25" stroke="#16a34a" strokeWidth={sw * 2} />
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.5} r={Math.min(obj.w, obj.h) * 0.3} fill="#16a34a" fillOpacity="0.4" />
+              <circle cx={obj.w * 0.5} cy={obj.h * 0.5} r={Math.min(obj.w, obj.h) * 0.1} fill="#78350f" />
+            </g>
+          )}
+          {obj.subType === 'landscape-garden' && (
+            <g>
+              <rect x={0} y={0} width={obj.w} height={obj.h} fill="#052e16" fillOpacity="0.3" stroke="#22c55e" strokeWidth={sw * 2} rx={obj.w * 0.05} />
+              <text x={obj.w * 0.5} y={obj.h * 0.55} fill="#4ade80" fontSize={Math.max(8, obj.w * 0.12)} fontWeight="bold" textAnchor="middle">GARDEN / লন</text>
+            </g>
+          )}
+          {obj.subType === 'landscape-car' && (
+            <g>
+              <rect x={0} y={0} width={obj.w} height={obj.h} fill="#1e293b" stroke="#38bdf8" strokeWidth={sw * 2} rx={obj.w * 0.08} />
+              <rect x={obj.w * 0.15} y={obj.h * 0.2} width={obj.w * 0.7} height={obj.h * 0.6} fill="#0f172a" rx={obj.w * 0.05} />
+              <text x={obj.w * 0.5} y={obj.h * 0.55} fill="#38bdf8" fontSize={Math.max(8, obj.w * 0.1)} fontWeight="bold" textAnchor="middle">PARKING (CAR)</text>
+            </g>
+          )}
+        </svg>
+      );
+    }
     return null;
   };
 
@@ -1516,8 +1620,14 @@ export default function EstimatorClient() {
           <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<ShieldCheck className="w-4 h-4" />} label="BNBC" onClick={() => setIsBnbcAuditOpen(true)} color="indigo" className="shrink-0" />
           <RibbonButton icon={<ClipboardList className="w-4 h-4" />} label="খতিয়ান" onClick={() => setIsSiteLedgerOpen(true)} color="emerald" className="shrink-0" />
-          <RibbonButton icon={<Magnet className="w-4 h-4" />} label={isSmartSnapEnabled ? "স্ন্যাপ: ON" : "স্ন্যাপ: OFF"} onClick={() => setIsSmartSnapEnabled(!isSmartSnapEnabled)} active={isSmartSnapEnabled} color="cyan" className="shrink-0" />
           <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<Layers className="w-4 h-4 text-blue-400" />} label="রড ডিটেইলিং" onClick={() => setIsStructuralDetailingOpen(true)} color="blue" className="shrink-0 font-bold" />
+          <RibbonButton icon={<Building className="w-4 h-4 text-purple-400" />} label="সেকশন A-A" onClick={() => setIsSectionCutOpen(true)} color="violet" className="shrink-0 font-bold" />
+          <RibbonButton icon={<Square className="w-4 h-4 text-emerald-400" />} label="সাইট প্ল্যান" onClick={() => setIsSitePlanSetbackOpen(true)} color="emerald" className="shrink-0 font-bold" />
+          <RibbonButton icon={<Sparkles className="w-4 h-4 text-amber-400" />} label="MEP ওয়্যারিং" onClick={() => setIsMepStudioOpen(true)} color="amber" className="shrink-0 font-bold" />
+          <RibbonButton icon={<Armchair className="w-4 h-4 text-pink-400" />} label="ইন্টেরিয়র" onClick={() => setIsInteriorLandscapeOpen(true)} color="pink" className="shrink-0 font-bold" />
+          <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
+          <RibbonButton icon={<Magnet className="w-4 h-4" />} label={isSmartSnapEnabled ? "স্ন্যাপ: ON" : "স্ন্যাপ: OFF"} onClick={() => setIsSmartSnapEnabled(!isSmartSnapEnabled)} active={isSmartSnapEnabled} color="cyan" className="shrink-0" />
           <RibbonButton icon={<LayoutGrid />} label="All" onClick={selectAll} color="indigo" className="shrink-0" />
           <RibbonButton icon={<Layers />} label="3D View" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0" />
           <Trash2 className="w-4 h-4 text-red-500 cursor-pointer ml-1" onClick={deleteSelected} />
@@ -1571,9 +1681,22 @@ export default function EstimatorClient() {
                 <SymbolButton active={selectedTool === 'door-3'} icon={<DoorOpen />} label="D3" onClick={() => setSelectedTool('door-3')} color="teal" />
                 <SymbolButton active={selectedTool === 'door-4'} icon={<DoorOpen />} label="D4" onClick={() => setSelectedTool('door-4')} color="teal" />
                 <SymbolButton active={selectedTool === 'double-door'} icon={<LayoutGrid />} label="DBL" onClick={() => setSelectedTool('double-door')} color="pink" />
-                <SymbolButton active={selectedTool === 'sliding-door'} icon={<RectangleHorizontal />} label="SLD" onClick={() => setSelectedTool('sliding-door')} color="pink" />
                 <SymbolButton active={selectedTool === 'window'} icon={<Wind />} label="WIN" onClick={() => setSelectedTool('window')} color="sky" />
               </div>
+
+              <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
+              <span className="text-[8px] font-black text-slate-500 uppercase text-center hidden md:block">MEP & Plumbing</span>
+              <SymbolButton active={selectedTool === 'mep-light'} icon={<Lightbulb className="w-4 h-4" />} label="Light" onClick={() => setSelectedTool('mep-light')} color="amber" />
+              <SymbolButton active={selectedTool === 'mep-fan'} icon={<Fan className="w-4 h-4" />} label="Fan" onClick={() => setSelectedTool('mep-fan')} color="amber" />
+              <SymbolButton active={selectedTool === 'mep-socket'} icon={<Zap className="w-4 h-4" />} label="Socket" onClick={() => setSelectedTool('mep-socket')} color="blue" />
+              <SymbolButton active={selectedTool === 'mep-pipe'} icon={<Droplets className="w-4 h-4" />} label="Pipe" onClick={() => setSelectedTool('mep-pipe')} color="cyan" />
+              <SymbolButton active={selectedTool === 'mep-septic'} icon={<Boxes className="w-4 h-4" />} label="Septic" onClick={() => setSelectedTool('mep-septic')} color="emerald" />
+
+              <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
+              <span className="text-[8px] font-black text-slate-500 uppercase text-center hidden md:block">Landscape</span>
+              <SymbolButton active={selectedTool === 'landscape-tree'} icon={<Trees className="w-4 h-4" />} label="Tree" onClick={() => setSelectedTool('landscape-tree')} color="emerald" />
+              <SymbolButton active={selectedTool === 'landscape-garden'} icon={<Flower2 className="w-4 h-4" />} label="Garden" onClick={() => setSelectedTool('landscape-garden')} color="teal" />
+              <SymbolButton active={selectedTool === 'landscape-car'} icon={<Car className="w-4 h-4" />} label="Parking" onClick={() => setSelectedTool('landscape-car')} color="sky" />
             </div>
           </ScrollArea>
         </div>
@@ -1753,6 +1876,13 @@ export default function EstimatorClient() {
       <AdvancedPdfReportDialog open={isAdvancedPdfReportOpen} onOpenChange={setIsAdvancedPdfReportOpen} projectName={projectName} total={pdfReportPayload?.total || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 }} prices={prices} grandTotalCost={pdfReportPayload?.grandTotalCost || 0} unitSystem={unitSystem} foundationsCount={foundations.length} columnsCount={columns.length} />
       <BnbcStructuralAuditDialog open={isBnbcAuditOpen} onOpenChange={setIsBnbcAuditOpen} designObjects={designObjects} projectName={projectName} />
       <DailySiteManagementDialog open={isSiteLedgerOpen} onOpenChange={setIsSiteLedgerOpen} projectName={projectName} currentDesignId={currentDesignId} grandTotalEstimatedCost={pdfReportPayload?.grandTotalCost || 0} materialsLedger={materialsLedger} setMaterialsLedger={setMaterialsLedger} laborLedger={laborLedger} setLaborLedger={setLaborLedger} onIntegratedSave={saveToFirestore} />
+      
+      {/* 5 Specialized Architectural & Engineering CAD Modules */}
+      <StructuralDetailingDialog open={isStructuralDetailingOpen} onOpenChange={setIsStructuralDetailingOpen} designObjects={designObjects} projectName={projectName} />
+      <SectionGeneratorDialog open={isSectionCutOpen} onOpenChange={setIsSectionCutOpen} designObjects={designObjects} projectName={projectName} />
+      <SitePlanSetbackDialog open={isSitePlanSetbackOpen} onOpenChange={setIsSitePlanSetbackOpen} designObjects={designObjects} projectName={projectName} />
+      <MepStudioDialog open={isMepStudioOpen} onOpenChange={setIsMepStudioOpen} designObjects={designObjects} projectName={projectName} />
+      <InteriorLandscapeDialog open={isInteriorLandscapeOpen} onOpenChange={setIsInteriorLandscapeOpen} designObjects={designObjects} projectName={projectName} />
     </div>
   );
 }
