@@ -79,75 +79,75 @@ export function AdvancedPdfReportDialog({
   const timelinePhases = [
     {
       id: 1,
-      title: "সাইট প্রস্তুতি ও লে-আউট (Site Prep & Layout)",
+      title: "Site Preparation & Layout (Leveling & Marking)",
       startDay: 1,
       endDay: Math.round(7 * scaleMultiplier),
-      progress: "১ম পর্যায়",
-      status: "প্রাথমিক",
-      description: "জমি সমতলকরণ, সীমানা নির্ধারণ, লে-আউট ড্রয়িং মার্কিং এবং মাটি কাটার প্রস্তুতি।"
+      progress: "Phase 1",
+      status: "Preliminary",
+      description: "Land leveling, boundary setting, layout drawing marking and earthwork preparation."
     },
     {
       id: 2,
-      title: "বেইস ও ফুটিং ঢালাই (Base & Footing Casting)",
+      title: "Base & Footing Casting (Excavation & RCC)",
       startDay: Math.round(8 * scaleMultiplier),
       endDay: Math.round(20 * scaleMultiplier),
-      progress: "২য় পর্যায়",
-      status: "ফাউন্ডেশন",
-      description: "ফুটিং সয়েল এক্সকাভেশন, সিসি ঢালাই, রড বাইন্ডিং এবং কলাম বেইস আরসিসি ঢালাই।"
+      progress: "Phase 2",
+      status: "Foundation",
+      description: "Footing soil excavation, CC casting, rebar binding and column base RCC casting."
     },
     {
       id: 3,
-      title: "শর্ট কলাম ও প্লিন্থ বিম (Short Columns & Plinth)",
+      title: "Short Column & Plinth Beam",
       startDay: Math.round(21 * scaleMultiplier),
       endDay: Math.round(34 * scaleMultiplier),
-      progress: "৩য় পর্যায়",
-      status: "সাব-স্ট্রাকচার",
-      description: "মাটির নিচে শর্ট কলাম ঢালাই, বালি ভরাট ও কম্প্যাকশন, গ্রেড বিম শাটারিং ও ঢালাই।"
+      progress: "Phase 3",
+      status: "Sub-Structure",
+      description: "Short column casting below grade, sand filling & compaction, grade beam shuttering & casting."
     },
     {
       id: 4,
-      title: "মূল কলাম ঢালাই ও কিউরিং (Column Raising)",
+      title: "Main Column Raising & Curing",
       startDay: Math.round(35 * scaleMultiplier),
       endDay: Math.round(48 * scaleMultiplier),
-      progress: "৪র্থ পর্যায়",
-      status: "সুপার-স্ট্রাকচার",
-      description: "ছাদের নিচ পর্যন্ত কলাম রড বাইন্ডিং, রিং প্লেসমেন্ট, ডায়াকাঠ শাটারিং ও কংক্রিট ঢালাই এবং ২৮ দিন কিউরিং।"
+      progress: "Phase 4",
+      status: "Super-Structure",
+      description: "Column rebar binding up to roof level, ring placement, formwork & concrete casting, 28-day curing."
     },
     {
       id: 5,
-      title: "ছাদ সেন্টারিং, শাটারিং ও রড বাইন্ডিং (Roof Rebar)",
+      title: "Roof Centering, Shuttering & Rebar Binding",
       startDay: Math.round(49 * scaleMultiplier),
       endDay: Math.round(62 * scaleMultiplier),
-      progress: "৫ম পর্যায়",
-      status: "রুফ প্রিপারেশন",
-      description: "স্টিল প্রপস ও শিট দিয়ে ছাদের সেন্টারিং, বিম ও ছাদের মেইন ও বাইন্ডার রড প্লেসমেন্ট, ফ্যান হুক ও পাইপ সেটিং।"
+      progress: "Phase 5",
+      status: "Roof Preparation",
+      description: "Steel prop & sheet centering, beam & slab main/distribution bar placement, fan hook & pipe setting."
     },
     {
       id: 6,
-      title: "ছাদ আরসিসি ঢালাই ও কিউরিং (Slab Casting & Curing)",
+      title: "Slab RCC Casting & Curing (21 Days)",
       startDay: Math.round(63 * scaleMultiplier),
       endDay: Math.round(85 * scaleMultiplier),
-      progress: "৬ষ্ঠ পর্যায়",
-      status: "রুফ কাস্টিং",
-      description: "১:১.৫:৩ অনুপাতে কংক্রিট মিক্সিং ও ভাইব্রেটর দিয়ে ছাদ ঢালাই, সীমানা বেঁধে একটানা ২১ দিন পানি কিউরিং।"
+      progress: "Phase 6",
+      status: "Slab Casting",
+      description: "Concrete mix 1:1.5:3 with vibrator for slab casting, continuous 21-day water curing mandatory."
     },
     {
       id: 7,
-      title: "দেয়াল গাঁথুনি ও প্লাস্টার (Brickwork & Plastering)",
+      title: "Brickwork & Plastering",
       startDay: Math.round(86 * scaleMultiplier),
       endDay: Math.round(112 * scaleMultiplier),
-      progress: "৭ম পর্যায়",
-      status: "গাথুনি ও প্লাস্টার",
-      description: "৫ ইঞ্চি ও ১০ ইঞ্চি ইটের দেয়াল গাঁথুনি, লিন্টেল বিম ঢালাই, অভ্যন্তরীণ ও বহিঃস্থ দেয়াল প্লাস্টার।"
+      progress: "Phase 7",
+      status: "Brickwork & Plaster",
+      description: "5\" and 10\" brick wall construction, lintel beam casting, internal and external wall plastering."
     },
     {
       id: 8,
-      title: "টাইলস, স্যানিটারি, ইলেকট্রিক ও রং (Finishing Work)",
+      title: "Tiles, Sanitary, Electric & Painting (Finishing)",
       startDay: Math.round(113 * scaleMultiplier),
       endDay: totalEstimatedDays,
-      progress: "৮ম পর্যায়",
-      status: "ফিনিশিং",
-      description: "ফ্লোর ও ওয়াল টাইলস স্থাপন, দরজা-জানালা ফিটিং, স্যানিটারি ওয়্যার, ওয়্যারিং ও দুই কোট প্লাস্টিক পেইন্ট।"
+      progress: "Phase 8",
+      status: "Finishing",
+      description: "Floor & wall tile installation, door-window fitting, sanitary ware, wiring & two-coat paint finishing."
     }
   ];
 
@@ -161,65 +161,65 @@ export function AdvancedPdfReportDialog({
 
   const laborSchedule = [
     {
-      role: "প্রধান রাজমিস্ত্রি (Head Mason)",
+      role: "Head Mason (Rajmistri)",
       headcount: Math.max(1, Math.round(scaleMultiplier)),
       manDays: Math.ceil(masonDays * 0.3),
       avgDailyRate: 1100,
-      scope: "লে-আউট, কলাম ও বিমের সুতা-লেভেল চেক, ঢালাই সুপারভিশন ও মান নিয়ন্ত্রণ।"
+      scope: "Layout, column & beam level checking, casting supervision and quality control."
     },
     {
-      role: "সাধারণ রাজমিস্ত্রি (Brick & Concrete Mason)",
+      role: "Brick & Concrete Mason",
       headcount: Math.max(2, Math.round(3 * scaleMultiplier)),
       manDays: Math.ceil(masonDays * 0.7),
       avgDailyRate: 900,
-      scope: "ইটের গাঁথুনি, দেয়াল ও ছাদ প্লাস্টার, মেঝে ড্রেসিং ও ঢালাই।"
+      scope: "Brick masonry, wall & roof plastering, floor dressing and concrete casting."
     },
     {
-      role: "রড মিস্ত্রি / ফিটার (Steel Fixer / Rebar)",
+      role: "Steel Fixer / Rebar Binder",
       headcount: Math.max(2, Math.round(3 * scaleMultiplier)),
       manDays: rodBinderDays,
       avgDailyRate: 950,
-      scope: "রড কাটিং, বেন্ডিং, কলামের রিং বাঁধা, ফুটিং ও ছাদের জালি বাইন্ডিং।"
+      scope: "Rebar cutting, bending, column stirrup binding, footing & slab mesh binding."
     },
     {
-      role: "শাটারিং ও সেন্টারিং কারিগর (Carpenters)",
+      role: "Shuttering & Centering Carpenter",
       headcount: Math.max(2, Math.round(3 * scaleMultiplier)),
       manDays: shutteringDays,
       avgDailyRate: 950,
-      scope: "স্টিল শিট বা কাঠের সেন্টারিং, বিম ও কলামের খাঁচ বক্স তৈরি এবং ছাদ সাপোর্ট।"
+      scope: "Steel sheet or timber centering, beam & column box formwork and slab support."
     },
     {
-      role: "নির্মাণ শ্রমিক / হেল্পার (General Helpers)",
+      role: "General Helpers / Labour",
       headcount: Math.max(4, Math.round(6 * scaleMultiplier)),
       manDays: helperDays,
       avgDailyRate: 650,
-      scope: "মাটি খনন ও ভরাট, ইট বহন, মসলা ও কংক্রিট মিক্সিং, পানি কিউরিং।"
+      scope: "Earthwork, brick carrying, mortar & concrete mixing, water curing."
     },
     {
-      role: "টাইলস ও পেইন্টিং কারিগর (Tiles & Painting Crew)",
+      role: "Tiles & Painting Crew",
       headcount: Math.max(2, Math.round(2 * scaleMultiplier)),
       manDays: finishingDays,
       avgDailyRate: 900,
-      scope: "মেঝে ও বাথরুম টাইলস সেটিং, পুটি লাগানো ও রং ফিনিশিং।"
+      scope: "Floor & bathroom tile setting, putty and paint finishing."
     }
   ];
 
   const materialRows = [
-    { name: "রড (Steel Rebar)", qty: `${Math.ceil(total.rod)}`, unit: "কেজি (KG)", rate: prices.rod, total: Math.ceil(total.rod) * prices.rod },
-    { name: "সিমেন্ট (Cement)", qty: `${Math.ceil(total.cement)}`, unit: "বস্তা (Bags)", rate: prices.cement, total: Math.ceil(total.cement) * prices.cement },
-    { name: "ইট (Bricks)", qty: `${total.bricks}`, unit: "পিস (Pcs)", rate: prices.bricks, total: total.bricks * prices.bricks },
-    { name: "বালি (Sand)", qty: `${Math.ceil(total.sand)}`, unit: "সিএফটি (CFT)", rate: prices.sand, total: Math.ceil(total.sand) * prices.sand },
-    { name: "পাথর (Stone)", qty: `${Math.ceil(total.stone)}`, unit: "সিএফটি (CFT)", rate: prices.stone, total: Math.ceil(total.stone) * prices.stone },
-    { name: "খোয়া (Chips)", qty: `${Math.ceil(total.chips)}`, unit: "সিএফটি (CFT)", rate: prices.chips, total: Math.ceil(total.chips) * prices.chips },
-    { name: "ফ্লোর টাইলস (Floor Tiles)", qty: `${Math.ceil(total.floorTiles)}`, unit: "পিস (Pcs)", rate: prices.floorTiles, total: Math.ceil(total.floorTiles) * prices.floorTiles },
-    { name: "ওয়াল টাইলস (Wall Tiles)", qty: `${Math.ceil(total.wallTiles)}`, unit: "পিস (Pcs)", rate: prices.wallTiles, total: Math.ceil(total.wallTiles) * prices.wallTiles },
-    { name: "লেবার খরচ (Labor Cost)", qty: `${Math.ceil(total.labor)}`, unit: "বর্গফুট (Sqft)", rate: prices.labor, total: Math.ceil(total.labor) * prices.labor },
-    { name: "দরজা (Doors)", qty: `${total.doors}`, unit: "সেট (Sets)", rate: prices.doors, total: total.doors * prices.doors },
-    { name: "জানালা (Windows)", qty: `${total.windows}`, unit: "সেট (Sets)", rate: prices.windows, total: total.windows * prices.windows },
-    { name: "ইলেকট্রিক ওয়্যারিং (Electric)", qty: "1", unit: "লট (Lump)", rate: prices.electric, total: prices.electric },
-    { name: "প্লাম্বিং ও ফিটিংস (Fittings)", qty: "1", unit: "লট (Lump)", rate: prices.fittings, total: prices.fittings },
-    { name: "রং ও পেইন্টিং (Paint)", qty: "1", unit: "লট (Lump)", rate: prices.paint, total: prices.paint },
-    { name: "বিবিধ আনুষঙ্গিক (Others)", qty: "1", unit: "লট (Lump)", rate: prices.others, total: prices.others },
+    { name: "Steel Rebar (Rod)", qty: `${Math.ceil(total.rod)}`, unit: "KG", rate: prices.rod, total: Math.ceil(total.rod) * prices.rod },
+    { name: "Cement", qty: `${Math.ceil(total.cement)}`, unit: "Bags (50kg)", rate: prices.cement, total: Math.ceil(total.cement) * prices.cement },
+    { name: "Bricks", qty: `${total.bricks}`, unit: "Pcs", rate: prices.bricks, total: total.bricks * prices.bricks },
+    { name: "Sand", qty: `${Math.ceil(total.sand)}`, unit: "CFT", rate: prices.sand, total: Math.ceil(total.sand) * prices.sand },
+    { name: "Stone Aggregate", qty: `${Math.ceil(total.stone)}`, unit: "CFT", rate: prices.stone, total: Math.ceil(total.stone) * prices.stone },
+    { name: "Brick Chips (Khoya)", qty: `${Math.ceil(total.chips)}`, unit: "CFT", rate: prices.chips, total: Math.ceil(total.chips) * prices.chips },
+    { name: "Floor Tiles", qty: `${Math.ceil(total.floorTiles)}`, unit: "Pcs", rate: prices.floorTiles, total: Math.ceil(total.floorTiles) * prices.floorTiles },
+    { name: "Wall Tiles", qty: `${Math.ceil(total.wallTiles)}`, unit: "Pcs", rate: prices.wallTiles, total: Math.ceil(total.wallTiles) * prices.wallTiles },
+    { name: "Labor Cost", qty: `${Math.ceil(total.labor)}`, unit: "Sq.ft", rate: prices.labor, total: Math.ceil(total.labor) * prices.labor },
+    { name: "Doors", qty: `${total.doors}`, unit: "Sets", rate: prices.doors, total: total.doors * prices.doors },
+    { name: "Windows", qty: `${total.windows}`, unit: "Sets", rate: prices.windows, total: total.windows * prices.windows },
+    { name: "Electric Wiring (Lump)", qty: "1", unit: "Lot", rate: prices.electric, total: prices.electric },
+    { name: "Plumbing & Fittings (Lump)", qty: "1", unit: "Lot", rate: prices.fittings, total: prices.fittings },
+    { name: "Paint & Painting (Lump)", qty: "1", unit: "Lot", rate: prices.paint, total: prices.paint },
+    { name: "Miscellaneous (Others)", qty: "1", unit: "Lot", rate: prices.others, total: prices.others },
   ].filter(r => r.total > 0 || parseFloat(r.qty) > 0);
 
   const handleDownloadPdf = async () => {
@@ -250,7 +250,8 @@ export function AdvancedPdfReportDialog({
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
         pdf.setTextColor(148, 163, 184); // slate-400
-        pdf.text(`Project: ${projectName} | Area: ${slabAreaSqft} Sq.ft (${slabAreaSqm} Sq.m)`, margin, 19);
+        const safeName = projectName.replace(/[^\x00-\x7F]/g, '?');
+        pdf.text(`Project: ${safeName} | Area: ${slabAreaSqft} Sq.ft (${slabAreaSqm} Sq.m)`, margin, 19);
         pdf.text(`Generated: ${new Date().toLocaleDateString("en-GB")}`, pageWidth - margin, 19, { align: "right" });
 
         // Accent line

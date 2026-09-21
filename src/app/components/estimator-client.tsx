@@ -1316,7 +1316,22 @@ export default function EstimatorClient() {
         const pts = obj.points.map(p => `${(p.x - minX) * displayZoom},${(p.y - minY) * displayZoom}`).join(' ');
         return (
           <div className="w-full h-full relative pointer-events-none">
-            <svg width="100%" height="100%" className="overflow-visible"><polygon points={pts} fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" /></svg>
+            <svg width="100%" height="100%" className="overflow-visible">
+              <polygon points={pts} fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
+              {obj.points.map((p, i) => {
+                const next = obj.points![(i + 1) % obj.points!.length];
+                const dist = Math.sqrt(Math.pow(next.x - p.x, 2) + Math.pow(next.y - p.y, 2));
+                const mx = ((p.x + next.x) / 2 - minX) * displayZoom;
+                const my = ((p.y + next.y) / 2 - minY) * displayZoom;
+                const label = formatDimension(dist);
+                return (
+                  <g key={`side-${i}`}>
+                    <rect x={mx - 24} y={my - 10} width={48} height={18} rx={3} fill="white" stroke="#3b82f6" strokeWidth={1} opacity={0.9} />
+                    <text x={mx} y={my + 4} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#1e40af" fontFamily="monospace">{label}</text>
+                  </g>
+                );
+              })}
+            </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-white/90 px-2 py-0.5 rounded shadow-sm border border-blue-200 flex flex-col items-center">
                 <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">{obj.label || "রুম এলাকা"}</span>
@@ -1463,11 +1478,15 @@ export default function EstimatorClient() {
     else if (obj.rotation === 270) oy = obj.w;
     
     const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
+    const isAreaMarker = obj.subType === 'area-marker';
     return { 
       left: (obj.x + ox) * displayZoom + CANVAS_OFFSET, top: (obj.y + oy) * displayZoom + CANVAS_OFFSET, width: obj.w * displayZoom, height: obj.h * displayZoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
       backgroundColor: isStructure ? obj.color : 'transparent',
       border: isStructure ? '1px solid rgba(0,0,0,0.5)' : 'none',
-      outline: selectedObjectIds.includes(obj.id) ? '2px solid #ef4444' : 'none', cursor: obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move'), zIndex: selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10),
+      outline: selectedObjectIds.includes(obj.id) ? '2px solid #ef4444' : 'none',
+      cursor: isAreaMarker ? 'default' : (obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move')),
+      zIndex: isAreaMarker ? 1 : (selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10)),
+      pointerEvents: isAreaMarker ? 'none' : 'auto',
       touchAction: 'none'
     };
   };
@@ -1592,6 +1611,33 @@ export default function EstimatorClient() {
                       <svg width="20000" height="20000" className="overflow-visible">
                         <polyline points={polyPoints.map(p => `${p.x * displayZoom},${p.y * displayZoom}`).join(' ') + (tempDrawEnd ? ` ${tempDrawEnd.x * displayZoom},${tempDrawEnd.y * displayZoom}` : '')} fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4,4" />
                         {polyPoints.map((p, i) => <circle key={i} cx={p.x * displayZoom} cy={p.y * displayZoom} r={4} fill={i === 0 ? "#ef4444" : "#3b82f6"} stroke="white" strokeWidth={1} />)}
+                        {polyPoints.map((p, i) => {
+                          if (i === 0) return null;
+                          const prev = polyPoints[i - 1];
+                          const dist = Math.sqrt(Math.pow(p.x - prev.x, 2) + Math.pow(p.y - prev.y, 2));
+                          const mx = (prev.x + p.x) / 2 * displayZoom;
+                          const my = (prev.y + p.y) / 2 * displayZoom;
+                          const label = formatDimension(dist);
+                          return (
+                            <g key={`seg-lbl-${i}`}>
+                              <rect x={mx - 24} y={my - 10} width={48} height={18} rx={3} fill="white" stroke="#3b82f6" strokeWidth={1} opacity={0.93} />
+                              <text x={mx} y={my + 4} textAnchor="middle" fontSize={10} fontWeight="bold" fill="#1e40af" fontFamily="monospace">{label}</text>
+                            </g>
+                          );
+                        })}
+                        {tempDrawEnd && polyPoints.length > 0 && (() => {
+                          const last = polyPoints[polyPoints.length - 1];
+                          const dist = Math.sqrt(Math.pow(tempDrawEnd.x - last.x, 2) + Math.pow(tempDrawEnd.y - last.y, 2));
+                          const mx = (last.x + tempDrawEnd.x) / 2 * displayZoom;
+                          const my = (last.y + tempDrawEnd.y) / 2 * displayZoom;
+                          const label = formatDimension(dist);
+                          return (
+                            <g key="live-seg">
+                              <rect x={mx - 24} y={my - 10} width={48} height={18} rx={3} fill="#eff6ff" stroke="#93c5fd" strokeWidth={1} opacity={0.92} />
+                              <text x={mx} y={my + 4} textAnchor="middle" fontSize={10} fontWeight="bold" fill="#2563eb" fontFamily="monospace">{label}</text>
+                            </g>
+                          );
+                        })()}
                       </svg>
                    </div>
                 )}

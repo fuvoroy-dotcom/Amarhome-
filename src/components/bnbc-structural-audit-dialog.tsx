@@ -232,24 +232,34 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
   );
 
   const engineeringCalc = useMemo(() => {
-    const sbc = parseFloat(soilBearingCapacity) || 1.5;
+    const sbc = parseFloat(soilBearingCapacity) || 1.5; // ton/sqft
     const s = parseInt(buildingStoreys) || 3;
-    const raw = 130 * 165 * s; 
-    const totalTons = Math.round((raw / 2000) * 1.25);
-    const area = totalTons / sbc;
-    const side = Math.ceil(Math.sqrt(area) * 4) / 4;
-    const thick = Math.min(30, Math.max(12, Math.round(10 + s * 2.5)));
+    // BNBC 2020: DL ≈ 125 psf (structural), LL = 40 psf (residential), FF = 30 psf (finishes)
+    // Total service load per sqft per floor = 125 + 40 + 30 = 195 psf ≈ 0.0975 ton/sqft
+    // Assume typical bay 15ft×15ft = 225 sqft tributary per column
+    const tributaryArea = 225; // sqft (15' x 15' bay)
+    const loadPerSqftTon = (125 + 40 + 30) / 2000; // ton/sqft per floor
+    const columnServiceLoad = tributaryArea * loadPerSqftTon * s; // tons service load
+    const totalTons = Math.round(columnServiceLoad * 1.5); // FOS 1.5 (BNBC factored)
+    // Footing design: P / SBC with 25% increase for moment
+    const footingArea = (totalTons * 1.25) / sbc;
+    const side = Math.max(3, Math.ceil(Math.sqrt(footingArea) * 4) / 4); // min 3ft
+    // Footing thickness: ~60% of projection from column face (BNBC punching shear rule)
+    const colSizeIn = s <= 2 ? 10 : s <= 4 ? 12 : s <= 5 ? 15 : 18;
+    const projectionFt = (side - colSizeIn / 12) / 2;
+    const thick = Math.min(30, Math.max(12, Math.round(projectionFt * 12 * 0.7)));
     const specs: Record<string, { col: string; rebar: string; beam: string; slab: string }> = {
-      '1': { col: '10"×10"', rebar: '4-16mm 500W', beam: '10"×12"', slab: '4"' },
-      '2': { col: '10"×12"', rebar: '6-16mm 500W', beam: '10"×14"', slab: '4.5"' },
-      '3': { col: '10"×15"', rebar: '6-16mm+2-12mm 500W', beam: '10"×16"', slab: '5"' },
-      '4': { col: '12"×15"', rebar: '8-16mm 500W', beam: '12"×16"', slab: '5"' },
-      '5': { col: '12"×18"', rebar: '8-20mm 500W', beam: '12"×18"', slab: '5.5"' },
-      '6': { col: '15"×18"', rebar: '10-20mm 500W', beam: '14"×20"', slab: '6"' },
+      '1': { col: '10"×10"', rebar: '4-12mm 500W + 2 legged stirrup 8mm@8"', beam: '9"×12"', slab: '4"' },
+      '2': { col: '10"×12"', rebar: '6-16mm 500W + 2 legged stirrup 8mm@6"', beam: '10"×14"', slab: '4.5"' },
+      '3': { col: '10"×15"', rebar: '6-16mm+2-12mm 500W + stirrup 8mm@6"', beam: '10"×16"', slab: '5"' },
+      '4': { col: '12"×15"', rebar: '8-16mm 500W + stirrup 10mm@5"', beam: '12"×16"', slab: '5"' },
+      '5': { col: '12"×18"', rebar: '8-20mm 500W + stirrup 10mm@4"', beam: '12"×18"', slab: '5.5"' },
+      '6': { col: '15"×18"', rebar: '10-20mm 500W + stirrup 10mm@4"', beam: '14"×20"', slab: '6"' },
     };
     const sp = specs[buildingStoreys] || specs['6'];
-    const grade = s <= 3 ? 'M20 (1:1.5:3)' : s <= 5 ? 'M25 (1:1:2)' : 'M30 (Ready Mix)';
-    return { totalTons, area: Math.round(area * 10) / 10, side, thick, grade, ...sp };
+    // Concrete grade: BNBC minimum M20 for slab/beam, M25 for column ≥4 storey
+    const grade = s <= 2 ? 'M20 (1:1.5:3) — Min. fck 20 MPa' : s <= 4 ? 'M25 (1:1:2) — Min. fck 25 MPa' : 'M30 Ready-Mix — Min. fck 30 MPa';
+    return { totalTons, area: Math.round(footingArea * 10) / 10, side, thick, grade, ...sp };
   }, [soilBearingCapacity, buildingStoreys]);
 
   return (
@@ -441,10 +451,10 @@ export function BnbcStructuralAuditDialog({ open, onOpenChange, designObjects, p
                 </div>
                 <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   {[
-                    { title: 'আনুমানিক কলাম লোড', value: `~${engineeringCalc.totalTons} টন`, desc: 'DL (১২৫psf) + LL (৪০psf) × তলা সংখ্যা × ফ্যাক্টর অফ সেফটি (১.২৫)' },
-                    { title: 'প্রয়োজনীয় ফুটিং সাইজ', value: `${engineeringCalc.side}' × ${engineeringCalc.side}' (${engineeringCalc.area} Sq.ft)`, desc: `গভীরতা: ${engineeringCalc.thick}" | মাটি থেকে ≥ ৪ ফুট নিচে` },
-                    { title: 'সুপারিশকৃত কলাম সাইজ', value: engineeringCalc.col, desc: `রিইনফোর্সমেন্ট: ${engineeringCalc.rebar} | স্টিরাপ: ৮mm @ ৬" c/c` },
-                    { title: 'বিম ও স্ল্যাব', value: `বিম: ${engineeringCalc.beam} | স্ল্যাব: ${engineeringCalc.slab}`, desc: `কংক্রিট গ্রেড: ${engineeringCalc.grade} | স্ল্যাব রড: ১০mm @ ৬" c/c` },
+                    { title: 'আনুমানিক কলাম লোড (Factored)', value: `~${engineeringCalc.totalTons} টন`, desc: `DL(125psf)+LL(40psf)+FF(30psf) × ${buildingStoreys} তলা × ১৫\'×১৫\' bay × FOS 1.5 (BNBC 2020)` },
+                    { title: 'প্রয়োজনীয় ফুটিং সাইজ', value: `${engineeringCalc.side}\' × ${engineeringCalc.side}\' (${engineeringCalc.area} Sq.ft)`, desc: `গভীরতা: ${engineeringCalc.thick}" | মাটি থেকে ≥ ৪ ফুট | Punching shear BNBC Cl.6.4.6` },
+                    { title: 'সুপারিশকৃত কলাম সাইজ', value: engineeringCalc.col, desc: `রিইনফোর্সমেন্ট: ${engineeringCalc.rebar}` },
+                    { title: 'বিম ও স্ল্যাব (BNBC minimum)', value: `বিম: ${engineeringCalc.beam} | স্ল্যাব: ${engineeringCalc.slab}`, desc: `কংক্রিট গ্রেড: ${engineeringCalc.grade} | Cover: ৩/৪" slab, ১.৫" column/beam` },
                   ].map((item, i) => (
                     <div key={i} className={`space-y-1 ${i >= 2 ? 'border-t border-slate-100 pt-3' : ''} ${i % 2 === 0 ? 'sm:border-r sm:pr-4 border-slate-100' : ''}`}>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">{item.title}</span>
