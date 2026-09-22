@@ -10,7 +10,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -18,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Download, Layers, ShieldCheck, ZoomIn, ZoomOut, Building2 } from 'lucide-react';
+import { Download, Layers, ShieldCheck, ZoomIn, ZoomOut, Building2, Boxes, Scissors } from 'lucide-react';
 
 interface StructuralDetailingProps {
   open: boolean;
@@ -49,13 +48,15 @@ export function StructuralDetailingDialog({
     return inside;
   };
 
-  // Find columns within the selected area marker
-  const selectedArea = designObjects.find(o => o.subType === 'area-marker'); // Simplified for mapping logic as per prompt
+  // Find area marker and pillars inside it
+  const selectedArea = designObjects.find(o => o.subType === 'area-marker' && designObjects.length > 0); 
   
   const mappedPillars = useMemo(() => {
-    if (!selectedArea || !selectedArea.points) return designObjects.filter(o => o.subType === 'pillar');
+    if (!selectedArea || !selectedArea.points) {
+        return designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar');
+    }
     return designObjects.filter(o => {
-      if (o.subType !== 'pillar') return false;
+      if (o.subType !== 'pillar' && o.type !== 'pillar') return false;
       const cx = o.x + o.w / 2;
       const cy = o.y + o.h / 2;
       return isPointInPoly(cx, cy, selectedArea.points);
@@ -66,8 +67,8 @@ export function StructuralDetailingDialog({
   const uniquePillarGroups = useMemo(() => {
     const groups: Record<string, { wIn: number; hIn: number; count: number }> = {};
     mappedPillars.forEach(p => {
-      const wIn = Math.round(p.w * 12);
-      const hIn = Math.round(p.h * 12);
+      const wIn = Math.max(10, Math.round(p.w * 12));
+      const hIn = Math.max(10, Math.round(p.h * 12));
       const key = `${wIn}x${hIn}`;
       if (!groups[key]) groups[key] = { wIn, hIn, count: 0 };
       groups[key].count++;
@@ -75,11 +76,11 @@ export function StructuralDetailingDialog({
     return Object.values(groups);
   }, [mappedPillars]);
 
-  // Structural Safety Logic (Requirement: if 12mm is found, upgrade to 16mm)
+  // Structural Safety Logic (Requirement: Safety High - 16mm/20mm)
   const getReinforcementInfo = (storeys: number) => {
-    if (storeys <= 2) return { rod: "16mm", gap: "6\" c/c", thick: 15 };
-    if (storeys <= 4) return { rod: "16mm", gap: "5\" c/c", thick: 18 };
-    return { rod: "20mm", gap: "4.5\" c/c", thick: 24 };
+    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15 };
+    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18 };
+    return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24 };
   };
 
   const rebar = getReinforcementInfo(detailingStoreys);
@@ -101,7 +102,7 @@ export function StructuralDetailingDialog({
                 </span>
               </DialogTitle>
               <p className="text-xs text-slate-400">
-                {projectName} • রড বাইন্ডিং, সেকশন ও রিইনফোর্সমেন্ট ডিটেইলস
+                {projectName} • ২ডি রড বাইন্ডিং, সেকশন ও রিইনফোর্সমেন্ট ডিটেইলস
               </p>
             </div>
           </div>
@@ -119,15 +120,17 @@ export function StructuralDetailingDialog({
           </div>
         </div>
 
-        {/* Tabs Bar */}
+        {/* Restore 7 Specialized Sections per screenshot */}
         <div className="bg-slate-950/80 px-6 pt-2 border-b border-slate-800">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="bg-slate-900/90 p-1 border border-slate-800 h-auto flex flex-wrap gap-1">
-              <TabsTrigger value="footing" className="text-xs font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">১. ফুটিং / বেস</TabsTrigger>
-              <TabsTrigger value="column" className="text-xs font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">২. কলাম সেকশন</TabsTrigger>
-              <TabsTrigger value="beam" className="text-xs font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৩. বিম ডিটেইলিং</TabsTrigger>
-              <TabsTrigger value="slab" className="text-xs font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৪. ছাদ (Slab) রড</TabsTrigger>
-              <TabsTrigger value="stair" className="text-xs font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৫. সিঁড়ি সেকশন</TabsTrigger>
+              <TabsTrigger value="footing" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">১. ফুটিং / বেস</TabsTrigger>
+              <TabsTrigger value="column" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">২. কলাম সেকশন</TabsTrigger>
+              <TabsTrigger value="beam" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৩. বিম ডিটেইলিং</TabsTrigger>
+              <TabsTrigger value="slab" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৪. ছাদ (Slab) রড</TabsTrigger>
+              <TabsTrigger value="stair" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৫. সিঁড়ি সেকশন</TabsTrigger>
+              <TabsTrigger value="septic" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৬. সেপ্টিক ট্যাংক</TabsTrigger>
+              <TabsTrigger value="lift" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">৭. লিফট কোর / শিয়ার ওয়াল</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -165,28 +168,28 @@ export function StructuralDetailingDialog({
                     <span className="text-white font-bold">{mappedPillars.length} টি</span>
                   </div>
                   <div className="flex justify-between pt-1">
-                    <span>কলামের ধরণ:</span>
+                    <span>ইউনিক কলাম টাইপ:</span>
                     <span className="text-amber-400 font-bold">{uniquePillarGroups.length} প্রকার</span>
                   </div>
                 </div>
 
                 <div className="p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/20 space-y-1 text-slate-300">
-                  <p className="font-bold text-emerald-400">নিরাপদ রড ডিজাইন:</p>
-                  <p>• মেইন রড: {rebar.rod} (Safety High)</p>
+                  <p className="font-bold text-emerald-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> উচ্চ-নিরাপত্তা রড ডিজাইন:</p>
+                  <p>• মেইন রড: {rebar.rod} (Safety Max)</p>
                   <p>• জালি স্পেসিং: {rebar.gap}</p>
-                  <p>• ক্লিয়ার কভার: ৩ ইঞ্চি</p>
+                  <p>• সয়েল টেস্ট: মিডিয়াম হার্ড</p>
                 </div>
               </>
             )}
             
             {activeTab !== 'footing' && (
               <div className="p-8 text-center text-slate-500 italic uppercase font-black text-[10px] tracking-widest leading-relaxed">
-                সেকশন প্যারামিটার লোড হচ্ছে...
+                {activeTab} ডিটেইলিং সেকশন লোড হচ্ছে...
               </div>
             )}
           </div>
 
-          {/* CAD Display */}
+          {/* CAD Display Workspace */}
           <div className="flex-1 bg-slate-900/60 p-6 overflow-auto flex items-center justify-center">
             <div
               className="w-full h-full min-w-[700px] min-h-[500px] flex items-center justify-center relative border border-slate-800 rounded-xl bg-slate-950 shadow-inner"
@@ -199,48 +202,73 @@ export function StructuralDetailingDialog({
                 {activeTab === 'footing' && (
                   <div className="flex flex-col gap-12 p-8 items-center">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
-                      const fSize = Math.max(4, Math.ceil((group.wIn / 12 + (detailingStoreys <= 2 ? 2.5 : 3.5)) * 2) / 2);
+                      // Safety-High Footing Size Calculation:
+                      // If column is 12"x12" and storeys = 3, fSize will be 5.5ft - 6.0ft
+                      const offset = detailingStoreys <= 2 ? 3.0 : (detailingStoreys + 1.5);
+                      const fSize = Math.max(4, Math.ceil((group.wIn / 12 + offset) * 2) / 2);
+                      
                       return (
-                        <div key={idx} className="flex flex-col items-center gap-4">
-                          <svg width="600" height="380" viewBox="0 0 600 380" className="text-slate-200">
-                            {/* Footing Section */}
-                            <rect x="40" y="220" width="240" height="100" fill="#1e293b" stroke="#38bdf8" strokeWidth="2" />
-                            <line x1="40" y1="320" x2="280" y2="320" stroke="#f59e0b" strokeWidth="6" strokeDasharray="4 2" />
+                        <div key={idx} className="flex flex-col items-center gap-4 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
+                          <svg width="600" height="420" viewBox="0 0 600 420" className="text-slate-200">
+                            {/* Title Label */}
+                            <text x="300" y="30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL DETIALS - FOOTING F-{idx + 1}</text>
                             
-                            {/* Column from Footing */}
-                            <rect x="135" y="100" width="50" height="120" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+                            {/* Footing Cross-Section */}
+                            <rect x="50" y="240" width="220" height="100" fill="#1e293b" stroke="#38bdf8" strokeWidth="2.5" />
+                            <line x1="50" y1="340" x2="270" y2="340" stroke="#64748b" strokeWidth="8" strokeDasharray="4 2" />
                             
-                            {/* Safety Rebars 16mm+ */}
-                            <line x1="50" y1="305" x2="270" y2="305" stroke="#ef4444" strokeWidth="3" />
-                            {[70, 100, 130, 160, 190, 220, 250].map(x => <circle key={x} cx={x} cy="300" r="3" fill="#38bdf8" />)}
+                            {/* Column Stem from Footing */}
+                            <rect x="135" y="100" width="50" height="140" fill="#0f172a" stroke="#ef4444" strokeWidth="2.5" />
                             
-                            <text x="160" y="85" fill="#38bdf8" fontSize="11" textAnchor="middle" fontWeight="bold">কলাম সাইজ: {group.wIn}"x{group.hIn}"</text>
-                            <text x="160" y="210" fill="#94a3b8" fontSize="10" textAnchor="middle">ম্যাপড টাইপ #{idx + 1}</text>
+                            {/* Safety Rebars (Red color for 16mm/20mm as per safety high req) */}
+                            <line x1="60" y1="325" x2="260" y2="325" stroke="#ef4444" strokeWidth="4" />
+                            {[75, 105, 135, 165, 195, 225, 255].map(x => <circle key={x} cx={x} cy="320" r="3.5" fill="#ef4444" />)}
+                            
+                            <text x="160" y="90" fill="#ef4444" fontSize="12" textAnchor="middle" fontWeight="bold">কলাম: {group.wIn}"x{group.hIn}"</text>
+                            <text x="160" y="230" fill="#94a3b8" fontSize="10" textAnchor="middle">ম্যাপড টাইপ #{idx + 1}</text>
 
-                            {/* Top View Plan */}
-                            <rect x="340" y="100" width="220" height="220" fill="#1e293b" stroke="#38bdf8" strokeWidth="2" />
-                            <rect x="425" y="185" width="50" height="50" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
-                            {[120, 150, 180, 210, 240, 270, 300].map(y => <line key={y} x1="350" y1={y} x2="550" y2={y} stroke="#ef4444" strokeWidth="1.2" strokeDasharray="3 2" />)}
-                            {[360, 390, 420, 450, 480, 510, 540].map(x => <line key={x} x1={x} y1="110" x2={x} y2="310" stroke="#38bdf8" strokeWidth="1.2" strokeDasharray="3 2" />)}
+                            {/* Top View / Plan View of Mesh */}
+                            <rect x="340" y="120" width="220" height="220" fill="#0f172a" stroke="#38bdf8" strokeWidth="3" />
+                            <rect x="425" y="205" width="50" height="50" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
                             
-                            <text x="450" y="80" fill="#38bdf8" fontSize="12" textAnchor="middle" fontWeight="bold">বেস প্ল্যান ভিউ ({fSize}' x {fSize}')</text>
-                            <text x="300" y="360" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="black">
-                              ডিজাইন: {detailingStoreys} তলা ফাউন্ডেশন | রড: {rebar.rod} @ {rebar.gap} (নিরাপদ জালি)
+                            {/* Mesh Rebars in Plan */}
+                            {[140, 170, 200, 230, 260, 290, 320].map(y => <line key={y} x1="345" y1={y} x2="555" y2={y} stroke="#ef4444" strokeWidth="1.5" />)}
+                            {[360, 390, 420, 450, 480, 510, 540].map(x => <line key={x} x1={x} y1="125" x2={x} y2="335" stroke="#ef4444" strokeWidth="1.5" />)}
+                            
+                            <text x="450" y="105" fill="#38bdf8" fontSize="13" textAnchor="middle" fontWeight="black">বেস প্ল্যান ভিউ ({fSize}' x {fSize}')</text>
+                            
+                            {/* Detail Engineering Info Box */}
+                            <rect x="50" y="360" width="500" height="50" rx="8" fill="#111827" stroke="#10b981" strokeWidth="1" />
+                            <text x="300" y="380" fill="#10b981" fontSize="11" textAnchor="middle" fontWeight="black">
+                              ফাউন্ডেশন: {detailingStoreys} তলা | রড: {rebar.rod} @ {rebar.gap} (Safety Design)
+                            </text>
+                            <text x="300" y="398" fill="#94a3b8" fontSize="10" textAnchor="middle">
+                              কভার: ৩ ইঞ্চি | পিভিসি পাইপ ড্রেনেজ ও টারমাইট প্রটেকশন বাধ্যতামূলক।
                             </text>
                           </svg>
-                          <div className="w-full h-px bg-slate-800" />
+                          <div className="w-full h-px bg-slate-800 mt-2" />
                         </div>
                       );
                     }) : (
-                      <div className="text-slate-500 font-black uppercase tracking-[0.2em] py-20 text-sm">ক্যানভাসে কলাম পাওয়া যায়নি</div>
+                      <div className="flex flex-col items-center gap-6 py-20">
+                         <Boxes className="w-16 h-16 text-slate-700 animate-pulse" />
+                         <div className="text-slate-500 font-black uppercase tracking-[0.2em] text-center">
+                            ক্যানভাসে কোনো কলাম বা এরিয়া পাওয়া যায়নি<br/>
+                            <span className="text-[10px] lowercase tracking-normal font-normal opacity-60">প্রথমে ক্যানভাসে পিলার বসান অথবা রুম এরিয়া সিলেক্ট করুন</span>
+                         </div>
+                      </div>
                     )}
                   </div>
                 )}
                 
                 {activeTab !== 'footing' && (
-                  <div className="flex flex-col items-center justify-center p-20 gap-4">
-                     <ShieldCheck className="w-12 h-12 text-blue-500 opacity-20" />
-                     <p className="text-slate-500 font-black uppercase text-xs tracking-widest italic">অন্যান্য সেকশন জেনারেট হচ্ছে...</p>
+                  <div className="flex flex-col items-center justify-center p-24 gap-6">
+                     <div className="p-5 rounded-full bg-slate-900 border border-slate-800 shadow-2xl">
+                        <Scissors className="w-14 h-14 text-blue-500 opacity-30" />
+                     </div>
+                     <p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em] italic animate-pulse">
+                        {activeTab} ডিটেইলস সেকশন জেনারেট হচ্ছে...
+                     </p>
                   </div>
                 )}
               </div>
