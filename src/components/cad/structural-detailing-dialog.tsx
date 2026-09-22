@@ -120,8 +120,8 @@ export function StructuralDetailingDialog({
           </div>
         </div>
 
-        {/* Restore 7 Specialized Sections per screenshot */}
-        <div className="bg-slate-950/80 px-6 pt-2 border-b border-slate-800">
+        {/* 7 Specialized Sections restored */}
+        <div className="bg-slate-950/80 px-6 pt-2 border-b border-slate-800 shrink-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="bg-slate-900/90 p-1 border border-slate-800 h-auto flex flex-wrap gap-1">
               <TabsTrigger value="footing" className="text-[11px] font-bold py-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">১. ফুটিং / বেস</TabsTrigger>
@@ -189,26 +189,28 @@ export function StructuralDetailingDialog({
             )}
           </div>
 
-          {/* CAD Display Workspace */}
-          <div className="flex-1 bg-slate-900/60 p-6 overflow-auto flex items-center justify-center">
-            <div
-              className="w-full h-full min-w-[700px] min-h-[500px] flex items-center justify-center relative border border-slate-800 rounded-xl bg-slate-950 shadow-inner"
-              style={{
-                backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)',
-                backgroundSize: '20px 20px',
-              }}
-            >
-              <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center', transition: 'transform 0.15s ease-out' }}>
+          {/* CAD Display Workspace - Fixed scrolling issue by changing layout logic */}
+          <div className="flex-1 bg-slate-900/60 overflow-auto scrollbar-thin scrollbar-thumb-slate-700">
+            <div className="min-h-full min-w-full flex items-center justify-center p-8 lg:p-16">
+              <div
+                className="inline-flex items-center justify-center relative border border-slate-800 rounded-2xl bg-slate-950 shadow-2xl overflow-visible"
+                style={{
+                  backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)',
+                  backgroundSize: '20px 20px',
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.15s ease-out',
+                }}
+              >
                 {activeTab === 'footing' && (
-                  <div className="flex flex-col gap-12 p-8 items-center">
+                  <div className="flex flex-col gap-16 p-12 items-center min-w-[700px]">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
                       // Safety-High Footing Size Calculation:
-                      // If column is 12"x12" and storeys = 3, fSize will be 5.5ft - 6.0ft
                       const offset = detailingStoreys <= 2 ? 3.0 : (detailingStoreys + 1.5);
                       const fSize = Math.max(4, Math.ceil((group.wIn / 12 + offset) * 2) / 2);
                       
                       return (
-                        <div key={idx} className="flex flex-col items-center gap-4 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
+                        <div key={idx} className="flex flex-col items-center gap-6 bg-slate-900/40 p-8 rounded-3xl border border-white/5 shadow-inner">
                           <svg width="600" height="420" viewBox="0 0 600 420" className="text-slate-200">
                             {/* Title Label */}
                             <text x="300" y="30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL DETIALS - FOOTING F-{idx + 1}</text>
@@ -250,11 +252,11 @@ export function StructuralDetailingDialog({
                         </div>
                       );
                     }) : (
-                      <div className="flex flex-col items-center gap-6 py-20">
-                         <Boxes className="w-16 h-16 text-slate-700 animate-pulse" />
-                         <div className="text-slate-500 font-black uppercase tracking-[0.2em] text-center">
+                      <div className="flex flex-col items-center gap-8 py-32">
+                         <Boxes className="w-20 h-20 text-slate-700 animate-pulse" />
+                         <div className="text-slate-500 font-black uppercase tracking-[0.25em] text-center">
                             ক্যানভাসে কোনো কলাম বা এরিয়া পাওয়া যায়নি<br/>
-                            <span className="text-[10px] lowercase tracking-normal font-normal opacity-60">প্রথমে ক্যানভাসে পিলার বসান অথবা রুম এরিয়া সিলেক্ট করুন</span>
+                            <span className="text-[11px] lowercase tracking-normal font-normal opacity-60 mt-2 block">প্রথমে ক্যানভাসে পিলার বসান অথবা রুম এরিয়া সিলেক্ট করুন</span>
                          </div>
                       </div>
                     )}
@@ -262,11 +264,11 @@ export function StructuralDetailingDialog({
                 )}
                 
                 {activeTab !== 'footing' && (
-                  <div className="flex flex-col items-center justify-center p-24 gap-6">
-                     <div className="p-5 rounded-full bg-slate-900 border border-slate-800 shadow-2xl">
-                        <Scissors className="w-14 h-14 text-blue-500 opacity-30" />
+                  <div className="flex flex-col items-center justify-center p-32 gap-8 min-w-[700px]">
+                     <div className="p-8 rounded-full bg-slate-900 border border-slate-800 shadow-2xl">
+                        <Scissors className="w-16 h-16 text-blue-500 opacity-20" />
                      </div>
-                     <p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em] italic animate-pulse">
+                     <p className="text-slate-400 font-black uppercase text-xs tracking-[0.4em] italic animate-pulse">
                         {activeTab} ডিটেইলস সেকশন জেনারেট হচ্ছে...
                      </p>
                   </div>
