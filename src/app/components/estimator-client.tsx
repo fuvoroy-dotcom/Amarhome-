@@ -937,7 +937,7 @@ export default function EstimatorClient() {
     if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
     if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
     
-    // Default Furniture sizes from version 883a677
+    // Default Furniture sizes
     if (subType === 'furniture-bed') { newObj.w = 6.5; newObj.h = 5; }
     if (subType === 'furniture-sofa') { newObj.w = 6; newObj.h = 2.5; }
     if (subType === 'furniture-dining') { newObj.w = 4.5; newObj.h = 3.5; }
@@ -1273,6 +1273,24 @@ export default function EstimatorClient() {
     setActiveSnapGuides(null);
   };
 
+  // Persistence: Save currentDesignId to localStorage
+  useEffect(() => {
+    if (currentDesignId) {
+      localStorage.setItem('last_opened_design_id', currentDesignId);
+    }
+  }, [currentDesignId]);
+
+  // Persistence: Load last opened design on mount
+  useEffect(() => {
+    const lastId = localStorage.getItem('last_opened_design_id');
+    if (lastId) {
+      const timer = setTimeout(() => {
+        loadDesign(lastId);
+      }, 500); 
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const renderPillarDistances = () => {
     if (!showPillarDistances) return null;
     const pillars = designObjects.filter(obj => obj.subType === 'pillar');
@@ -1590,7 +1608,7 @@ export default function EstimatorClient() {
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #ef4444' : 'none',
       cursor: isAreaMarker ? 'default' : (obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move')),
       zIndex: isAreaMarker ? 1 : (selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10)),
-      pointerEvents: isAreaMarker ? 'none' : 'auto',
+      pointerEvents: 'auto',
       touchAction: 'none'
     };
   };
@@ -1806,7 +1824,7 @@ export default function EstimatorClient() {
                     <div className="flex items-center gap-1 pr-2 border-r border-slate-800"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-50" /><span className="text-[8px] font-black text-slate-400 uppercase">সংযুক্ত</span></div>
                     <div className="flex items-center gap-2 flex-nowrap">
                       <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
+                      <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { localPropY: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseDimensionInput(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseDimensionInput(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
                       <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
@@ -2452,7 +2470,7 @@ function RibbonButton({ icon, label, onClick, active, color, className }: { icon
 }
 
 function SymbolButton({ icon, label, onClick, active, color }: { icon: React.ReactNode, label: string, onClick: () => void, active?: boolean, color?: string }) {
-  const colorMap = { blue: "bg-blue-500 border-blue-700 shadow-[0_2px_0_0_#1d4ed8]", amber: "bg-amber-500 border-amber-700 shadow-[0_2px_0_0_#b45309]", emerald: "bg-emerald-500 border-emerald-700 shadow-[0_2px_0_0_#059669]", indigo: "bg-indigo-500 border-indigo-700 shadow-[0_2px_0_0_#4338ca]", slate: "bg-slate-700 border-slate-900 shadow-[0_2px_0_0_#0f172a]", violet: "bg-violet-500 border-violet-700 shadow-[0_2px_0_0_#6d28d9]", purple: "bg-purple-500 border-purple-700 shadow-[0_2px_0_0_#7e22ce]", cyan: "bg-cyan-500 border-cyan-700 shadow-[0_2px_0_0_#0891b2]", teal: "bg-teal-500 border-teal-700 shadow-[0_2px_0_0_#0f766e]", pink: "bg-pink-500 border-pink-700 shadow-[0_2px_0_0_#be185d]", sky: "bg-sky-500 border-sky-700 shadow-[0_2px_0_0_#0369a1]" };
+  const colorMap = { blue: "bg-blue-500 border-blue-700 shadow-[0_2px_0_0_#1d4ed8]", amber: "bg-amber-500 border-amber-700 shadow-[0_2px_0_0_#b45309]", emerald: "bg-emerald-500 border-emerald-700 shadow-[0_2px_0_0_#059669]", indigo: "bg-indigo-500 border-indigo-700 shadow-[0_2px_0_0_#4338ca]", slate: "bg-slate-700 border-slate-900 shadow-[0_2px_0_0_#0f172a]", violet: "bg-violet-500 border-violet-700 shadow-[0_2px_0_0_#6d28d9]", purple: "bg-purple-500 border-violet-700 shadow-[0_2px_0_0_#7e22ce]", cyan: "bg-cyan-500 border-cyan-700 shadow-[0_2px_0_0_#0891b2]", teal: "bg-teal-500 border-teal-700 shadow-[0_2px_0_0_#0f766e]", pink: "bg-pink-500 border-pink-700 shadow-[0_2px_0_0_#be185d]", sky: "bg-sky-500 border-sky-700 shadow-[0_2px_0_0_#0369a1]" };
   const baseColor = color ? colorMap[color as keyof typeof colorMap] : "bg-slate-800 border-slate-700 shadow-[0_1px_0_0_rgba(0,0,0,0.3)]";
   return (<div onClick={onClick} className={cn("flex flex-col items-center justify-center p-0.5 rounded-md cursor-pointer border transition-all active:translate-y-[1px] active:shadow-none h-12 md:h-[54px] w-[86px] md:w-[94px] mx-auto overflow-visible", baseColor, active ? "ring-2 ring-red-600 ring-offset-1 scale-95 translate-y-[1px] shadow-none" : "")}><div className="shrink-0 text-white">{React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 md:w-4 h-3.5 md:h-4" })}</div><span className="text-[11px] md:text-[12px] font-black uppercase whitespace-nowrap text-white mt-0.5 leading-none">{label}</span></div>);
 }
@@ -2460,3 +2478,4 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
