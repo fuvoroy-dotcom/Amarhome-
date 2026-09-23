@@ -87,7 +87,6 @@ export function StructuralDetailingDialog({
     const spans: { id: string; p1: any; p2: any; length: number; orientation: 'H' | 'V' }[] = [];
     const TOL = 1.0;
 
-    // Horizontal Spans
     const yMap = new Map<number, any[]>();
     mappedPillars.forEach(p => {
       let found = false;
@@ -113,7 +112,6 @@ export function StructuralDetailingDialog({
       }
     });
 
-    // Vertical Spans
     const xMap = new Map<number, any[]>();
     mappedPillars.forEach(p => {
       let found = false;
@@ -142,19 +140,15 @@ export function StructuralDetailingDialog({
     return spans;
   }, [mappedPillars]);
 
-  // Detected Slab Areas
   const slabAreas = useMemo(() => {
     return designObjects.filter(o => o.subType === 'area-marker');
   }, [designObjects]);
 
-  // Detected Stair Objects
   const stairObjects = useMemo(() => {
     return designObjects.filter(o => o.subType.startsWith('stair') || o.type === 'stair');
   }, [designObjects]);
 
-  // Structural Safety Logic for Column/Footing
   const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10, itemId?: string) => {
-    // Check for manual overrides first
     if (itemId && itemOverrides[itemId]) {
       return itemOverrides[itemId];
     }
@@ -180,7 +174,39 @@ export function StructuralDetailingDialog({
     return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
   };
 
-  const rebar = getReinforcementInfo(detailingStoreys);
+  const getSidebarSafetyInfo = () => {
+    if (activeTab === 'footing' && uniquePillarGroups.length > 0) {
+      const group = uniquePillarGroups[0];
+      const info = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn, `footing-${group.id}`);
+      return { title: 'বেস রড ও পুরুত্ব', rebar: `${info.rod} @ ${info.gap}`, extra: `বেস উচ্চতা: ${info.thick}"` };
+    }
+    if (activeTab === 'column' && uniquePillarGroups.length > 0) {
+      const group = uniquePillarGroups[0];
+      const info = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn, `column-${group.id}`);
+      return { title: 'কলাম রড ও রিং', rebar: `${info.rodCount} টি ${info.rod}`, extra: `রিং: ${info.ringRod || '8mm'} @ ${info.gap || '5" c/c'}` };
+    }
+    if (activeTab === 'beam' && beamSpans.length > 0) {
+      const span = beamSpans[0];
+      const info = getReinforcementInfo(detailingStoreys, 10, 10, `beam-${span.id}`);
+      const bot = info.rodCount > 6 ? 4 : 3;
+      const top = info.rodCount > 6 ? 3 : 2;
+      return { title: 'বিম মেইন রড', rebar: `${bot + top} টি ${info.rod}`, extra: 'L/3 এক্সট্রা টপ' };
+    }
+    if (activeTab === 'slab' && slabAreas.length > 0) {
+      const slab = slabAreas[0];
+      const info = getReinforcementInfo(detailingStoreys, 10, 10, `slab-${slab.id}`);
+      const spacing = detailingStoreys <= 3 ? 6 : 5;
+      return { title: 'ছাদ রড জালি', rebar: `10mm @ ${spacing}" c/c`, extra: `পুরুত্ব: ${info.thick || (detailingStoreys <= 3 ? 5 : 6)}"` };
+    }
+    if (activeTab === 'stair' && stairObjects.length > 0) {
+      const stair = stairObjects[0];
+      const info = getReinforcementInfo(detailingStoreys, 10, 10, `stair-${stair.id}`);
+      return { title: 'সিঁড়ি রড বিন্যাস', rebar: `12mm @ ${info.gap || '5" c/c'}`, extra: `ওয়েস্ট স্ল্যাব: ${info.thick || 5}"` };
+    }
+    return { title: 'মেইন রড সাইজ', rebar: '১৬মিমি (৫ সুতা)', extra: 'পুরুত্ব: ১৮" ইঞ্চি' };
+  };
+
+  const safetyInfo = getSidebarSafetyInfo();
 
   const handlePrint = () => {
     window.print();
@@ -196,17 +222,6 @@ export function StructuralDetailingDialog({
       setEditingItem(null);
     }
   };
-
-  // Higher Safety Rebar Design logic for sidebar (Active Contextual Info)
-  const getSidebarSafetyInfo = () => {
-    if (activeTab === 'footing') return { title: 'বেস রড ও পুরুত্ব', rebar: '16mm @ 5" c/c', extra: `বেস উচ্চতা: ${rebar.thick}"` };
-    if (activeTab === 'column') return { title: 'কলাম রড ও রিং', rebar: `${rebar.rodCount} টি ${rebar.rod}`, extra: `রিং: ${rebar.ringRod} @ 5" c/c` };
-    if (activeTab === 'beam') return { title: 'বিম মেইন রড', rebar: '5 টি 16mm রড', extra: 'L/3 এক্সট্রা টপ' };
-    if (activeTab === 'slab') return { title: 'ছাদ রড জালি', rebar: '10mm @ 5" c/c', extra: 'ক্র্যাঙ্ক বেন্ডিং (L/4)' };
-    if (activeTab === 'stair') return { title: 'সিঁড়ি রড বিন্যাস', rebar: '12mm @ 5" c/c', extra: '৫০ডি ল্যাপিং লেন্থ' };
-    return { title: 'মেইন রড সাইজ', rebar: rebar.rod, extra: `পুরুত্ব: ${rebar.thick}" ইঞ্চি` };
-  };
-  const safetyInfo = getSidebarSafetyInfo();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -351,8 +366,8 @@ export function StructuralDetailingDialog({
 
                           <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
                             <g transform="translate(40, 100)">
-                              <rect x="0" y="0" width="240" height="240" fill="#0f172a" stroke="#38bdf8" strokeWidth="4" />
                               <text x="120" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">PLAN VIEW (রড জালি বিন্যাস)</text>
+                              <rect x="0" y="0" width="240" height="240" fill="#0f172a" stroke="#38bdf8" strokeWidth="4" />
                               {[20, 55, 90, 120, 150, 185, 220].map(pos => (
                                 <g key={`rebar-${pos}`}>
                                   <line x1="5" y1={pos} x2="235" y2={pos} stroke="#ef4444" strokeWidth="2" />
@@ -545,11 +560,8 @@ export function StructuralDetailingDialog({
                         const botRodCount = defaultInfo.rodCount > 6 ? 4 : 3;
                         const topRodCount = defaultInfo.rodCount > 6 ? 3 : 2;
                         const mainRodCount = botRodCount + topRodCount;
-                        const extraTopCount = topRodCount;
-                        const rodSize = defaultInfo.rod;
                         const etLength = Math.round((span.length / 3) * 10) / 10;
                         const beamDepth = s <= 3 ? 12 : 15;
-                        const beamWidth = 10;
                         const canvasW = 850;
                         const canvasH = 600;
 
@@ -570,60 +582,38 @@ export function StructuralDetailingDialog({
                             <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
                                <g transform="translate(60, 150)">
                                   <text x="250" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM ELEVATION (বিম এলিভেশন ২ডি ভিউ)</text>
-                                  
-                                  {/* Beam Outline */}
                                   <rect x="0" y="0" width="500" height="80" fill="#0f172a" stroke="#64748b" strokeWidth="2.5" />
-                                  
-                                  {/* Pillar Indicators */}
                                   <rect x="-20" y="-40" width="30" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
                                   <rect x="490" y="-40" width="30" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
-
-                                  {/* Main Reinforcement Bottom */}
                                   <path d="M 5 65 L 495 65" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
                                   <path d="M 5 65 L 5 45 M 495 65 L 495 45" fill="none" stroke="#3b82f6" strokeWidth="4" />
-                                  <text x="250" y="95" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Bottom: {botRodCount} Nos ({rodSize})</text>
-
-                                  {/* Main Reinforcement Top (Hanger) */}
+                                  <text x="250" y="95" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Bottom: {botRodCount} Nos ({defaultInfo.rod})</text>
                                   <path d="M 5 15 L 495 15" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
-                                  <text x="250" y="-10" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Top: {topRodCount} Nos ({rodSize})</text>
-
-                                  {/* Extra Top Reinforcement */}
+                                  <text x="250" y="-10" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Top: {topRodCount} Nos ({defaultInfo.rod})</text>
                                   <g stroke="#facc15" strokeWidth="4" strokeLinecap="round">
                                      <path d="M -10 15 L 150 15" strokeDasharray="6 3" />
                                      <path d="M 350 15 L 510 15" strokeDasharray="6 3" />
                                   </g>
                                   <text x="70" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
                                   <text x="430" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
-
-                                  {/* Stirrups (Rings) */}
                                   {[10, 30, 50, 80, 120, 180, 250, 320, 380, 420, 450, 470, 490].map(sx => (
                                      <line key={sx} x1={sx} y1="5" x2={sx} y2="75" stroke="#94a3b8" strokeWidth="1" />
                                   ))}
-                                  
-                                  {/* Dimension Lines */}
                                   <g stroke="#10b981" strokeWidth="1.5">
                                      <line x1="0" y1="120" x2="500" y2="120" />
                                      <line x1="0" y1="110" x2="0" y2="130" /><line x1="500" y1="110" x2="500" y2="130" />
                                   </g>
                                   <text x="250" y="140" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ক্লিয়ার স্প্যান: {span.length.toFixed(1)}' ফুট</text>
                                </g>
-
                                <g transform="translate(620, 150)">
                                   <text x="80" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM CROSS-SECTION (রড বিন্যাস)</text>
-                                  {/* Beam Body */}
                                   <rect x="0" y="0" width="160" height="200" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
-                                  
-                                  {/* Ring */}
                                   <rect x="15" y="15" width="130" height="170" fill="none" stroke="#f59e0b" strokeWidth="2.5" rx="5" />
-                                  
-                                  {/* Top Rebars */}
                                   <g fill="#3b82f6">
                                      <circle cx="25" cy="25" r="8" />
                                      <circle cx="135" cy="25" r="8" />
                                      {topRodCount > 2 && <circle cx="80" cy="25" r="8" />}
                                   </g>
-                                  
-                                  {/* Bottom Rebars */}
                                   <g fill="#3b82f6">
                                      <circle cx="25" cy="175" r="8" />
                                      <circle cx="135" cy="175" r="8" />
@@ -635,23 +625,20 @@ export function StructuralDetailingDialog({
                                        </>
                                      )}
                                   </g>
-
-                                  <text x="80" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{beamWidth}" x {beamDepth}" BEAM</text>
+                                  <text x="80" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">10" x {beamDepth}" BEAM</text>
                                   <text x="80" y="255" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="black">মোট মেইন রড: {mainRodCount} Nos</text>
                                </g>
-
                                <g transform="translate(100, 450)">
                                   <rect x="0" y="0" width="600" height="85" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
                                   <text x="300" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: ১০" x {beamDepth}"</text>
                                   <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                     মেইন রড: {mainRodCount} টি ({rodSize}) | রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c
+                                     মেইন রড: {mainRodCount} টি ({defaultInfo.rod}) | রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c
                                   </text>
                                   <text x="300" y="72" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
                                      নির্দেশ: সাপোর্টে কলাম ফেস থেকে {etLength} ফুট পর্যন্ত এক্সট্রা টপ রড প্রদান করুন।
                                   </text>
                                </g>
                             </svg>
-
                             <div className="w-full flex items-start gap-4 bg-indigo-600/5 p-6 rounded-3xl border border-indigo-600/20 print:bg-slate-50">
                                <Scissors className="w-6 h-6 text-indigo-500 shrink-0 mt-0.5" />
                                <div className="space-y-2">
@@ -682,11 +669,9 @@ export function StructuralDetailingDialog({
                         const l = Math.round(slab.h * 10) / 10;
                         const ratio = Math.max(w, l) / Math.min(w, l);
                         const isTwoWay = ratio <= 2;
-                        const rodSize = "10mm (3 Suta)";
                         const spacing = s <= 3 ? 6 : 5;
                         const thickness = defaultInfo.thick || (s <= 3 ? 5 : 6);
                         const crankLen = Math.round((Math.min(w, l) / 4) * 10) / 10;
-                        
                         const canvasW = 850;
                         const canvasH = 750;
 
@@ -703,60 +688,40 @@ export function StructuralDetailingDialog({
                                   <PencilLine className="w-4 h-4" /> এডিট
                                </Button>
                             </div>
-
                             <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
-                               {/* Plan View */}
                                <g transform="translate(60, 100)">
                                   <text x="180" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SLAB PLAN VIEW (রড জালি বিন্যাস)</text>
                                   <rect x="0" y="0" width="360" height="260" fill="#0f172a" stroke="#64748b" strokeWidth="4" />
-                                  
-                                  {/* Main Mesh Bottom */}
                                   {[40, 80, 120, 160, 200, 240, 280, 320].map(dx => (
                                      <line key={`mx-${dx}`} x1={dx} y1="5" x2={dx} y2="255" stroke="#ef4444" strokeWidth="1.5" />
                                   ))}
                                   {[30, 70, 110, 150, 190, 230].map(dy => (
                                      <line key={`my-${dy}`} x1="5" y1={dy} x2="355" y2={dy} stroke="#ef4444" strokeWidth="1.5" />
                                   ))}
-
-                                  {/* Crank/Top Indicators (Orange dashed) */}
                                   <g stroke="#f97316" strokeWidth="2" strokeDasharray="6 3">
                                      <rect x="10" y="10" width="340" height="40" fill="none" />
                                      <rect x="10" y="210" width="340" height="40" fill="none" />
                                      <rect x="10" y="10" width="60" height="240" fill="none" />
                                      <rect x="290" y="10" width="60" height="240" fill="none" />
                                   </g>
-                                  
                                   <text x="180" y="290" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">ক্র্যাঙ্ক বার এরিয়া (L/4 জোন): {crankLen}' ফুট</text>
                                </g>
-
-                               {/* Sectional View */}
                                <g transform="translate(480, 100)">
                                   <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">CROSS-SECTION (রড বেন্ডিং ডিটেইল)</text>
-                                  
-                                  {/* Slab Body */}
                                   <rect x="0" y="60" width="280" height="40" fill="#1e293b" fillOpacity="0.4" stroke="#64748b" strokeWidth="2" />
-                                  
-                                  {/* Bottom Main Bar */}
                                   <path d="M 10 92 L 270 92" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
-                                  
-                                  {/* Cranked Bar */}
                                   <path d="M 10 92 L 60 92 L 100 68 L 180 68 L 220 92 L 270 92" fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                                  
-                                  {/* Extra Top Bars */}
                                   <line x1="5" y1="68" x2="80" y2="68" stroke="#3b82f6" strokeWidth="4" />
                                   <line x1="200" y1="68" x2="275" y2="68" stroke="#3b82f6" strokeWidth="4" />
-
                                   <text x="140" y="125" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">স্ল্যাব পুরুত্ব: {thickness}" ইঞ্চি</text>
                                   <text x="40" y="55" fill="#3b82f6" fontSize="10" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({crankLen}' ফুট)</text>
                                   <text x="140" y="85" fill="#f97316" fontSize="10" textAnchor="middle" fontWeight="black">ক্র্যাঙ্ক (Crank)</text>
                                </g>
-
-                               {/* Spec Box */}
                                <g transform="translate(100, 480)">
                                   <rect x="0" y="0" width="650" height="110" rx="15" fill="#111827" stroke="#10b981" strokeWidth="2" />
                                   <text x="325" y="30" fill="#10b981" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং গাইডলাইন: {detailingStoreys} তলা ভবন | ছাদ টাইপ: {isTwoWay ? 'Two-way' : 'One-way'} স্ল্যাব</text>
                                   <text x="325" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                     মেইন জালি: {rodSize} @ {spacing}" c/c (উভয় দিকে) | ক্লিয়ার কভার: ০.৭৫" ইঞ্চি
+                                     মেইন জালি: 10mm @ {spacing}" c/c (উভয় দিকে) | ক্লিয়ার কভার: ০.৭৫" ইঞ্চি
                                   </text>
                                   <text x="325" y="78" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
                                      ক্র্যাঙ্ক নিয়ম: সাপোর্টে L/4 দূরত্বে ({crankLen}' ফুট) অল্টারনেট ক্র্যাঙ্ক বার প্রদান করুন।
@@ -766,7 +731,6 @@ export function StructuralDetailingDialog({
                                   </text>
                                </g>
                             </svg>
-
                             <div className="w-full flex items-start gap-4 bg-emerald-600/5 p-6 rounded-3xl border border-emerald-600/20 print:bg-slate-50">
                                <Info className="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" />
                                <div className="space-y-2">
@@ -795,8 +759,6 @@ export function StructuralDetailingDialog({
                       const sW = Math.round(stair.w * 10) / 10;
                       const sD = Math.round(stair.h * 10) / 10;
                       const steps = stair.stepCount || 14;
-                      const riser = 6;
-                      const tread = 10;
                       const waist = defaultInfo.thick || 5;
                       const canvasW = 850;
                       const canvasH = 750;
@@ -814,18 +776,12 @@ export function StructuralDetailingDialog({
                                 <PencilLine className="w-4 h-4" /> এডিট
                              </Button>
                           </div>
-
                           <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
-                             {/* Plan View */}
                              <g transform="translate(60, 100)">
                                 <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">PLAN VIEW (উপরের দৃশ্য)</text>
                                 <rect x="0" y="0" width="280" height="280" fill="#0f172a" stroke="#64748b" strokeWidth="4" />
-                                
-                                {/* Landing */}
                                 <rect x="0" y="0" width="280" height="70" fill="#1e293b" fillOpacity="0.5" stroke="#94a3b8" strokeWidth="2" />
                                 <text x="140" y="45" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">LANDING (ল্যান্ডিং)</text>
-
-                                {/* Flights */}
                                 <line x1="140" y1="70" x2="140" y2="280" stroke="#64748b" strokeWidth="3" />
                                 {[110, 150, 190, 230, 270].map(dy => (
                                    <g key={`step-${dy}`}>
@@ -833,39 +789,25 @@ export function StructuralDetailingDialog({
                                       <line x1="145" y1={dy} x2="275" y2={dy} stroke="#94a3b8" strokeWidth="1" />
                                    </g>
                                 ))}
-                                
                                 <path d="M 70 260 L 70 120 L 210 120 L 210 260" fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5 3" />
                                 <path d="M 210 260 L 205 250 M 210 260 L 215 250" fill="none" stroke="#f59e0b" strokeWidth="2" />
                                 <text x="140" y="310" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">প্রস্থ: {sW}' ফুট | ধাপ সংখ্যা: {steps} টি</text>
                              </g>
-
-                             {/* Section View */}
                              <g transform="translate(420, 100)">
                                 <text x="180" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL VIEW (কাটা দৃশ্য)</text>
-                                
-                                {/* Stair Outline */}
                                 <path d="M 20 280 L 100 280 L 100 250 L 130 250 L 130 220 L 160 220 L 160 190 L 190 190 L 190 160 L 220 160 L 220 130 L 320 130 L 320 180 L 250 180 L 250 300 L 20 300 Z" fill="#1e293b" fillOpacity="0.4" stroke="#64748b" strokeWidth="2.5" />
-                                
-                                {/* Rebar Bottom */}
                                 <path d="M 30 292 L 240 292 L 310 172" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
-                                
-                                {/* Rebar Top/Crank */}
                                 <path d="M 30 288 L 100 288 L 220 142 L 310 142" fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
-
-                                {/* Dimension Labels */}
                                 <text x="60" y="275" fill="#94a3b8" fontSize="10" textAnchor="middle">Landing</text>
                                 <text x="160" y="250" fill="#f97316" fontSize="10" textAnchor="middle" fontWeight="black" transform="rotate(-40 160 250)">Waist Slab: {waist}"</text>
                                 <text x="270" y="120" fill="#94a3b8" fontSize="10" textAnchor="middle">Upper Floor</text>
-                                
                                 <g transform="translate(300, 200)">
                                    <line x1="0" y1="0" x2="30" y2="0" stroke="#3b82f6" strokeWidth="1.5" />
                                    <line x1="30" y1="0" x2="30" y2="-20" stroke="#3b82f6" strokeWidth="1.5" />
-                                   <text x="40" y="5" fill="#3b82f6" fontSize="9">T: {tread}"</text>
-                                   <text x="40" y="-15" fill="#3b82f6" fontSize="9">R: {riser}"</text>
+                                   <text x="40" y="5" fill="#3b82f6" fontSize="9">T: 10"</text>
+                                   <text x="40" y="-15" fill="#3b82f6" fontSize="9">R: 6"</text>
                                 </g>
                              </g>
-
-                             {/* Engineering Box */}
                              <g transform="translate(100, 480)">
                                 <rect x="0" y="0" width="650" height="110" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
                                 <text x="325" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং ডিটেইলস: সিঁড়ি (Staircase) রিইনফোর্সমেন্ট</text>
@@ -873,14 +815,13 @@ export function StructuralDetailingDialog({
                                    মেইন রড: {defaultInfo.rod || "12mm"} @ {defaultInfo.gap || "5\" c/c"} | ডিস্ট্রিবিউশন: 10mm @ 6" c/c
                                 </text>
                                 <text x="325" y="78" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
-                                   ওয়েস্ট স্ল্যাব পুরুত্ব: {waist}" ইঞ্চি | রাইজার: {riser}" | ট্রেড: {tread}"
+                                   ওয়েস্ট স্ল্যাব পুরুত্ব: {waist}" ইঞ্চি | রাইজার: 6" | ট্রেড: 10"
                                 </text>
                                 <text x="325" y="98" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="bold">
                                    নির্দেশ: ল্যান্ডিং ও ফ্লাইটের সংযোগস্থলে রডগুলো অবশ্যই ৪০ডি (40D) ল্যাপিং মেইনটেইন করবে।
                                 </text>
                              </g>
                           </svg>
-
                           <div className="w-full flex items-start gap-4 bg-blue-600/5 p-6 rounded-3xl border border-blue-600/20 print:bg-slate-50">
                              <Info className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
                              <div className="space-y-2">
@@ -917,7 +858,6 @@ export function StructuralDetailingDialog({
           </div>
         </div>
 
-        {/* Edit Modal / Dialog */}
         <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
           <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white">
             <DialogHeader>
@@ -926,23 +866,22 @@ export function StructuralDetailingDialog({
               </DialogTitle>
               <p className="text-xs text-slate-400">ম্যানুয়ালি রড সংখ্যা ও ডিজাইন পরিবর্তন করুন।</p>
             </DialogHeader>
-            
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">মেইন রড সংখ্যা (Count)</Label>
                   <Input 
                     type="number" 
-                    value={editingItem?.data.rodCount ?? 0} 
-                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, rodCount: parseInt(e.target.value) || 0 } }))}
+                    value={editingItem?.data.rodCount || 0} 
+                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, rodCount: parseInt(e.target.value) || 0 } }) : null)}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">রড সাইজ (Diameter)</Label>
                   <Select 
-                    value={editingItem?.data.rod ?? ''} 
-                    onValueChange={v => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, rod: v } }))}
+                    value={editingItem?.data.rod || ''} 
+                    onValueChange={v => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, rod: v } }) : null)}
                   >
                     <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
                       <SelectValue />
@@ -957,43 +896,39 @@ export function StructuralDetailingDialog({
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">স্পেসিং / গ্যাপ (Spacing)</Label>
                   <Input 
-                    value={editingItem?.data.gap ?? ''} 
-                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, gap: e.target.value } }))}
+                    value={editingItem?.data.gap || ''} 
+                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, gap: e.target.value } }) : null)}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                     placeholder='e.g. 5" c/c'
                   />
                 </div>
-
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">হুক/মাটন দৈর্ঘ্য (Hook In)</Label>
                   <Input 
                     type="number"
-                    value={editingItem?.data.hook ?? 0} 
-                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, hook: parseInt(e.target.value) || 0 } }))}
+                    value={editingItem?.data.hook || 0} 
+                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, hook: parseInt(e.target.value) || 0 } }) : null)}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                   />
                 </div>
-
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Thick In)</Label>
                   <Input 
                     type="number"
-                    value={editingItem?.data.thick ?? 0} 
-                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, thick: parseInt(e.target.value) || 0 } }))}
+                    value={editingItem?.data.thick || 0} 
+                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, thick: parseInt(e.target.value) || 0 } }) : null)}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                   />
                 </div>
-
                 {editingItem?.type === 'column' && (
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-slate-500">রিং রড সাইজ</Label>
                     <Select 
-                      value={editingItem?.data.ringRod ?? ''} 
-                      onValueChange={v => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, ringRod: v } }))}
+                      value={editingItem?.data.ringRod || ''} 
+                      onValueChange={v => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, ringRod: v } }) : null)}
                     >
                       <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
                         <SelectValue />
@@ -1008,7 +943,6 @@ export function StructuralDetailingDialog({
                 )}
               </div>
             </div>
-
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingItem(null)} className="bg-transparent border-slate-700 text-slate-400">বাতিল</Button>
               <Button onClick={saveEdit} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 font-bold">
