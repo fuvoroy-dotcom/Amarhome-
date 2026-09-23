@@ -408,7 +408,7 @@ export function StructuralDetailingDialog({
                                 <circle cx="15" cy="185" r="8" /><circle cx="265" cy="185" r="8" />
                                 
                                 {rCount >= 6 && <><circle cx="140" cy="15" r="8" /><circle cx="140" cy="185" r="8" /></>}
-                                {rCount >= 8 && <><circle cx="15" cy="100" r="8" /><circle cx="265" cy="100" r="8" /></>}
+                                {rCount >= 8 && <><circle cx="15" cy="100" r="8" /><circle cx="140" cy="100" r="8" /><circle cx="265" cy="100" r="8" /></>}
                                 {rCount >= 10 && <><circle cx="77" cy="15" r="8" /><circle cx="203" cy="15" r="8" /></>}
                                 {rCount >= 12 && <><circle cx="77" cy="185" r="8" /><circle cx="203" cy="185" r="8" /></>}
                               </g>
@@ -691,7 +691,7 @@ export function StructuralDetailingDialog({
                                   <line x1="200" y1="68" x2="275" y2="68" stroke="#3b82f6" strokeWidth="4" />
 
                                   <text x="140" y="125" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">স্ল্যাব পুরুত্ব: {thickness}" ইঞ্চি</text>
-                                  <text x="40" y="55" fill="#3b82f6" fontSize="10" textAnchor="middle" fontWeight="black">এক্সট্রা টপ</text>
+                                  <text x="40" y="55" fill="#3b82f6" fontSize="10" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({crankLen}' ফুট)</text>
                                   <text x="140" y="85" fill="#f97316" fontSize="10" textAnchor="middle" fontWeight="black">ক্র্যাঙ্ক (Crank)</text>
                                </g>
 
@@ -706,7 +706,7 @@ export function StructuralDetailingDialog({
                                      ক্র্যাঙ্ক নিয়ম: সাপোর্টে L/4 দূরত্বে ({crankLen}' ফুট) অল্টারনেট ক্র্যাঙ্ক বার প্রদান করুন।
                                   </text>
                                   <text x="325" y="98" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="bold">
-                                     এক্সট্রা টপ: সাপোর্টে প্রতিটি ক্র্যাঙ্ক রডের মাঝখানে ১টি করে এক্সট্রা টপ বসবে।
+                                     এক্সট্রা টপ: সাপোর্টে প্রতিটি ক্র্যাঙ্ক রডের মাঝখানে ১টি করে এক্সট্রা টপ ({crankLen}' ফুট) বসবে।
                                   </text>
                                </g>
                             </svg>
