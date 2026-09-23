@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,13 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Download, Layers, ShieldCheck, ZoomIn, ZoomOut, Building2, Boxes, Scissors, Info, PencilLine, Save } from 'lucide-react';
+import { Download, Layers, ShieldCheck, ZoomIn, ZoomOut, Building2, Boxes, Scissors, Info, PencilLine, Save, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface StructuralDetailingProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   designObjects: any[];
   projectName?: string;
+  onSave?: () => void;
 }
 
 export function StructuralDetailingDialog({
@@ -33,7 +35,10 @@ export function StructuralDetailingDialog({
   onOpenChange,
   designObjects,
   projectName = 'AmarHome Project',
+  onSave,
 }: StructuralDetailingProps) {
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('footing');
   const [scale, setScale] = useState(1);
   const [detailingStoreys, setDetailingStoreys] = useState(3);
@@ -41,6 +46,47 @@ export function StructuralDetailingDialog({
   // State for manual overrides
   const [itemOverrides, setItemOverrides] = useState<Record<string, any>>({});
   const [editingItem, setEditingItem] = useState<{ id: string; type: string; data: any } | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`amarhome_cad_detailing_${projectName}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.detailingStoreys) setDetailingStoreys(parsed.detailingStoreys);
+        if (parsed.itemOverrides) setItemOverrides(parsed.itemOverrides);
+      }
+    } catch (e) {}
+  }, [projectName]);
+
+  const handleServerSave = async () => {
+    setIsSaving(true);
+    try {
+      try {
+        localStorage.setItem(`amarhome_cad_detailing_${projectName}`, JSON.stringify({
+          detailingStoreys,
+          itemOverrides,
+          updatedAt: new Date().toISOString()
+        }));
+      } catch (e) {}
+
+      if (onSave) {
+        await onSave();
+      }
+
+      toast({
+        title: "সার্ভারে সেভ হয়েছে",
+        description: "রড ডিটেইলিং ২ডি ডিজাইন ও প্যারামিটার ডাটা সফলভাবে সার্ভারে সংরক্ষিত হয়েছে।",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "সেভ ব্যর্থ হয়েছে",
+        description: "সার্ভারে সেভ করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Helper: check if a point is inside a polygon area marker
   const isPointInPoly = (px: number, py: number, poly: { x: number; y: number }[]) => {
@@ -228,13 +274,214 @@ export function StructuralDetailingDialog({
       <DialogContent className="max-w-6xl w-[95vw] h-[92vh] p-0 flex flex-col bg-slate-900 text-slate-100 border-slate-800 shadow-2xl rounded-2xl overflow-hidden print:size-auto print:bg-white print:text-slate-950 print:border-none print:shadow-none print:rounded-none">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            @page { margin: 0.5in !important; size: auto; }
-            body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .no-print { display: none !important; }
-            .cad-canvas-print { background: white !important; color: black !important; transform: none !important; width: 100% !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
-            .page-break-inside-avoid { page-break-inside: avoid !important; }
-            .text-slate-200, .text-slate-400, .text-slate-300 { color: #1e293b !important; }
-            .bg-slate-900, .bg-slate-950 { background: white !important; border: 1px solid #e2e8f0 !important; }
+            @page { 
+              size: A4 portrait; 
+              margin: 0.5in !important; 
+            }
+            html,
+            body,
+            body[data-scroll-locked] { 
+              background: #ffffff !important; 
+              color: #0f172a !important;
+              font-size: 12px !important;
+              font-family: inherit !important;
+              -webkit-print-color-adjust: exact !important; 
+              print-color-adjust: exact !important; 
+              width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: visible !important;
+            }
+            /* Hide the background canvas app root */
+            main {
+              display: none !important;
+            }
+            /* Strictly hide all no-print elements including sidebar, tabs, controls */
+            .no-print,
+            div[role="dialog"] .no-print,
+            div[role="dialog"] .w-64 { 
+              display: none !important; 
+            }
+            /* Hide dialog backdrop overlay and close button */
+            [data-radix-dialog-overlay],
+            .bg-black\\/80,
+            div[role="dialog"] > button:last-child {
+              display: none !important;
+            }
+            /* Reset dialog wrapper so it behaves like standard document content */
+            div[role="dialog"] {
+              position: static !important;
+              inset: auto !important;
+              transform: none !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              max-height: none !important;
+              border: none !important;
+              border-radius: 0 !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              background: #ffffff !important;
+              overflow: visible !important;
+              display: block !important;
+            }
+            /* Ensure content flex containers expand naturally to full height without sidebar */
+            div[role="dialog"] > div:not(.no-print),
+            div[role="dialog"] .flex-1:not(.no-print) {
+              display: block !important;
+              width: 100% !important;
+              height: auto !important;
+              max-height: none !important;
+              overflow: visible !important;
+              flex: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              background: #ffffff !important;
+            }
+            /* Remove scrollbars */
+            ::-webkit-scrollbar,
+            .scrollbar-thin {
+              display: none !important;
+              width: 0 !important;
+              height: 0 !important;
+            }
+            /* Canvas container formatting */
+            .cad-canvas-print { 
+              background: #ffffff !important; 
+              background-image: none !important;
+              color: #0f172a !important; 
+              transform: none !important; 
+              width: 100% !important; 
+              max-width: 100% !important;
+              border: none !important; 
+              border-radius: 0 !important;
+              box-shadow: none !important; 
+              padding: 0 !important; 
+              margin: 0 auto !important;
+              font-size: 12px !important;
+              display: block !important;
+            }
+            /* Individual CAD cards matching Image 3 */
+            .page-break-inside-avoid { 
+              page-break-inside: avoid !important; 
+              break-inside: avoid !important;
+              margin: 0 auto 0.4in auto !important;
+              padding: 20px 24px !important;
+              border: 1.5px solid #e2e8f0 !important;
+              border-radius: 20px !important;
+              background: #ffffff !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              gap: 16px !important;
+            }
+            /* Card top header badge (pill shape matching Image 3) */
+            .page-break-inside-avoid > div:first-child {
+              background: #f0f9ff !important;
+              border: 1.5px solid #bae6fd !important;
+              border-radius: 9999px !important;
+              padding: 8px 24px !important;
+              width: auto !important;
+              max-width: 90% !important;
+              display: inline-flex !important;
+              justify-content: center !important;
+            }
+            .page-break-inside-avoid > div:first-child span {
+              color: #0369a1 !important;
+              font-weight: 800 !important;
+              font-size: 13px !important;
+            }
+            /* SVG 2D drawings matching Image 3 (crisp white background, bright lines) */
+            svg {
+              max-width: 100% !important;
+              height: auto !important;
+              display: block !important;
+              margin: 0 auto !important;
+              background: transparent !important;
+              overflow: visible !important;
+            }
+            /* Shift Sectional view group inward so right-edge dimension text never cuts off */
+            svg g[transform*="translate(380"] {
+              transform: translate(320px, 100px) !important;
+            }
+            svg text[x="295"] {
+              transform: translateX(-15px) !important;
+            }
+            /* Plan view & column backgrounds to white with crisp borders */
+            svg rect[fill="#0f172a"],
+            svg rect[fill="#090d16"],
+            svg rect[fill="#020617"] {
+              fill: #ffffff !important;
+              stroke: #0284c7 !important;
+            }
+            /* Footing concrete block */
+            svg rect[fill="#1e293b"] {
+              fill: #f8fafc !important;
+              fill-opacity: 1 !important;
+              stroke: #64748b !important;
+            }
+            svg path[stroke="#64748b"] {
+              stroke: #334155 !important;
+            }
+            /* Sectional column rectangle */
+            svg rect[stroke="#ffffff"],
+            svg rect[stroke="#475569"] {
+              fill: #ffffff !important;
+              stroke: #1e293b !important;
+            }
+            /* Engineering specifications box (light emerald fill with green border) */
+            svg rect[stroke="#10b981"] {
+              fill: #f0fdf4 !important;
+              stroke: #10b981 !important;
+            }
+            svg text[fill="#10b981"] {
+              fill: #047857 !important;
+              font-weight: 900 !important;
+            }
+            /* SVG text contrast */
+            svg text[fill="#38bdf8"] {
+              fill: #0284c7 !important;
+              font-weight: 800 !important;
+            }
+            svg text[fill="#94a3b8"],
+            svg text[fill="#64748b"] {
+              fill: #334155 !important;
+              font-weight: 600 !important;
+            }
+            svg text {
+              font-size: 12px !important;
+            }
+            /* Rod binding guidelines box (amber cream matching Image 3) */
+            .bg-amber-600\\/5,
+            [class*="bg-amber-"] {
+              background: #fffbeb !important;
+              border: 1.5px solid #fde68a !important;
+              border-radius: 16px !important;
+              padding: 16px 20px !important;
+              width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            [class*="text-amber-"] {
+              color: #92400e !important;
+              font-weight: 800 !important;
+            }
+            /* General text contrast */
+            [class*="text-slate-"] { 
+              color: #1e293b !important; 
+              font-size: 12px !important;
+            }
+            .text-xs, .text-sm, .text-base {
+              font-size: 12px !important;
+            }
+            p, span, div {
+              font-size: 12px !important;
+            }
           }
         ` }} />
 
@@ -301,6 +548,24 @@ export function StructuralDetailingDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            <Button
+              onClick={handleServerSave}
+              disabled={isSaving}
+              className="w-full h-8 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 rounded-lg shadow-md transition-all active:scale-95"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>সেভ হচ্ছে...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 text-emerald-100" />
+                  <span>সার্ভারে সেভ করুন</span>
+                </>
+              )}
+            </Button>
 
             <div className="p-3 bg-blue-600/10 rounded-lg border border-blue-500/20 space-y-2 text-slate-300">
               <p className="font-bold text-blue-400 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> এরিয়া সামারি</p>

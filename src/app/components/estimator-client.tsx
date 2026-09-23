@@ -1896,7 +1896,7 @@ export default function EstimatorClient() {
       <DailySiteManagementDialog open={isSiteLedgerOpen} onOpenChange={setIsSiteLedgerOpen} projectName={projectName} currentDesignId={currentDesignId} grandTotalEstimatedCost={pdfReportPayload?.grandTotalCost || 0} materialsLedger={materialsLedger} setMaterialsLedger={setMaterialsLedger} laborLedger={laborLedger} setLaborLedger={setLaborLedger} onIntegratedSave={saveToFirestore} />
       
       {/* 5 Specialized Architectural & Engineering CAD Modules */}
-      <StructuralDetailingDialog open={isStructuralDetailingOpen} onOpenChange={setIsStructuralDetailingOpen} designObjects={designObjects} projectName={projectName} />
+      <StructuralDetailingDialog open={isStructuralDetailingOpen} onOpenChange={setIsStructuralDetailingOpen} designObjects={designObjects} projectName={projectName} onSave={saveToFirestore} />
       <SectionGeneratorDialog open={isSectionCutOpen} onOpenChange={setIsSectionCutOpen} designObjects={designObjects} projectName={projectName} />
       <SitePlanSetbackDialog open={isSitePlanSetbackOpen} onOpenChange={setIsSitePlanSetbackOpen} designObjects={designObjects} projectName={projectName} />
       <MepStudioDialog open={isMepStudioOpen} onOpenChange={setIsMepStudioOpen} designObjects={designObjects} projectName={projectName} />
