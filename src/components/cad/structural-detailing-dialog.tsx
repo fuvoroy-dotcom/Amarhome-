@@ -185,6 +185,23 @@ export function StructuralDetailingDialog({
                 <span className="text-amber-400 font-bold">{uniquePillarGroups.length} প্রকার</span>
               </div>
             </div>
+
+            {/* Restored Safety Box */}
+            <div className="p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/20 space-y-2 text-slate-300">
+              <p className="font-bold text-emerald-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> উচ্চ নিরাপত্তায় রড ডিজাইন</p>
+              <div className="flex justify-between py-1 border-b border-white/5">
+                <span>মেইন রড:</span>
+                <span className="text-white font-bold">{rebar.rod}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-white/5">
+                <span>রড সংখ্যা:</span>
+                <span className="text-white font-bold">{rebar.rodCount} টি</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span>বেস পুরুত্ব:</span>
+                <span className="text-emerald-400 font-bold">{rebar.thick}" ইঞ্চি</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex-1 bg-slate-900/60 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 print:bg-white print:p-0">
