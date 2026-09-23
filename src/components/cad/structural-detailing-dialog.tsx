@@ -168,7 +168,7 @@ export function StructuralDetailingDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[95vw] h-[92vh] p-0 flex flex-col bg-slate-900 text-slate-100 border-slate-800 shadow-2xl rounded-2xl overflow-hidden print:w-full print:h-full print:bg-white print:text-slate-950 print:border-none print:shadow-none print:rounded-none">
-        <style jsx global>{`
+        <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page { margin: 0.5in !important; size: auto; }
             body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -178,7 +178,7 @@ export function StructuralDetailingDialog({
             .text-slate-200, .text-slate-400, .text-slate-300 { color: #1e293b !important; }
             .bg-slate-900, .bg-slate-950 { background: white !important; border: 1px solid #e2e8f0 !important; }
           }
-        `}</style>
+        ` }} />
 
         <div className="flex items-center justify-between px-6 py-3.5 bg-slate-950 border-b border-slate-800 shrink-0 no-print">
           <div className="flex items-center gap-3">
@@ -501,7 +501,7 @@ export function StructuralDetailingDialog({
                         const beamDepth = s <= 3 ? 12 : 15;
                         const beamWidth = 10;
                         const canvasW = 850;
-                        const canvasH = 500;
+                        const canvasH = 600;
 
                         return (
                           <div key={span.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
@@ -585,7 +585,7 @@ export function StructuralDetailingDialog({
                                   <text x="80" y="255" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="black">মোট মেইন রড: {mainRodCount} Nos</text>
                                </g>
 
-                               <g transform="translate(100, 380)">
+                               <g transform="translate(100, 450)">
                                   <rect x="0" y="0" width="600" height="85" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
                                   <text x="300" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: ১০" x {beamDepth}"</text>
                                   <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
