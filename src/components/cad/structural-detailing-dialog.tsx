@@ -671,7 +671,8 @@ export function StructuralDetailingDialog({
                                 <p className="text-amber-200 font-bold text-sm uppercase tracking-wider print:text-amber-800">রড বাইন্ডিং গাইডলাইন:</p>
                                 <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
                                    • প্রতিটি রডের শেষে <strong>{groupRebar.hook} ইঞ্চি মাটন (৯০° হুক)</strong> বাধ্যতামূলক যা ২ডি ডিজাইনে লাল লাইনে দেখানো হয়েছে।<br/>
-                                   • কলামের রডগুলো বেসের নিচের জালি থেকে কমপক্ষে ৩ ইঞ্চি ক্লিয়ার কভার মেইনটেইন করবে এবং নিচে ৪ ইঞ্চি এল-ব্যান্ড (L-hook) হয়ে ড্রয়িং অনুযায়ী বসবে।
+                                   • <strong>লেয়ার ও বিন্যাস:</strong> ছোট স্প্যানের রড আগে নিচে পাতা হবে এবং লম্বা স্প্যানের রড তার উপরে বসবে।<br/>
+                                   • <strong>কলাম লেগ ও কভার:</strong> কলামের খাড়া রড ফুটিং জালির ওপর বসে অন্তত ১২"–১৮" এল-ব্যান্ড (L-hook) হয়ে চারিদিকে বসবে এবং নিচে ৩" ক্লিয়ার কভার ব্লক নিশ্চিত করতে হবে।
                                 </p>
                              </div>
                           </div>
@@ -791,8 +792,8 @@ export function StructuralDetailingDialog({
                                <div className="space-y-2">
                                   <p className="text-blue-200 font-bold text-sm uppercase tracking-wider print:text-blue-800">রিং বসানোর নিয়ম:</p>
                                   <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
-                                     • কলামের উপরের ও নিচের অংশ (L/4 জোন) এ ঘন রিং (৪" c/c) দিতে হবে।<br/>
-                                     • রিংয়ের হুকগুলো অবশ্যই রডের ভেতরের দিকে ১৩৫° কোণে থাকবে।
+                                     • <strong>কনফাইনিং জোন:</strong> কলামের ওপরের ও নিচের L/4 অংশে ঘন রিং (৪" c/c) এবং মাঝের অংশে সাধারণ রিং দিতে হবে।<br/>
+                                     • <strong>হুক ও ল্যাপিং:</strong> রিংয়ের হুক ভেতরের দিকে ১৩৫° কোণে থাকবে এবং জয়েন্ট ঘুরিয়ে বাঁধতে হবে। রডের ল্যাপিং কলামের মিড-হাইটে অল্টারনেট করে দিতে হবে।
                                   </p>
                                </div>
                              </div>
@@ -910,7 +911,8 @@ export function StructuralDetailingDialog({
                                   <p className="text-indigo-200 font-bold text-sm uppercase tracking-wider print:text-indigo-800">বিম রিইনফোর্সমেন্ট গাইডলাইন:</p>
                                   <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
                                      • <strong>রড প্লেসমেন্ট:</strong> ক্রস-সেকশন অনুযায়ী মেইন রডগুলো সাজাতে হবে। বিমের নিচে {botRodCount}টি এবং উপরে {topRodCount}টি মেইন রড থাকবে।<br/>
-                                     • <strong>ডেভেলপমেন্ট লেন্থ (Ld):</strong> বিমের রড কলামের ভেতরে কমপক্ষে ১২ ইঞ্চি অথবা ড্রয়িং অনুযায়ী এল-ব্যান্ড (L-hook) হয়ে ঢুকবে।
+                                     • <strong>টপ এক্সট্রা ও রিং:</strong> কলাম ফেস থেকে ক্লিয়ার স্প্যানের L/3 বা L/4 অংশ পর্যন্ত এক্সট্রা টপ কাটতে হবে। সাপোর্টে ৪" c/c ঘন এবং মাঝে ৭" c/c রিং বাঁধতে হবে।<br/>
+                                     • <strong>ডেভেলপমেন্ট লেন্থ (Ld):</strong> বিমের রড কলামের ভেতরে কমপক্ষে ১২ ইঞ্চি এল-ব্যান্ড (L-hook) হয়ে ঢুকবে।
                                   </p>
                                </div>
                             </div>
@@ -1001,7 +1003,7 @@ export function StructuralDetailingDialog({
                                <div className="space-y-2">
                                   <p className="text-emerald-200 font-bold text-sm uppercase tracking-wider print:text-emerald-800">ছাদ ঢালাই ও রড বাইন্ডিং সতর্কতা:</p>
                                   <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
-                                     • <strong>জালি প্লেসমেন্ট:</strong> মেইন রড সবসময় নিচে থাকবে। দুই লেয়ার রডের মাঝখানে অবশ্যই 'চেয়ার' (Chair) রড ব্যবহার করতে হবে যেন ঢালাইয়ের সময় উপরের জালি দেবে না যায়।<br/>
+                                     • <strong>জালি প্লেসমেন্ট:</strong> ছোট স্প্যানের মেইন রড সবসময় নিচে থাকবে। দুই লেয়ার রডের মাঝখানে অবশ্যই প্রতি ৩ ফুট পর পর ১০মিমি রডের 'ঘোড়া / চেয়ার' (Chair) ব্লক দিতে হবে যেন ঢালাইয়ের সময় ওপরের জালি দেবে না যায়।<br/>
                                      • <strong>ক্র্যাঙ্ক বেন্ডিং:</strong> ৪৫° কোণে রড বেন্ড করতে হবে এবং কলাম/বিম ফেস থেকে L/4 দূরত্ব মেইনটেইন করতে হবে।
                                   </p>
                                </div>
@@ -1092,8 +1094,8 @@ export function StructuralDetailingDialog({
                              <div className="space-y-2">
                                 <p className="text-blue-200 font-bold text-sm uppercase tracking-wider print:text-blue-800">সিঁড়ি ঢালাই ও রড বাইন্ডিং সতর্কতা:</p>
                                 <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
-                                   • <strong>সাটারিং:</strong> সিঁড়ির সেন্টারিং খোলার আগে কমপক্ষে ১৪-২১ দিন কিউরিং নিশ্চিত করতে হবে।<br/>
-                                   • <strong>ক্লিয়ার কভার:</strong> সিঁড়ির নিচের রডে ১ ইঞ্চি ক্লিয়ার কভার ব্লক ব্যবহার করা বাধ্যতামূলক। ল্যান্ডিংয়ের বিমে রড ঢোকানোর সময় ২ ইঞ্চি কভার রাখুন।
+                                   • <strong>ক্রস রড প্যাটার্ন (Scissor Action):</strong> ল্যান্ডিং ও ফ্লাইটের সংযোগস্থলে নিচের রড সোজা উপরে না তুলে, নিচের রড উপরে যাবে এবং ওপরের রড নিচে নেমে কাঁচির মতো ক্রস হয়ে ৪০ডি (40D) ল্যাপিং নিবে।<br/>
+                                   • <strong>সাটারিং ও কভার:</strong> সেন্টারিং খোলার আগে ১৪-২১ দিন কিউরিং করতে হবে এবং সিঁড়ির নিচে ১ ইঞ্চি ক্লিয়ার কভার ব্লক ব্যবহার করা বাধ্যতামূলক।
                                 </p>
                              </div>
                           </div>

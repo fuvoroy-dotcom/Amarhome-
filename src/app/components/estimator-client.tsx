@@ -717,6 +717,9 @@ export default function EstimatorClient() {
       }
     };
     setDoc(docRef, data, { merge: true }).then(() => {
+      try {
+        localStorage.setItem('last_saved_design_id', currentDesignId);
+      } catch (e) {}
       toast({ 
         title: "সফল", 
         description: user 
@@ -803,7 +806,7 @@ export default function EstimatorClient() {
     }
   };
 
-  const loadDesign = async (id: string) => {
+  const loadDesign = async (id: string): Promise<boolean> => {
     try {
       const { firestore } = initializeFirebase();
       const docRef = doc(firestore, 'designs', id);
@@ -835,10 +838,16 @@ export default function EstimatorClient() {
           if (data.ledger.labor) setLaborLedger(data.ledger.labor);
         }
         setIsOpenDialogOpen(false);
+        try {
+          localStorage.setItem('last_saved_design_id', id);
+        } catch (e) {}
         toast({ title: "সফল", description: "ডিজাইন এবং হিসাব লোড করা হয়েছে।" });
+        return true;
       }
+      return false;
     } catch (e) {
       toast({ variant: "destructive", title: "ত্রুটি", description: "ডিজাইন লোড করা যায়নি।" });
+      return false;
     }
   };
 
@@ -1273,22 +1282,34 @@ export default function EstimatorClient() {
     setActiveSnapGuides(null);
   };
 
-  // Persistence: Save currentDesignId to localStorage
+  // Persistence: Auto-load last saved project on mount/refresh
   useEffect(() => {
-    if (currentDesignId) {
-      localStorage.setItem('last_opened_design_id', currentDesignId);
-    }
-  }, [currentDesignId]);
+    let isMounted = true;
+    const autoLoadLastProject = async () => {
+      try {
+        const lastSavedId = typeof window !== 'undefined' ? localStorage.getItem('last_saved_design_id') : null;
+        if (lastSavedId) {
+          const ok = await loadDesign(lastSavedId);
+          if (ok) return;
+        }
+        // If not found in localStorage or failed to load, automatically load the most recent saved project from database
+        const designs = await fetchSavedDesigns();
+        if (isMounted && designs && designs.length > 0) {
+          await loadDesign(designs[0].id);
+        }
+      } catch (e) {
+        console.error("Auto load last project error:", e);
+      }
+    };
 
-  // Persistence: Load last opened design on mount
-  useEffect(() => {
-    const lastId = localStorage.getItem('last_opened_design_id');
-    if (lastId) {
-      const timer = setTimeout(() => {
-        loadDesign(lastId);
-      }, 500); 
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      autoLoadLastProject();
+    }, 300);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const renderPillarDistances = () => {
