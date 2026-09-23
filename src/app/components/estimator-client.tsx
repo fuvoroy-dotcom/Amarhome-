@@ -399,14 +399,12 @@ export default function EstimatorClient() {
         if (isBeam) {
           objDiv.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
           objDiv.style.border = '1.5px dashed #2563eb';
-          const bIndex = objectsToExport.filter(o => o.subType === 'beam').findIndex(o => o.id === obj.id);
-          const beamLabel = obj.label && obj.label !== 'Beam' && obj.label !== 'BEAM' ? obj.label : `B${bIndex >= 0 ? bIndex + 1 : 1}`;
+          const beamLabel = obj.label || 'B';
           objDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;"><span style="font-size:10px;font-weight:900;color:#1d4ed8;background:rgba(255,255,255,0.95);padding:1px 5px;border-radius:2px;border:1px solid #bfdbfe;white-space:nowrap;">${beamLabel}</span></div>`;
         } else if (isPillar) {
           objDiv.style.backgroundColor = obj.color;
           objDiv.style.border = '1px solid rgba(0,0,0,0.5)';
-          const pIndex = objectsToExport.filter(o => o.subType === 'pillar' || o.type === 'pillar').findIndex(o => o.id === obj.id);
-          const pillarLabel = obj.label && obj.label !== 'Pillar' ? obj.label : `C${pIndex >= 0 ? pIndex + 1 : 1}`;
+          const pillarLabel = obj.label || 'C';
           objDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;"><span style="font-size:${10 * (exportZoom/40)}px;font-weight:900;color:white;white-space:nowrap;">${pillarLabel}</span></div>`;
         } else if (isStructure) {
           objDiv.style.backgroundColor = obj.color;
@@ -1223,7 +1221,7 @@ export default function EstimatorClient() {
         }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
         else if (selectedTool === 'pillar') {
-          addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 1, h: 1 });
+          addObjectAt('pillar', 'pillar', 'C1', snappedX, snappedY, { w: 1, h: 1 });
         }
         else if (selectedTool === 'door-1') addObjectAt('opening', 'door-1', 'Door 1', snappedX, snappedY);
         else if (selectedTool === 'door-2') addObjectAt('opening', 'door-2', 'Door 2', snappedX, snappedY);
@@ -1368,7 +1366,7 @@ export default function EstimatorClient() {
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len > 0.5) {
           if (selectedTool === 'beam') {
-            addObjectAt('structure', 'beam', 'Beam', drawStart.x, drawStart.y, { 
+            addObjectAt('structure', 'beam', 'B1', drawStart.x, drawStart.y, { 
               w: Math.round(len * 10) / 10, 
               h: currentBeamWidth, 
               depth: currentBeamDepth,
@@ -1380,7 +1378,7 @@ export default function EstimatorClient() {
             addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
           }
         } else if (selectedTool === 'beam') {
-          addObjectAt('structure', 'beam', 'Beam', drawStart.x, drawStart.y, { 
+          addObjectAt('structure', 'beam', 'B1', drawStart.x, drawStart.y, { 
             w: 10, 
             h: currentBeamWidth, 
             depth: currentBeamDepth,
@@ -1542,7 +1540,7 @@ export default function EstimatorClient() {
       );
     }
     if (obj.subType === 'beam') {
-      const beamLabel = obj.label || 'BEAM';
+      const beamLabel = obj.label || 'B';
       return (
         <div className="w-full h-full flex items-center justify-center relative pointer-events-none select-none overflow-hidden">
           <div className="absolute inset-0 border border-dashed border-blue-500 bg-blue-500/15" />
@@ -1989,7 +1987,7 @@ export default function EstimatorClient() {
                       {firstSelectedObject.subType === 'beam' ? (
                         <>
                           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-500/40 text-blue-400 font-black text-[9px] uppercase">
-                            <RectangleHorizontal className="w-3 h-3" /> {firstSelectedObject.label || 'BEAM'}
+                            <RectangleHorizontal className="w-3 h-3" /> {firstSelectedObject.label || 'B1'}
                           </div>
                           <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
                           <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
@@ -2212,7 +2210,7 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       });
       setBeams(beamItems.filter(b => b.len > 0).length > 0 ? beamItems.filter(b => b.len > 0) : [{ id: gid(), len: p.totalBmLen, height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
     } else {
-      setBeams([{ id: gid(), len: p.totalBmLen, height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
+      setBeams([{ id: gid(), len: p.totalBmLen, height: bmH, wid: bmW, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
     }
 
     const slabTk = p.slabTk;
@@ -2685,3 +2683,4 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
+
