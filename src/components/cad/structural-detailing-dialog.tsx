@@ -136,6 +136,11 @@ export function StructuralDetailingDialog({
     return spans;
   }, [mappedPillars]);
 
+  // Detected Slab Areas
+  const slabAreas = useMemo(() => {
+    return designObjects.filter(o => o.subType === 'area-marker');
+  }, [designObjects]);
+
   // Structural Safety Logic for Column/Footing
   const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10) => {
     let rodCount = 4;
@@ -617,8 +622,117 @@ export function StructuralDetailingDialog({
                       )}
                    </div>
                 )}
+
+                {activeTab === 'slab' && (
+                   <div className="flex flex-col gap-32 items-center">
+                      {slabAreas.length > 0 ? slabAreas.map((slab, idx) => {
+                        const s = detailingStoreys;
+                        const w = Math.round(slab.w * 10) / 10;
+                        const l = Math.round(slab.h * 10) / 10;
+                        const ratio = Math.max(w, l) / Math.min(w, l);
+                        const isTwoWay = ratio <= 2;
+                        const rodSize = "10mm (3 Suta)";
+                        const spacing = s <= 3 ? 6 : 5;
+                        const thickness = s <= 3 ? 5 : 6;
+                        const crankLen = Math.round((Math.min(w, l) / 4) * 10) / 10;
+                        
+                        const canvasW = 850;
+                        const canvasH = 750;
+
+                        return (
+                          <div key={slab.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
+                            <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                               <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg">S{idx+1}</div>
+                               <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
+                                  ছাদ রড বিন্যাস (Slab Detail) — {w}' x {l}' ({isTwoWay ? 'Two-way' : 'One-way'})
+                               </span>
+                            </div>
+
+                            <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
+                               {/* Plan View */}
+                               <g transform="translate(60, 100)">
+                                  <text x="180" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SLAB PLAN VIEW (রড জালি বিন্যাস)</text>
+                                  <rect x="0" y="0" width="360" height="260" fill="#0f172a" stroke="#64748b" strokeWidth="4" />
+                                  
+                                  {/* Main Mesh Bottom */}
+                                  {[40, 80, 120, 160, 200, 240, 280, 320].map(dx => (
+                                     <line key={`mx-${dx}`} x1={dx} y1="5" x2={dx} y2="255" stroke="#ef4444" strokeWidth="1.5" />
+                                  ))}
+                                  {[30, 70, 110, 150, 190, 230].map(dy => (
+                                     <line key={`my-${dy}`} x1="5" y1={dy} x2="355" y2={dy} stroke="#ef4444" strokeWidth="1.5" />
+                                  ))}
+
+                                  {/* Crank/Top Indicators (Orange dashed) */}
+                                  <g stroke="#f97316" strokeWidth="2" strokeDasharray="6 3">
+                                     <rect x="10" y="10" width="340" height="40" fill="none" />
+                                     <rect x="10" y="210" width="340" height="40" fill="none" />
+                                     <rect x="10" y="10" width="60" height="240" fill="none" />
+                                     <rect x="290" y="10" width="60" height="240" fill="none" />
+                                  </g>
+                                  
+                                  <text x="180" y="290" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">ক্র্যাঙ্ক বার এরিয়া (L/4 জোন): {crankLen}' ফুট</text>
+                               </g>
+
+                               {/* Sectional View */}
+                               <g transform="translate(480, 100)">
+                                  <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">CROSS-SECTION (রড বেন্ডিং ডিটেইল)</text>
+                                  
+                                  {/* Slab Body */}
+                                  <rect x="0" y="60" width="280" height="40" fill="#1e293b" fillOpacity="0.4" stroke="#64748b" strokeWidth="2" />
+                                  
+                                  {/* Bottom Main Bar */}
+                                  <path d="M 10 92 L 270 92" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
+                                  
+                                  {/* Cranked Bar */}
+                                  <path d="M 10 92 L 60 92 L 100 68 L 180 68 L 220 92 L 270 92" fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                  
+                                  {/* Extra Top Bars */}
+                                  <line x1="5" y1="68" x2="80" y2="68" stroke="#3b82f6" strokeWidth="4" />
+                                  <line x1="200" y1="68" x2="275" y2="68" stroke="#3b82f6" strokeWidth="4" />
+
+                                  <text x="140" y="125" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">স্ল্যাব পুরুত্ব: {thickness}" ইঞ্চি</text>
+                                  <text x="40" y="55" fill="#3b82f6" fontSize="10" textAnchor="middle" fontWeight="black">এক্সট্রা টপ</text>
+                                  <text x="140" y="85" fill="#f97316" fontSize="10" textAnchor="middle" fontWeight="black">ক্র্যাঙ্ক (Crank)</text>
+                               </g>
+
+                               {/* Spec Box */}
+                               <g transform="translate(100, 480)">
+                                  <rect x="0" y="0" width="650" height="110" rx="15" fill="#111827" stroke="#10b981" strokeWidth="2" />
+                                  <text x="325" y="30" fill="#10b981" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং গাইডলাইন: {detailingStoreys} তলা ভবন | ছাদ টাইপ: {isTwoWay ? 'Two-way' : 'One-way'} স্ল্যাব</text>
+                                  <text x="325" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
+                                     মেইন জালি: {rodSize} @ {spacing}" c/c (উভয় দিকে) | ক্লিয়ার কভার: ০.৭৫" ইঞ্চি
+                                  </text>
+                                  <text x="325" y="78" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
+                                     ক্র্যাঙ্ক নিয়ম: সাপোর্টে L/4 দূরত্বে ({crankLen}' ফুট) অল্টারনেট ক্র্যাঙ্ক বার প্রদান করুন।
+                                  </text>
+                                  <text x="325" y="98" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="bold">
+                                     এক্সট্রা টপ: সাপোর্টে প্রতিটি ক্র্যাঙ্ক রডের মাঝখানে ১টি করে এক্সট্রা টপ বসবে।
+                                  </text>
+                               </g>
+                            </svg>
+
+                            <div className="w-full flex items-start gap-4 bg-emerald-600/5 p-6 rounded-3xl border border-emerald-600/20 print:bg-slate-50">
+                               <Info className="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" />
+                               <div className="space-y-2">
+                                  <p className="text-emerald-200 font-bold text-sm uppercase tracking-wider print:text-emerald-800">ছাদ ঢালাই ও রড বাইন্ডিং সতর্কতা:</p>
+                                  <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
+                                     • <strong>জালি প্লেসমেন্ট:</strong> মেইন রড সবসময় নিচে থাকবে। দুই লেয়ার রডের মাঝখানে অবশ্যই 'চেয়ার' (Chair) রড ব্যবহার করতে হবে যেন ঢালাইয়ের সময় উপরের জালি দেবে না যায়।<br/>
+                                     • <strong>ক্র্যাঙ্ক বেন্ডিং:</strong> ৪৫° কোণে রড বেন্ড করতে হবে এবং কলাম/বিম ফেস থেকে L/4 দূরত্ব মেইনটেইন করতে হবে।
+                                  </p>
+                               </div>
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <div className="flex flex-col items-center gap-8 py-48">
+                           <Layers className="w-24 h-24 text-slate-700 animate-pulse" />
+                           <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">ক্যানভাসে কোনো রুম এরিয়া (Area Marker) পাওয়া যায়নি</div>
+                        </div>
+                      )}
+                   </div>
+                )}
                 
-                {['slab', 'stair', 'septic', 'lift'].includes(activeTab) && (
+                {['stair', 'septic', 'lift'].includes(activeTab) && (
                   <div className="flex flex-col items-center justify-center p-48 gap-8 min-w-[700px]">
                      <div className="p-10 rounded-full bg-slate-900 border border-slate-800 shadow-2xl">
                         <Scissors className="w-20 h-20 text-blue-500 opacity-20" />
