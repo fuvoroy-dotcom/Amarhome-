@@ -167,11 +167,11 @@ export function StructuralDetailingDialog({
 
     rodCount = Math.min(rodCount, 12);
 
-    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount, ringRod: "8mm", extraTop: 0 };
-    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount, ringRod: "8mm", extraTop: 0 };
-    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
-    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
-    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
+    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount, ringRod: "8mm", extraTop: 0, botRodCount: 3, topRodCount: 2, crankLen: 0 };
+    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount, ringRod: "8mm", extraTop: 0, botRodCount: 3, topRodCount: 2, crankLen: 0 };
+    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount, ringRod: "10mm", extraTop: 0, botRodCount: 4, topRodCount: 3, crankLen: 0 };
+    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0, botRodCount: 4, topRodCount: 3, crankLen: 0 };
+    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0, botRodCount: 4, topRodCount: 3, crankLen: 0 };
   };
 
   const getSidebarSafetyInfo = () => {
@@ -188,8 +188,8 @@ export function StructuralDetailingDialog({
     if (activeTab === 'beam' && beamSpans.length > 0) {
       const span = beamSpans[0];
       const info = getReinforcementInfo(detailingStoreys, 10, 10, `beam-${span.id}`);
-      const bot = info.rodCount > 6 ? 4 : 3;
-      const top = info.rodCount > 6 ? 3 : 2;
+      const bot = info.botRodCount || (info.rodCount > 6 ? 4 : 3);
+      const top = info.topRodCount || (info.rodCount > 6 ? 3 : 2);
       return { title: 'বিম মেইন রড', rebar: `${bot + top} টি ${info.rod}`, extra: 'L/3 এক্সট্রা টপ' };
     }
     if (activeTab === 'slab' && slabAreas.length > 0) {
@@ -382,7 +382,7 @@ export function StructuralDetailingDialog({
                               <text x="130" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL VIEW (কাটা দৃশ্য ও মাটন)</text>
                               <path d="M 30 220 L 30 320 L 250 320 L 250 220" fill="none" stroke="#64748b" strokeWidth="3" />
                               <rect x="30" y="220" width="220" height="100" fill="#1e293b" fillOpacity="0.4" />
-                              <path d={`M 40 ${310 - groupRebar.hook*4} L 40 310 L 240 310 L 240 ${310 - groupRebar.hook*4}`} fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d={`M 40 ${310 - (groupRebar.hook || 3)*4} L 40 310 L 240 310 L 240 ${310 - (groupRebar.hook || 3)*4}`} fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
                               {[55, 85, 115, 140, 165, 195, 225].map(dx => <circle key={dx} cx={dx} cy="304" r="4" fill="#ef4444" />)}
                               <g stroke="#ef4444" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M 125 40 L 125 310 L 105 310" /><path d="M 155 40 L 155 310 L 175 310" />
@@ -557,11 +557,11 @@ export function StructuralDetailingDialog({
                       {beamSpans.length > 0 ? beamSpans.map((span, idx) => {
                         const s = detailingStoreys;
                         const defaultInfo = getReinforcementInfo(s, 10, 10, `beam-${span.id}`);
-                        const botRodCount = defaultInfo.rodCount > 6 ? 4 : 3;
-                        const topRodCount = defaultInfo.rodCount > 6 ? 3 : 2;
+                        const botRodCount = defaultInfo.botRodCount || (defaultInfo.rodCount > 6 ? 4 : 3);
+                        const topRodCount = defaultInfo.topRodCount || (defaultInfo.rodCount > 6 ? 3 : 2);
                         const mainRodCount = botRodCount + topRodCount;
                         const etLength = Math.round((span.length / 3) * 10) / 10;
-                        const beamDepth = s <= 3 ? 12 : 15;
+                        const beamDepth = defaultInfo.thick || (s <= 3 ? 12 : 15);
                         const canvasW = 850;
                         const canvasH = 600;
 
@@ -669,9 +669,9 @@ export function StructuralDetailingDialog({
                         const l = Math.round(slab.h * 10) / 10;
                         const ratio = Math.max(w, l) / Math.min(w, l);
                         const isTwoWay = ratio <= 2;
-                        const spacing = s <= 3 ? 6 : 5;
+                        const spacing = defaultInfo.gap ? parseInt(defaultInfo.gap) : (s <= 3 ? 6 : 5);
                         const thickness = defaultInfo.thick || (s <= 3 ? 5 : 6);
-                        const crankLen = Math.round((Math.min(w, l) / 4) * 10) / 10;
+                        const crankLen = defaultInfo.crankLen || Math.round((Math.min(w, l) / 4) * 10) / 10;
                         const canvasW = 850;
                         const canvasH = 750;
 
@@ -721,7 +721,7 @@ export function StructuralDetailingDialog({
                                   <rect x="0" y="0" width="650" height="110" rx="15" fill="#111827" stroke="#10b981" strokeWidth="2" />
                                   <text x="325" y="30" fill="#10b981" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং গাইডলাইন: {detailingStoreys} তলা ভবন | ছাদ টাইপ: {isTwoWay ? 'Two-way' : 'One-way'} স্ল্যাব</text>
                                   <text x="325" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                     মেইন জালি: 10mm @ {spacing}" c/c (উভয় দিকে) | ক্লিয়ার কভার: ০.৭৫" ইঞ্চি
+                                     মেইন জালি: {defaultInfo.rod || '10mm'} @ {spacing}" c/c (উভয় দিকে) | ক্লিয়ার কভার: ০.৭৫" ইঞ্চি
                                   </text>
                                   <text x="325" y="78" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
                                      ক্র্যাঙ্ক নিয়ম: সাপোর্টে L/4 দূরত্বে ({crankLen}' ফুট) অল্টারনেট ক্র্যাঙ্ক বার প্রদান করুন।
@@ -862,23 +862,20 @@ export function StructuralDetailingDialog({
           <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <PencilLine className="w-5 h-5 text-blue-400" /> ডিটেইলিং এডিট করুন
+                <PencilLine className="w-5 h-5 text-blue-400" /> 
+                {editingItem?.type === 'footing' && 'ফুটিং ডিটেইলিং এডিট'}
+                {editingItem?.type === 'column' && 'কলাম ডিটেইলিং এডিট'}
+                {editingItem?.type === 'beam' && 'বিম ডিটেইলিং এডিট'}
+                {editingItem?.type === 'slab' && 'ছাদ রড ডিটেইলিং এডিট'}
+                {editingItem?.type === 'stair' && 'সিঁড়ি ডিটেইলিং এডিট'}
               </DialogTitle>
-              <p className="text-xs text-slate-400">ম্যানুয়ালি রড সংখ্যা ও ডিজাইন পরিবর্তন করুন।</p>
+              <p className="text-xs text-slate-400">আপনার প্রয়োজন অনুযায়ী ইঞ্জিনিয়ারিং প্যারামিটারগুলো পরিবর্তন করুন।</p>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500">মেইন রড সংখ্যা (Count)</Label>
-                  <Input 
-                    type="number" 
-                    value={editingItem?.data.rodCount || 0} 
-                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, rodCount: parseInt(e.target.value) || 0 } }) : null)}
-                    className="h-9 bg-slate-800 border-slate-700 font-bold"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500">রড সাইজ (Diameter)</Label>
+                {/* Global/Common: Main Rebar size */}
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">মেইন রড সাইজ (Rebar Size)</Label>
                   <Select 
                     value={editingItem?.data.rod || ''} 
                     onValueChange={v => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, rod: v } }) : null)}
@@ -896,49 +893,85 @@ export function StructuralDetailingDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500">স্পেসিং / গ্যাপ (Spacing)</Label>
-                  <Input 
-                    value={editingItem?.data.gap || ''} 
-                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, gap: e.target.value } }) : null)}
-                    className="h-9 bg-slate-800 border-slate-700 font-bold"
-                    placeholder='e.g. 5" c/c'
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500">হুক/মাটন দৈর্ঘ্য (Hook In)</Label>
-                  <Input 
-                    type="number"
-                    value={editingItem?.data.hook || 0} 
-                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, hook: parseInt(e.target.value) || 0 } }) : null)}
-                    className="h-9 bg-slate-800 border-slate-700 font-bold"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Thick In)</Label>
-                  <Input 
-                    type="number"
-                    value={editingItem?.data.thick || 0} 
-                    onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, thick: parseInt(e.target.value) || 0 } }) : null)}
-                    className="h-9 bg-slate-800 border-slate-700 font-bold"
-                  />
-                </div>
+
+                {/* Footing Specific */}
+                {editingItem?.type === 'footing' && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">জালি রড সংখ্যা</Label>
+                      <Input type="number" value={editingItem?.data.rodCount || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, rodCount: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">জালি স্পেসিং (Spacing)</Label>
+                      <Input value={editingItem?.data.gap || ''} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, gap: e.target.value } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" placeholder='e.g. 5" c/c' />
+                    </div>
+                  </>
+                )}
+
+                {/* Column Specific */}
                 {editingItem?.type === 'column' && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">মোট রড সংখ্যা</Label>
+                      <Input type="number" value={editingItem?.data.rodCount || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, rodCount: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">রিং রড সাইজ</Label>
+                      <Select value={editingItem?.data.ringRod || ''} onValueChange={v => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, ringRod: v } }) : null)}>
+                        <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                          <SelectItem value="8mm">8mm</SelectItem><SelectItem value="10mm">10mm</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
+                {/* Beam Specific */}
+                {editingItem?.type === 'beam' && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">নিচের রড সংখ্যা (Bottom)</Label>
+                      <Input type="number" value={editingItem?.data.botRodCount || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, botRodCount: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">উপরের রড সংখ্যা (Top)</Label>
+                      <Input type="number" value={editingItem?.data.topRodCount || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, topRodCount: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                    </div>
+                  </>
+                )}
+
+                {/* Slab Specific */}
+                {editingItem?.type === 'slab' && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">জালি স্পেসিং (Spacing)</Label>
+                      <Input value={editingItem?.data.gap || ''} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, gap: e.target.value } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" placeholder='e.g. 5"' />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">ক্র্যাঙ্ক জোন (L/4 Ft)</Label>
+                      <Input type="number" value={editingItem?.data.crankLen || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, crankLen: parseFloat(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                    </div>
+                  </>
+                )}
+
+                {/* Stair Specific */}
+                {editingItem?.type === 'stair' && (
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">রিং রড সাইজ</Label>
-                    <Select 
-                      value={editingItem?.data.ringRod || ''} 
-                      onValueChange={v => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, ringRod: v } }) : null)}
-                    >
-                      <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                        <SelectItem value="8mm">8mm</SelectItem>
-                        <SelectItem value="10mm">10mm</SelectItem>
-                        <SelectItem value="12mm">12mm</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">রড স্পেসিং (Spacing)</Label>
+                    <Input value={editingItem?.data.gap || ''} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, gap: e.target.value } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" placeholder='e.g. 5" c/c' />
+                  </div>
+                )}
+
+                {/* Shared Properties: Thickness & Hooks */}
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Inches)</Label>
+                  <Input type="number" value={editingItem?.data.thick || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, thick: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                </div>
+                {['footing', 'column', 'beam'].includes(editingItem?.type || '') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">হুক / মাটন (Hook In)</Label>
+                    <Input type="number" value={editingItem?.data.hook || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, hook: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
                   </div>
                 )}
               </div>
