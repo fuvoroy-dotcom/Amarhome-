@@ -201,7 +201,7 @@ export function StructuralDetailingDialog({
               </div>
             </div>
 
-            {/* Restored Safety Box */}
+            {/* Safety Box Restored */}
             <div className="p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/20 space-y-2 text-slate-300">
               <p className="font-bold text-emerald-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> উচ্চ নিরাপত্তায় রড ডিজাইন</p>
               <div className="flex justify-between py-1 border-b border-white/5">
@@ -333,6 +333,14 @@ export function StructuralDetailingDialog({
                               
                               <rect x="15" y="15" width="250" height="170" fill="none" stroke="#f59e0b" strokeWidth="2" rx="4" />
                               
+                              {/* Integrated Inner Ties Drawing to show "Where and How" they stay */}
+                              {rCount === 6 && (
+                                <line x1="140" y1="15" x2="140" y2="185" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2" />
+                              )}
+                              {rCount >= 8 && (
+                                <path d="M 140 15 L 265 100 L 140 185 L 15 100 Z" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2" />
+                              )}
+
                               <g fill="#ef4444">
                                 <circle cx="15" cy="15" r="8" /><circle cx="265" cy="15" r="8" />
                                 <circle cx="15" cy="185" r="8" /><circle cx="265" cy="185" r="8" />
@@ -355,8 +363,29 @@ export function StructuralDetailingDialog({
 
                               {rCount > 4 && (
                                 <g transform="translate(0, 240)">
-                                  <path d="M 140 20 L 250 80 L 140 140 L 30 80 Z" fill="none" stroke="#fbbf24" strokeWidth="3" />
-                                  <text x="140" y="170" fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="bold">INNER TIE (ডায়মন্ড / লিঙ্ক রিং)</text>
+                                  {/* Added ghost rebars to show ring placement logic */}
+                                  <g fill="#475569" opacity="0.3">
+                                    <circle cx="30" cy="20" r="5" /><circle cx="250" cy="20" r="5" />
+                                    <circle cx="30" cy="140" r="5" /><circle cx="250" cy="140" r="5" />
+                                    <circle cx="140" cy="20" r="7" /><circle cx="140" cy="140" r="7" />
+                                    <circle cx="30" cy="80" r="7" /><circle cx="250" cy="80" r="7" />
+                                  </g>
+
+                                  {rCount === 6 ? (
+                                    <g>
+                                      <line x1="140" y1="20" x2="140" y2="140" stroke="#fbbf24" strokeWidth="3" />
+                                      <path d="M 140 20 L 130 10 M 140 20 L 150 30" fill="none" stroke="#fbbf24" strokeWidth="3" />
+                                      <path d="M 140 140 L 130 150 M 140 140 L 150 130" fill="none" stroke="#fbbf24" strokeWidth="3" />
+                                      <text x="140" y="170" fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="bold">LINK TIE (লিঙ্ক রিং)</text>
+                                    </g>
+                                  ) : (
+                                    <g>
+                                      <path d="M 140 20 L 250 80 L 140 140 L 30 80 Z" fill="none" stroke="#fbbf24" strokeWidth="3" />
+                                      {/* Visual Hook for Diamond Tie */}
+                                      <path d="M 140 20 L 125 5 M 140 20 L 155 35" fill="none" stroke="#fbbf24" strokeWidth="3" />
+                                      <text x="140" y="170" fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="bold">DIAMOND TIE (ডায়মন্ড রিং)</text>
+                                    </g>
+                                  )}
                                 </g>
                               )}
                             </g>
