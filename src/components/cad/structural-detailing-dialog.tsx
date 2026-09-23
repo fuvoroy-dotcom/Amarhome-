@@ -141,6 +141,11 @@ export function StructuralDetailingDialog({
     return designObjects.filter(o => o.subType === 'area-marker');
   }, [designObjects]);
 
+  // Detected Stair Objects
+  const stairObjects = useMemo(() => {
+    return designObjects.filter(o => o.subType.startsWith('stair') || o.type === 'stair');
+  }, [designObjects]);
+
   // Structural Safety Logic for Column/Footing
   const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10) => {
     let rodCount = 4;
@@ -172,7 +177,7 @@ export function StructuralDetailingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[92vh] p-0 flex flex-col bg-slate-900 text-slate-100 border-slate-800 shadow-2xl rounded-2xl overflow-hidden print:w-full print:h-full print:bg-white print:text-slate-950 print:border-none print:shadow-none print:rounded-none">
+      <DialogContent className="max-w-6xl w-[95vw] h-[92vh] p-0 flex flex-col bg-slate-900 text-slate-100 border-slate-800 shadow-2xl rounded-2xl overflow-hidden print:size-auto print:bg-white print:text-slate-950 print:border-none print:shadow-none print:rounded-none">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page { margin: 0.5in !important; size: auto; }
@@ -731,8 +736,116 @@ export function StructuralDetailingDialog({
                       )}
                    </div>
                 )}
+
+                {activeTab === 'stair' && (
+                  <div className="flex flex-col gap-32 items-center">
+                    {stairObjects.length > 0 ? stairObjects.map((stair, idx) => {
+                      const sW = Math.round(stair.w * 10) / 10;
+                      const sD = Math.round(stair.h * 10) / 10;
+                      const steps = stair.stepCount || 14;
+                      const riser = 6;
+                      const tread = 10;
+                      const waist = 5;
+                      const canvasW = 850;
+                      const canvasH = 750;
+
+                      return (
+                        <div key={stair.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
+                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">ST{idx+1}</div>
+                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
+                                সিঁড়ি ডিটেইলিং ও রড বিন্যাস — {sW}' x {sD}' (Step Count: {steps})
+                             </span>
+                          </div>
+
+                          <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
+                             {/* Plan View */}
+                             <g transform="translate(60, 100)">
+                                <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">PLAN VIEW (উপরের দৃশ্য)</text>
+                                <rect x="0" y="0" width="280" height="280" fill="#0f172a" stroke="#64748b" strokeWidth="4" />
+                                
+                                {/* Landing */}
+                                <rect x="0" y="0" width="280" height="70" fill="#1e293b" fillOpacity="0.5" stroke="#94a3b8" strokeWidth="2" />
+                                <text x="140" y="45" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">LANDING (ল্যান্ডিং)</text>
+
+                                {/* Flights */}
+                                <line x1="140" y1="70" x2="140" y2="280" stroke="#64748b" strokeWidth="3" />
+                                {[110, 150, 190, 230, 270].map(dy => (
+                                   <g key={`step-${dy}`}>
+                                      <line x1="5" y1={dy} x2="135" y2={dy} stroke="#94a3b8" strokeWidth="1" />
+                                      <line x1="145" y1={dy} x2="275" y2={dy} stroke="#94a3b8" strokeWidth="1" />
+                                   </g>
+                                ))}
+                                
+                                <path d="M 70 260 L 70 120 L 210 120 L 210 260" fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5 3" />
+                                <path d="M 210 260 L 205 250 M 210 260 L 215 250" fill="none" stroke="#f59e0b" strokeWidth="2" />
+                                <text x="140" y="310" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">প্রস্থ: {sW}' ফুট | ধাপ সংখ্যা: {steps} টি</text>
+                             </g>
+
+                             {/* Section View */}
+                             <g transform="translate(420, 100)">
+                                <text x="180" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL VIEW (কাটা দৃশ্য)</text>
+                                
+                                {/* Stair Outline */}
+                                <path d="M 20 280 L 100 280 L 100 250 L 130 250 L 130 220 L 160 220 L 160 190 L 190 190 L 190 160 L 220 160 L 220 130 L 320 130 L 320 180 L 250 180 L 250 300 L 20 300 Z" fill="#1e293b" fillOpacity="0.4" stroke="#64748b" strokeWidth="2.5" />
+                                
+                                {/* Rebar Bottom */}
+                                <path d="M 30 292 L 240 292 L 310 172" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
+                                
+                                {/* Rebar Top/Crank */}
+                                <path d="M 30 288 L 100 288 L 220 142 L 310 142" fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
+
+                                {/* Dimension Labels */}
+                                <text x="60" y="275" fill="#94a3b8" fontSize="10" textAnchor="middle">Landing</text>
+                                <text x="160" y="250" fill="#f97316" fontSize="10" textAnchor="middle" fontWeight="black" transform="rotate(-40 160 250)">Waist Slab: {waist}"</text>
+                                <text x="270" y="120" fill="#94a3b8" fontSize="10" textAnchor="middle">Upper Floor</text>
+                                
+                                <g transform="translate(300, 200)">
+                                   <line x1="0" y1="0" x2="30" y2="0" stroke="#3b82f6" strokeWidth="1.5" />
+                                   <line x1="30" y1="0" x2="30" y2="-20" stroke="#3b82f6" strokeWidth="1.5" />
+                                   <text x="40" y="5" fill="#3b82f6" fontSize="9">T: {tread}"</text>
+                                   <text x="40" y="-15" fill="#3b82f6" fontSize="9">R: {riser}"</text>
+                                </g>
+                             </g>
+
+                             {/* Engineering Box */}
+                             <g transform="translate(100, 480)">
+                                <rect x="0" y="0" width="650" height="110" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
+                                <text x="325" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং ডিটেইলস: সিঁড়ি (Staircase) রিইনফোর্সমেন্ট</text>
+                                <text x="325" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
+                                   মেইন রড: 12mm (4 Suta) @ 5" c/c | ডিস্ট্রিবিউশন: 10mm (3 Suta) @ 6" c/c
+                                </text>
+                                <text x="325" y="78" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
+                                   ওয়েস্ট স্ল্যাব পুরুত্ব: {waist}" ইঞ্চি | রাইজার: {riser}" | ট্রেড: {tread}"
+                                </text>
+                                <text x="325" y="98" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="bold">
+                                   নির্দেশ: ল্যান্ডিং ও ফ্লাইটের সংযোগস্থলে রডগুলো অবশ্যই ৪০ডি (40D) ল্যাপিং মেইনটেইন করবে।
+                                </text>
+                             </g>
+                          </svg>
+
+                          <div className="w-full flex items-start gap-4 bg-blue-600/5 p-6 rounded-3xl border border-blue-600/20 print:bg-slate-50">
+                             <Info className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
+                             <div className="space-y-2">
+                                <p className="text-blue-200 font-bold text-sm uppercase tracking-wider print:text-blue-800">সিঁড়ি ঢালাই ও রড বাইন্ডিং সতর্কতা:</p>
+                                <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
+                                   • <strong>সাটারিং:</strong> সিঁড়ির সেন্টারিং খোলার আগে কমপক্ষে ১৪-২১ দিন কিউরিং নিশ্চিত করতে হবে।<br/>
+                                   • <strong>ক্লিয়ার কভার:</strong> সিঁড়ির নিচের রডে ১ ইঞ্চি ক্লিয়ার কভার ব্লক ব্যবহার করা বাধ্যতামূলক। ল্যান্ডিংয়ের বিমে রড ঢোকানোর সময় ২ ইঞ্চি কভার রাখুন।
+                                </p>
+                             </div>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="flex flex-col items-center gap-8 py-48">
+                         <Boxes className="w-24 h-24 text-slate-700 animate-pulse" />
+                         <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">ক্যানভাসে কোনো সিঁড়ি পাওয়া যায়নি</div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
-                {['stair', 'septic', 'lift'].includes(activeTab) && (
+                {['septic', 'lift'].includes(activeTab) && (
                   <div className="flex flex-col items-center justify-center p-48 gap-8 min-w-[700px]">
                      <div className="p-10 rounded-full bg-slate-900 border border-slate-800 shadow-2xl">
                         <Scissors className="w-20 h-20 text-blue-500 opacity-20" />
