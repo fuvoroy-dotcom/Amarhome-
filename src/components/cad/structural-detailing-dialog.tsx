@@ -76,13 +76,28 @@ export function StructuralDetailingDialog({
     return Object.values(groups);
   }, [mappedPillars]);
 
-  // Structural Safety Logic
-  const getReinforcementInfo = (storeys: number) => {
-    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount: 4 };
-    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount: 6 };
-    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount: 8 };
-    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount: 10 };
-    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount: 12 };
+  // Structural Safety Logic - Updated to be dynamic based on size
+  const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10) => {
+    let rodCount = 4;
+    const maxSide = Math.max(wIn, hIn);
+    
+    // Dynamic Rod Count calculation: higher storeys or larger sizes demand more rebars
+    if (storeys <= 2) {
+      rodCount = maxSide > 12 ? 6 : 4;
+    } else if (storeys <= 4) {
+      rodCount = maxSide > 12 ? 8 : 6;
+      if (maxSide >= 18) rodCount = 10;
+    } else {
+      rodCount = maxSide > 12 ? 12 : 10;
+    }
+
+    rodCount = Math.min(rodCount, 12); // Clamped to 12 for SVG diagram constraints
+
+    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount };
+    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount };
+    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount };
+    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount };
+    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount };
   };
 
   const rebar = getReinforcementInfo(detailingStoreys);
@@ -219,6 +234,7 @@ export function StructuralDetailingDialog({
                 {activeTab === 'footing' && (
                   <div className="flex flex-col gap-32 items-center">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
+                      const groupRebar = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn);
                       const offset = detailingStoreys <= 2 ? 3.0 : (detailingStoreys + 1.5);
                       const fSize = Math.max(4, Math.ceil((group.wIn / 12 + offset) * 2) / 2);
                       const canvasW = 680;
@@ -249,21 +265,21 @@ export function StructuralDetailingDialog({
                               <text x="130" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL VIEW (কাটা দৃশ্য ও মাটন)</text>
                               <path d="M 30 220 L 30 320 L 250 320 L 250 220" fill="none" stroke="#64748b" strokeWidth="3" />
                               <rect x="30" y="220" width="220" height="100" fill="#1e293b" fillOpacity="0.4" />
-                              <path d={`M 40 ${310 - rebar.hook*4} L 40 310 L 240 310 L 240 ${310 - rebar.hook*4}`} fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d={`M 40 ${310 - groupRebar.hook*4} L 40 310 L 240 310 L 240 ${310 - groupRebar.hook*4}`} fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
                               {[55, 85, 115, 140, 165, 195, 225].map(dx => <circle key={dx} cx={dx} cy="304" r="4" fill="#ef4444" />)}
                               <g stroke="#ef4444" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M 125 40 L 125 310 L 105 310" /><path d="M 155 40 L 155 310 L 175 310" />
                               </g>
                               <rect x="115" y="40" width="50" height="180" fill="#0f172a" stroke="#ffffff" strokeWidth="2.5" />
                               <text x="140" y="30" fill="#ef4444" fontSize="12" textAnchor="middle" fontWeight="bold">Column: {group.wIn}"x{group.hIn}"</text>
-                              <text x="295" y="315" fill="#94a3b8" fontSize="11" fontWeight="bold">হুক/মাটন: {rebar.hook}"</text>
-                              <text x="295" y="225" fill="#94a3b8" fontSize="11" fontWeight="bold">বেস উচ্চতা: {rebar.thick}"</text>
+                              <text x="295" y="315" fill="#94a3b8" fontSize="11" fontWeight="bold">হুক/মাটন: {groupRebar.hook}"</text>
+                              <text x="295" y="225" fill="#94a3b8" fontSize="11" fontWeight="bold">বেস উচ্চতা: {groupRebar.thick}"</text>
                             </g>
 
                             <g transform="translate(40, 440)">
                               <rect x="0" y="0" width="600" height="70" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
-                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং স্পেসিফিকেশন: {detailingStoreys} তলা ফাউন্ডেশন | রড সাইজ: {rebar.rod}</text>
-                              <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">জালি স্পেসিং: {rebar.gap} c/c | ক্লিয়ার কভার: ৩" ইঞ্চি | হুক দৈর্ঘ্য: {rebar.hook}" ইঞ্চি | কংক্রিট গ্রেড: M20</text>
+                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং স্পেসিফিকেশন: {detailingStoreys} তলা ফাউন্ডেশন | রড সাইজ: {groupRebar.rod} ({groupRebar.rodCount} টি রড)</text>
+                              <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">জালি স্পেসিং: {groupRebar.gap} c/c | ক্লিয়ার কভার: ৩" ইঞ্চি | হুক দৈর্ঘ্য: {groupRebar.hook}" ইঞ্চি | কংক্রিট গ্রেড: M20</text>
                             </g>
                           </svg>
 
@@ -272,7 +288,7 @@ export function StructuralDetailingDialog({
                              <div className="space-y-2">
                                 <p className="text-amber-200 font-bold text-sm uppercase tracking-wider print:text-amber-800">রড বাইন্ডিং গাইডলাইন:</p>
                                 <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
-                                   • প্রতিটি রডের শেষে <strong>{rebar.hook} ইঞ্চি মাটন (৯০° হুক)</strong> বাধ্যতামূলক যা ২ডি ডিজাইনে লাল লাইনে দেখানো হয়েছে।<br/>
+                                   • প্রতিটি রডের শেষে <strong>{groupRebar.hook} ইঞ্চি মাটন (৯০° হুক)</strong> বাধ্যতামূলক যা ২ডি ডিজাইনে লাল লাইনে দেখানো হয়েছে।<br/>
                                    • কলামের রডগুলো বেসের নিচের জালি থেকে কমপক্ষে ৩ ইঞ্চি ক্লিয়ার কভার মেইনটেইন করবে এবং নিচে ৪ ইঞ্চি এল-ব্যান্ড (L-hook) হয়ে ড্রয়িং অনুযায়ী বসবে।
                                 </p>
                              </div>
@@ -291,37 +307,33 @@ export function StructuralDetailingDialog({
                 {activeTab === 'column' && (
                   <div className="flex flex-col gap-32 items-center">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
+                      const groupRebar = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn);
                       const cW = group.wIn;
                       const cH = group.hIn;
-                      const rCount = rebar.rodCount;
+                      const rCount = groupRebar.rodCount;
                       const masterRW = cW - 3; // Clear cover 1.5" * 2
                       const masterRH = cH - 3;
                       const canvasW = 700;
                       const canvasH = 580;
                       
-                      // Spacing logic based on height (usually 4" at ends, 6" at mid)
                       const ringSpacing = detailingStoreys > 4 ? "4\"/8\"" : "5\"/10\"";
-                      const totalRings = Math.ceil((10 * 12) / 6); // Assuming 10ft height
+                      const totalRings = Math.ceil((10 * 12) / 6); 
 
                       return (
                         <div key={idx} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
                           <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
                              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">C{idx+1}</div>
-                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">কলাম সেকশন ও রিং ডিটেইলস — {cW}" x {cH}" ({rCount} Nos Rebar)</span>
+                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">কলাম সেকশন ও রিং ডিটেইলস — {cW}" x {cH}" ({rCount} টি রড)</span>
                           </div>
 
                           <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
-                            {/* 1. COLUMN CROSS SECTION (PLAN VIEW) */}
                             <g transform="translate(40, 100)">
-                              <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">COLUMN CROSS-SECTION (রড বিন্যাস)</text>
+                              <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">COLUMN CROSS-SECTION (রড বিন্যাস: {rCount} Nos)</text>
                               <rect x="0" y="0" width="280" height="200" fill="#0f172a" stroke="#475569" strokeWidth="3" />
                               
-                              {/* Master Ring Plan */}
                               <rect x="15" y="15" width="250" height="170" fill="none" stroke="#f59e0b" strokeWidth="2" rx="4" />
                               
-                              {/* Rod dots logic for 4-12 rods */}
                               <g fill="#ef4444">
-                                {/* Corners - always present */}
                                 <circle cx="15" cy="15" r="8" /><circle cx="265" cy="15" r="8" />
                                 <circle cx="15" cy="185" r="8" /><circle cx="265" cy="185" r="8" />
                                 
@@ -331,22 +343,16 @@ export function StructuralDetailingDialog({
                                 {rCount >= 12 && <><circle cx="77" cy="185" r="8" /><circle cx="203" cy="185" r="8" /></>}
                               </g>
                               
-                              <text x="140" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{cW}" x {cH}" Column Size | {rebar.rod} রড</text>
+                              <text x="140" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{cW}" x {cH}" Size | {groupRebar.rod} রড ({rCount} টি)</text>
                             </g>
 
-                            {/* 2. RING / STIRRUP DETAIL */}
                             <g transform="translate(380, 100)">
                               <text x="130" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">RING / STIRRUP DETAIL (রিং ডিজাইন)</text>
-                              
-                              {/* Master Ring Detailed Design */}
                               <rect x="30" y="20" width="220" height="150" fill="none" stroke="#f59e0b" strokeWidth="4" rx="8" />
-                              {/* Stirrup Hooks (135 degree) */}
                               <path d="M 30 28 L 15 15 M 30 28 L 45 43" fill="none" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
-                              
                               <text x="140" y="195" fill="#f59e0b" fontSize="12" textAnchor="middle" fontWeight="bold">MASTER RING: {masterRW}" x {masterRH}"</text>
-                              <text x="140" y="215" fill="#94a3b8" fontSize="10" textAnchor="middle">Hooks: {rebar.hook}" (১৩৫° বেন্ড) | ৮ মিমি রড</text>
+                              <text x="140" y="215" fill="#94a3b8" fontSize="10" textAnchor="middle">Hooks: {groupRebar.hook}" (১৩৫° বেন্ড) | ৮ মিমি রড</text>
 
-                              {/* Inner Tie if rods > 4 */}
                               {rCount > 4 && (
                                 <g transform="translate(0, 240)">
                                   <path d="M 140 20 L 250 80 L 140 140 L 30 80 Z" fill="none" stroke="#fbbf24" strokeWidth="3" />
@@ -355,10 +361,9 @@ export function StructuralDetailingDialog({
                               )}
                             </g>
 
-                            {/* Info Box */}
                             <g transform="translate(50, 480)">
                               <rect x="0" y="0" width="600" height="80" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
-                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং সামারি: {detailingStoreys} তলা ভবন | কলাম টাইপ: C{idx+1}</text>
+                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং সামারি: {detailingStoreys} তলা ভবন | কলাম টাইপ: C{idx+1} ({rCount} টি রড)</text>
                               <text x="300" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
                                 রিং স্পেসিং: {ringSpacing} c/c | রিং সাইজ: {masterRW}"x{masterRH}" | মাস্তান (Binding Wire): ০.৮৫ কেজি/টন
                               </text>
