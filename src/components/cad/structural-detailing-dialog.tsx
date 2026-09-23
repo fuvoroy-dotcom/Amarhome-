@@ -128,26 +128,8 @@ export function StructuralDetailingDialog({
     return Object.values(groups);
   }, [mappedPillars]);
 
-  // Beam Span Detection Logic
+  // Beam Span Detection Logic - Pillar to Pillar
   const beamSpans = useMemo(() => {
-    const canvasBeams = designObjects.filter(o => o.subType === 'beam');
-    if (canvasBeams.length > 0) {
-      return canvasBeams.map((b, idx) => {
-        const rot = Math.abs(b.rotation || 0) % 180;
-        const isV = rot >= 45 && rot <= 135;
-        return {
-          id: b.id,
-          p1: null,
-          p2: null,
-          length: b.w > 0 ? b.w : 10,
-          width: b.h > 0 ? Math.round(b.h * 12) : 10,
-          depth: (b as any).depth || 12,
-          orientation: isV ? ('V' as const) : ('H' as const),
-          label: b.label || `B${idx + 1}`
-        };
-      });
-    }
-
     const spans: { id: string; p1: any; p2: any; length: number; orientation: 'H' | 'V'; width?: number; depth?: number; label?: string }[] = [];
     const TOL = 1.0;
 
@@ -171,7 +153,21 @@ export function StructuralDetailingDialog({
         const p2 = sorted[i+1];
         const dist = p2.x - (p1.x + p1.w);
         if (dist > 1.0) {
-          spans.push({ id: `h-${p1.id}-${p2.id}`, p1, p2, length: dist, orientation: 'H' });
+          const matchingBeam = designObjects.find(o => 
+            o.subType === 'beam' && 
+            Math.abs(o.y - p1.y) < 2.0 && 
+            o.x <= p2.x && (o.x + o.w) >= p1.x
+          );
+          spans.push({ 
+            id: `h-${p1.id}-${p2.id}`, 
+            p1, 
+            p2, 
+            length: dist, 
+            orientation: 'H',
+            width: matchingBeam && matchingBeam.h > 0 ? Math.round(matchingBeam.h * 12) : 10,
+            depth: matchingBeam ? ((matchingBeam as any).depth || 12) : undefined,
+            label: matchingBeam?.label
+          });
         }
       }
     });
@@ -196,13 +192,47 @@ export function StructuralDetailingDialog({
         const p2 = sorted[i+1];
         const dist = p2.y - (p1.y + p1.h);
         if (dist > 1.0) {
-          spans.push({ id: `v-${p1.id}-${p2.id}`, p1, p2, length: dist, orientation: 'V' });
+          const matchingBeam = designObjects.find(o => 
+            o.subType === 'beam' && 
+            Math.abs(o.x - p1.x) < 2.0 && 
+            o.y <= p2.y && (o.y + o.w) >= p1.y
+          );
+          spans.push({ 
+            id: `v-${p1.id}-${p2.id}`, 
+            p1, 
+            p2, 
+            length: dist, 
+            orientation: 'V',
+            width: matchingBeam && matchingBeam.h > 0 ? Math.round(matchingBeam.h * 12) : 10,
+            depth: matchingBeam ? ((matchingBeam as any).depth || 12) : undefined,
+            label: matchingBeam?.label
+          });
         }
       }
     });
 
+    if (spans.length === 0) {
+      const canvasBeams = designObjects.filter(o => o.subType === 'beam');
+      if (canvasBeams.length > 0) {
+        return canvasBeams.map((b, idx) => {
+          const rot = Math.abs(b.rotation || 0) % 180;
+          const isV = rot >= 45 && rot <= 135;
+          return {
+            id: b.id,
+            p1: null,
+            p2: null,
+            length: b.w > 0 ? b.w : 10,
+            width: b.h > 0 ? Math.round(b.h * 12) : 10,
+            depth: (b as any).depth || 12,
+            orientation: isV ? ('V' as const) : ('H' as const),
+            label: b.label || `B${idx + 1}`
+          };
+        });
+      }
+    }
+
     return spans;
-  }, [mappedPillars]);
+  }, [mappedPillars, designObjects]);
 
   const slabAreas = useMemo(() => {
     return designObjects.filter(o => o.subType === 'area-marker');

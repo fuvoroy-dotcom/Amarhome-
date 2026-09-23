@@ -390,10 +390,19 @@ export default function EstimatorClient() {
         
         const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
         const isBeam = obj.subType === 'beam';
+        const isPillar = obj.subType === 'pillar' || obj.type === 'pillar';
         if (isBeam) {
           objDiv.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
           objDiv.style.border = '1.5px dashed #2563eb';
-          objDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;"><span style="font-size:9px;font-weight:900;color:#1d4ed8;background:rgba(255,255,255,0.95);padding:1px 4px;border-radius:2px;border:1px solid #bfdbfe;white-space:nowrap;">${obj.label || 'BEAM'}: দৈর্ঘ্য ${formatDimension(obj.w)} × প্রস্থ ${formatDimension(obj.h)}</span></div>`;
+          const bIndex = objectsToExport.filter(o => o.subType === 'beam').findIndex(o => o.id === obj.id);
+          const beamLabel = obj.label && obj.label !== 'Beam' && obj.label !== 'BEAM' ? obj.label : `B${bIndex >= 0 ? bIndex + 1 : 1}`;
+          objDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;"><span style="font-size:10px;font-weight:900;color:#1d4ed8;background:rgba(255,255,255,0.95);padding:1px 5px;border-radius:2px;border:1px solid #bfdbfe;white-space:nowrap;">${beamLabel}</span></div>`;
+        } else if (isPillar) {
+          objDiv.style.backgroundColor = obj.color;
+          objDiv.style.border = '1px solid rgba(0,0,0,0.5)';
+          const pIndex = objectsToExport.filter(o => o.subType === 'pillar' || o.type === 'pillar').findIndex(o => o.id === obj.id);
+          const pillarLabel = obj.label && obj.label !== 'Pillar' ? obj.label : `C${pIndex >= 0 ? pIndex + 1 : 1}`;
+          objDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;"><span style="font-size:${10 * (exportZoom/40)}px;font-weight:900;color:white;white-space:nowrap;">${pillarLabel}</span></div>`;
         } else if (isStructure) {
           objDiv.style.backgroundColor = obj.color;
           objDiv.style.border = '1px solid rgba(0,0,0,0.5)';
@@ -949,7 +958,11 @@ export default function EstimatorClient() {
       ...overrides
     };
 
-    if (subType === 'pillar') newObj.fillColor = '#000000';
+    if (subType === 'pillar') {
+      const count = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar').length + 1;
+      newObj.label = `C${count}`;
+      newObj.fillColor = '#000000';
+    }
     if (subType === 'beam') {
       const count = designObjects.filter(o => o.subType === 'beam').length + 1;
       newObj.label = `B${count}`;
@@ -1141,7 +1154,10 @@ export default function EstimatorClient() {
           return; 
         }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
-        else if (selectedTool === 'pillar') addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 1, h: 1 });
+        else if (selectedTool === 'pillar') {
+          const count = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar').length + 1;
+          addObjectAt('pillar', 'pillar', `C${count}`, snappedX, snappedY, { w: 1, h: 1, label: `C${count}` });
+        }
         else if (selectedTool === 'door-1') addObjectAt('opening', 'door-1', 'Door 1', snappedX, snappedY);
         else if (selectedTool === 'door-2') addObjectAt('opening', 'door-2', 'Door 2', snappedX, snappedY);
         else if (selectedTool === 'door-3') addObjectAt('opening', 'door-3', 'Door 3', snappedX, snappedY);
@@ -1461,12 +1477,24 @@ export default function EstimatorClient() {
       );
     }
     if (obj.subType === 'beam') {
+      const bIndex = designObjects.filter(o => o.subType === 'beam').findIndex(o => o.id === obj.id);
+      const beamLabel = obj.label && obj.label !== 'Beam' && obj.label !== 'BEAM' ? obj.label : `B${bIndex >= 0 ? bIndex + 1 : 1}`;
       return (
         <div className="w-full h-full flex items-center justify-center relative pointer-events-none select-none overflow-hidden">
           <div className="absolute inset-0 border border-dashed border-blue-500 bg-blue-500/15" />
-          <span className="text-[9px] font-black text-blue-700 bg-white/95 px-1.5 py-0.5 rounded shadow-xs z-10 whitespace-nowrap border border-blue-200 flex items-center gap-1">
-            <span className="font-black text-blue-800">{obj.label || "BEAM"}:</span>
-            <span className="text-slate-700 font-bold">দৈর্ঘ্য {formatDimension(obj.w)} × প্রস্থ {formatDimension(obj.h)}</span>
+          <span className="text-[10px] font-black text-blue-800 bg-white/95 px-1.5 py-0.5 rounded shadow-xs z-10 whitespace-nowrap border border-blue-200">
+            {beamLabel}
+          </span>
+        </div>
+      );
+    }
+    if (obj.subType === 'pillar' || obj.type === 'pillar') {
+      const pIndex = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar').findIndex(o => o.id === obj.id);
+      const pillarLabel = obj.label && obj.label !== 'Pillar' ? obj.label : `C${pIndex >= 0 ? pIndex + 1 : 1}`;
+      return (
+        <div className="w-full h-full flex items-center justify-center pointer-events-none select-none overflow-hidden">
+          <span className="text-[10px] font-black text-white px-1 py-0.5 whitespace-nowrap leading-none drop-shadow-sm">
+            {pillarLabel}
           </span>
         </div>
       );
@@ -1909,6 +1937,11 @@ export default function EstimatorClient() {
                         </>
                       ) : (
                         <>
+                          {(firstSelectedObject.subType === 'pillar' || firstSelectedObject.type === 'pillar') && (
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-black text-[9px] uppercase">
+                              <PillarIcon className="w-3 h-3" /> {firstSelectedObject.label || 'C1'}
+                            </div>
+                          )}
                           <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
                           <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
                           <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseDimensionInput(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
