@@ -130,7 +130,25 @@ export function StructuralDetailingDialog({
 
   // Beam Span Detection Logic
   const beamSpans = useMemo(() => {
-    const spans: { id: string; p1: any; p2: any; length: number; orientation: 'H' | 'V' }[] = [];
+    const canvasBeams = designObjects.filter(o => o.subType === 'beam');
+    if (canvasBeams.length > 0) {
+      return canvasBeams.map((b, idx) => {
+        const rot = Math.abs(b.rotation || 0) % 180;
+        const isV = rot >= 45 && rot <= 135;
+        return {
+          id: b.id,
+          p1: null,
+          p2: null,
+          length: b.w > 0 ? b.w : 10,
+          width: b.h > 0 ? Math.round(b.h * 12) : 10,
+          depth: (b as any).depth || 12,
+          orientation: isV ? ('V' as const) : ('H' as const),
+          label: b.label || `B${idx + 1}`
+        };
+      });
+    }
+
+    const spans: { id: string; p1: any; p2: any; length: number; orientation: 'H' | 'V'; width?: number; depth?: number; label?: string }[] = [];
     const TOL = 1.0;
 
     const yMap = new Map<number, any[]>();
@@ -827,7 +845,9 @@ export function StructuralDetailingDialog({
                         const topRodCount = defaultInfo.topRodCount || (defaultInfo.rodCount > 6 ? 3 : 2);
                         const mainRodCount = botRodCount + topRodCount;
                         const etLength = Math.round((span.length / 3) * 10) / 10;
-                        const beamDepth = defaultInfo.thick || (s <= 3 ? 12 : 15);
+                        const beamDepth = (span as any).depth || defaultInfo.thick || (s <= 3 ? 12 : 15);
+                        const beamWidthInches = (span as any).width || 10;
+                        const beamLabel = (span as any).label || `B${idx+1}`;
                         const canvasW = 850;
                         const canvasH = 600;
 
@@ -891,12 +911,12 @@ export function StructuralDetailingDialog({
                                        </>
                                      )}
                                   </g>
-                                  <text x="80" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">10" x {beamDepth}" BEAM</text>
+                                  <text x="80" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{beamWidthInches}" x {beamDepth}" BEAM</text>
                                   <text x="80" y="255" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="black">মোট মেইন রড: {mainRodCount} Nos</text>
                                </g>
                                <g transform="translate(100, 450)">
                                   <rect x="0" y="0" width="600" height="85" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
-                                  <text x="300" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: ১০" x {beamDepth}"</text>
+                                  <text x="300" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: {beamWidthInches}" x {beamDepth}"</text>
                                   <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
                                      মেইন রড: {mainRodCount} টি ({defaultInfo.rod}) | রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c
                                   </text>

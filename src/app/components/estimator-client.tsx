@@ -87,7 +87,8 @@ type DesignObject = {
   isBold?: boolean;
   isJoined?: boolean; 
   stepCount?: number;
-  points?: {x: number, y: number}[]; 
+  points?: {x: number, y: number}[];
+  depth?: number; 
 };
 
 type SavedDesignRef = {
@@ -136,7 +137,10 @@ export default function EstimatorClient() {
   const displayZoom = useMemo(() => zoom * 0.5, [zoom]);
   const safeDisplayZoom = useMemo(() => Math.max(displayZoom, 0.1), [displayZoom]);
 
-  const [currentWallThickness, setCurrentWallThickness] = useState(0.4166); 
+  const [currentWallThickness, setCurrentWallThickness] = useState(0.4166);
+  const [currentBeamLength, setCurrentBeamLength] = useState(10);
+  const [currentBeamWidth, setCurrentBeamWidth] = useState(0.833);
+  const [currentBeamDepth, setCurrentBeamDepth] = useState(12); 
   const [history, setHistory] = useState<DesignObject[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showDimensions, setShowDimensions] = useState(false);
@@ -205,6 +209,7 @@ export default function EstimatorClient() {
   const [localPropSteps, setLocalPropSteps] = useState("");
   const [localPropText, setLocalPropText] = useState("");
   const [localPropFontSize, setLocalPropFontSize] = useState("");
+  const [localPropDepth, setLocalPropDepth] = useState("12");
 
   const formatFeetInches = (val: number) => {
     const roundedVal = Math.round(val * 48) / 48;
@@ -384,7 +389,12 @@ export default function EstimatorClient() {
         objDiv.style.overflow = 'visible'; 
         
         const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
-        if (isStructure) {
+        const isBeam = obj.subType === 'beam';
+        if (isBeam) {
+          objDiv.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+          objDiv.style.border = '1.5px dashed #2563eb';
+          objDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;"><span style="font-size:9px;font-weight:900;color:#1d4ed8;background:rgba(255,255,255,0.95);padding:1px 4px;border-radius:2px;border:1px solid #bfdbfe;white-space:nowrap;">${obj.label || 'BEAM'}: দৈর্ঘ্য ${formatDimension(obj.w)} × প্রস্থ ${formatDimension(obj.h)}</span></div>`;
+        } else if (isStructure) {
           objDiv.style.backgroundColor = obj.color;
           objDiv.style.border = '1px solid rgba(0,0,0,0.5)';
         }
@@ -438,7 +448,7 @@ export default function EstimatorClient() {
           svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none" style="overflow: visible"><rect x="0" y="0" width="${obj.w}" height="${obj.h}" fill="white" stroke-width="${sw * 2}"/><line x1="0" y1="${landingH}" x2="${obj.w}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${flightW}" y1="${landingH}" x2="${flightW}" y2="${obj.h}" stroke="${obj.color}" stroke-width="${sw * 2}"/><line x1="${obj.w - flightW}" y1="${landingH}" x2="${obj.w - flightW}" y2="${landingH}" stroke="${obj.color}" stroke-width="${sw * 2}"/>${stairLines}</svg>`;
         } else if (obj.type === 'text') {
           const labelText = obj.textContent || obj.label;
-          const dimText = `${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))}`;
+          const dimText = `L: ${formatDimension(Math.max(obj.w, obj.h))} × W: ${formatDimension(Math.min(obj.w, obj.h))}`;
           objDiv.innerHTML = `<div style="color:${obj.color}; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:Inter, sans-serif; font-weight:${obj.isBold ? '900' : 'normal'}; font-size:${(obj.fontSize || 14) * (exportZoom / 16)}px; width:100%; height:100%; text-transform:uppercase;"><div>${labelText}</div><div style="font-size:0.85em; opacity:0.8;">(${dimText})</div></div>`;
         } else if (obj.subType === 'area-marker' && obj.points) {
           const pts = obj.points.map(p => `${(p.x - obj.x) * exportZoom},${(p.y - obj.y) * exportZoom}`).join(' ');
@@ -940,6 +950,12 @@ export default function EstimatorClient() {
     };
 
     if (subType === 'pillar') newObj.fillColor = '#000000';
+    if (subType === 'beam') {
+      const count = designObjects.filter(o => o.subType === 'beam').length + 1;
+      newObj.label = `B${count}`;
+      newObj.color = '#2563eb';
+      newObj.fillColor = '#3b82f622';
+    }
     if (subType.startsWith('door') || subType === 'sliding-door') { newObj.w = 3.5; newObj.h = currentWallThickness; }
     if (subType === 'double-door') { newObj.w = 6; newObj.h = currentWallThickness; }
     if (subType === 'window') { newObj.w = 4; newObj.h = currentWallThickness; }
@@ -1117,7 +1133,7 @@ export default function EstimatorClient() {
     }
 
     if (selectedTool !== 'select' && selectedTool !== 'move' && !id) {
-        if (selectedTool === 'wall') { 
+        if (selectedTool === 'wall' || selectedTool === 'beam') { 
           const start = { x: snappedX, y: snappedY }; 
           setDrawStart(start); 
           setTempDrawEnd(start); 
@@ -1202,7 +1218,7 @@ export default function EstimatorClient() {
     if (interactionMode === 'drawing' && drawStart) {
       if (e.cancelable) e.preventDefault();
       let endX = curX, endY = curY;
-      if (selectedTool === 'wall' && (e.shiftKey || e.ctrlKey)) { 
+      if ((selectedTool === 'wall' || selectedTool === 'beam') && (e.shiftKey || e.ctrlKey)) { 
         if (Math.abs(curX - drawStart.x) > Math.abs(curY - drawStart.y)) endY = drawStart.y; 
         else endX = drawStart.x; 
       }
@@ -1264,10 +1280,32 @@ export default function EstimatorClient() {
 
   const handleMouseUp = () => {
     if (interactionMode === 'drawing' && drawStart && tempDrawEnd) {
-      if (selectedTool === 'wall') {
+      if (selectedTool === 'wall' || selectedTool === 'beam') {
         const dx = tempDrawEnd.x - drawStart.x, dy = tempDrawEnd.y - drawStart.y;
         const len = Math.sqrt(dx * dx + dy * dy);
-        if (len > 0.1) addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
+        if (len > 0.5) {
+          if (selectedTool === 'beam') {
+            const count = designObjects.filter(o => o.subType === 'beam').length + 1;
+            addObjectAt('structure', 'beam', `B${count}`, drawStart.x, drawStart.y, { 
+              w: Math.round(len * 10) / 10, 
+              h: 0.833, 
+              rotation: Math.round(Math.atan2(dy, dx) * (180 / Math.PI)),
+              color: '#2563eb',
+              fillColor: '#3b82f622'
+            });
+          } else {
+            addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
+          }
+        } else if (selectedTool === 'beam') {
+          const count = designObjects.filter(o => o.subType === 'beam').length + 1;
+          addObjectAt('structure', 'beam', `B${count}`, drawStart.x, drawStart.y, { 
+            w: 10, 
+            h: 0.833, 
+            rotation: 0,
+            color: '#2563eb',
+            fillColor: '#3b82f622'
+          });
+        }
       }
       setDrawStart(null); setTempDrawEnd(null);
     } else if (interactionMode === 'selecting' && selectionBox) {
@@ -1422,6 +1460,17 @@ export default function EstimatorClient() {
         </div>
       );
     }
+    if (obj.subType === 'beam') {
+      return (
+        <div className="w-full h-full flex items-center justify-center relative pointer-events-none select-none overflow-hidden">
+          <div className="absolute inset-0 border border-dashed border-blue-500 bg-blue-500/15" />
+          <span className="text-[9px] font-black text-blue-700 bg-white/95 px-1.5 py-0.5 rounded shadow-xs z-10 whitespace-nowrap border border-blue-200 flex items-center gap-1">
+            <span className="font-black text-blue-800">{obj.label || "BEAM"}:</span>
+            <span className="text-slate-700 font-bold">দৈর্ঘ্য {formatDimension(obj.w)} × প্রস্থ {formatDimension(obj.h)}</span>
+          </span>
+        </div>
+      );
+    }
     if (obj.type === 'opening') {
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
@@ -1478,7 +1527,7 @@ export default function EstimatorClient() {
     }
     if (obj.type === 'text') {
       const labelText = obj.textContent || obj.label;
-      const dimText = `${formatDimension(Math.max(obj.w, obj.h))} × ${formatDimension(Math.min(obj.w, obj.h))}`;
+      const dimText = `L: ${formatDimension(Math.max(obj.w, obj.h))} × W: ${formatDimension(Math.min(obj.w, obj.h))}`;
       return (
         <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none text-center leading-tight font-black" style={{ color: obj.color, fontSize: Math.max(10, (obj.fontSize || 14) * (displayZoom/16)) + 'px', fontWeight: obj.isBold ? '900' : 'normal' }}>
           <div className="whitespace-nowrap uppercase tracking-tighter">{labelText}</div>
@@ -1621,15 +1670,16 @@ export default function EstimatorClient() {
     else if (obj.rotation === 270) oy = obj.w;
     
     const isStructure = obj.subType === 'wall' || obj.subType === 'pillar';
+    const isBeam = obj.subType === 'beam';
     const isAreaMarker = obj.subType === 'area-marker';
     return { 
       left: (obj.x + ox) * displayZoom + CANVAS_OFFSET, top: (obj.y + oy) * displayZoom + CANVAS_OFFSET, width: obj.w * displayZoom, height: obj.h * displayZoom, transformOrigin: '0 0', transform: `rotate(${obj.rotation}deg)`, 
-      backgroundColor: isStructure ? obj.color : 'transparent',
-      border: isStructure ? '1px solid rgba(0,0,0,0.5)' : 'none',
+      backgroundColor: isBeam ? 'rgba(59, 130, 246, 0.15)' : (isStructure ? obj.color : 'transparent'),
+      border: isBeam ? '1.5px dashed #2563eb' : (isStructure ? '1px solid rgba(0,0,0,0.5)' : 'none'),
       outline: selectedObjectIds.includes(obj.id) ? '2px solid #ef4444' : 'none',
       cursor: isAreaMarker ? 'default' : (obj.isJoined ? 'not-allowed' : (selectedTool === 'move' ? 'grab' : 'move')),
-      zIndex: isAreaMarker ? 1 : (selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10)),
-      pointerEvents: 'auto',
+      zIndex: isAreaMarker ? 1 : (isBeam ? 25 : (selectedObjectIds.includes(obj.id) ? 1000 : (obj.type === 'opening' ? 50 : 10))),
+      pointerEvents: 'auto' as const,
       touchAction: 'none'
     };
   };
@@ -1687,6 +1737,7 @@ export default function EstimatorClient() {
               <SymbolButton active={selectedTool === 'wall'} icon={<Pencil />} label="Wall" onClick={() => setSelectedTool('wall')} color="emerald" />
               <SymbolButton active={selectedTool === 'room'} icon={<Square />} label="Room" onClick={() => setSelectedTool('room')} color="indigo" />
               <SymbolButton active={selectedTool === 'pillar'} icon={<PillarIcon />} label="Pillar" onClick={() => setSelectedTool('pillar')} color="slate" />
+              <SymbolButton active={selectedTool === 'beam'} icon={<RectangleHorizontal className="w-4 h-4" />} label="Beam" onClick={() => setSelectedTool('beam')} color="cyan" />
               <SymbolButton active={selectedTool === 'area-marker'} icon={<Maximize2 className="w-4 h-4" />} label="রুম এরিয়া" onClick={() => setSelectedTool('area-marker')} color="sky" />
               
               <div className="w-full h-px bg-slate-800 my-1 hidden md:block" />
@@ -1766,7 +1817,7 @@ export default function EstimatorClient() {
                   </div>
                 ))}
                 {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                  <div className="absolute bg-blue-500/20 border-2 border-blue-500 border-dashed" style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: currentWallThickness * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
+                  <div className={cn("absolute border-2 border-dashed", selectedTool === 'beam' ? "bg-blue-500/25 border-blue-600" : "bg-blue-500/20 border-blue-500")} style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: (selectedTool === 'beam' ? 0.833 : currentWallThickness) * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
                 )}
                 {interactionMode === 'drawing-poly' && polyPoints.length > 0 && (
                    <div className="absolute inset-0 pointer-events-none" style={{ left: CANVAS_OFFSET, top: CANVAS_OFFSET }}>
@@ -1844,11 +1895,27 @@ export default function EstimatorClient() {
                   <div className="flex items-center gap-4 flex-nowrap py-0">
                     <div className="flex items-center gap-1 pr-2 border-r border-slate-800"><Switch checked={firstSelectedObject.isJoined} onCheckedChange={(val) => updateObject(firstSelectedObject.id, { isJoined: val }, true)} className="scale-50" /><span className="text-[8px] font-black text-slate-400 uppercase">সংযুক্ত</span></div>
                     <div className="flex items-center gap-2 flex-nowrap">
-                      <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { localPropY: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseDimensionInput(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseDimensionInput(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
-                      <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
+                      {firstSelectedObject.subType === 'beam' ? (
+                        <>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-500/40 text-blue-400 font-black text-[9px] uppercase">
+                            <RectangleHorizontal className="w-3 h-3" /> {firstSelectedObject.label || 'BEAM'}
+                          </div>
+                          <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="L" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseDimensionInput(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="W" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseDimensionInput(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="H" value={localPropDepth} onChange={setLocalPropDepth} onBlur={() => updateObject(firstSelectedObject.id, { depth: parseFloat(localPropDepth) || 12 }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
+                        </>
+                      ) : (
+                        <>
+                          <PropField label="X" value={localPropX} onChange={setLocalPropX} onBlur={() => updateObject(firstSelectedObject.id, { x: parseDimensionInput(localPropX) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="Y" value={localPropY} onChange={setLocalPropY} onBlur={() => updateObject(firstSelectedObject.id, { y: parseDimensionInput(localPropY) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="W" value={localPropW} onChange={setLocalPropW} onBlur={() => updateObject(firstSelectedObject.id, { w: parseDimensionInput(localPropW) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="H" value={localPropH} onChange={setLocalPropH} onBlur={() => updateObject(firstSelectedObject.id, { h: parseDimensionInput(localPropH) }, true)} disabled={firstSelectedObject.isJoined} />
+                          <PropField label="কোণ" value={localPropRot} onChange={setLocalPropRot} onBlur={() => updateObject(firstSelectedObject.id, { rotation: parseInt(localPropRot) || 0 }, true)} />
+                        </>
+                      )}
                       {firstSelectedObject.type === 'stair' && (<PropField label="ধাপ" value={localPropSteps} onChange={setLocalPropSteps} onBlur={() => updateObject(firstSelectedObject.id, { stepCount: parseInt(localPropSteps) || 10 }, true)} />)}
                       {firstSelectedObject.type === 'text' && (
                         <>
@@ -1860,6 +1927,32 @@ export default function EstimatorClient() {
                       <div className="flex items-center gap-0.5 border-l border-slate-800 pl-1 flex-nowrap"><Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Front" onClick={bringToFront}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" /></Button><Button variant="outline" size="icon" className="h-5 w-5 border-slate-700 bg-slate-800 text-white p-0" title="Back" onClick={sendToBack}><ArrowUpToLine className="w-2.5 h-2.5 text-blue-400" style={{ transform: 'rotate(180deg)' }} /></Button></div>
                     </div>
                     <div className="flex items-center gap-0.5 border-l border-slate-800 pl-2 flex-nowrap">{COLORS.map(c => <div key={c} onClick={() => updateObject(firstSelectedObject.id, { color: c, fillColor: c === '#ffffff' ? '#ffffff' : c }, true)} className={cn("w-3 h-3 rounded-full cursor-pointer border shadow-sm transition-transform hover:scale-110 shrink-0", firstSelectedObject.color === c ? "ring-1 ring-red-600" : "border-slate-700")} style={{ backgroundColor: c }} />)}</div>
+                  </div>
+                ) : selectedTool === 'beam' ? (
+                  <div className="flex items-center gap-3 flex-nowrap py-0">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-950/60 border border-blue-500/40 text-blue-400 font-black text-[10px] uppercase">
+                      <RectangleHorizontal className="w-3.5 h-3.5" /> বিম সাইজ সেটিং:
+                    </div>
+                    <div className="flex items-center gap-2 flex-nowrap">
+                      <PropField 
+                        label="L" 
+                        value={formatDimension(currentBeamLength, unitSystem)} 
+                        onChange={v => setCurrentBeamLength(parseDimensionInput(v) || 10)} 
+                        onBlur={() => {}} 
+                      />
+                      <PropField 
+                        label="W" 
+                        value={formatDimension(currentBeamWidth, unitSystem)} 
+                        onChange={v => setCurrentBeamWidth(parseDimensionInput(v) || 0.833)} 
+                        onBlur={() => {}} 
+                      />
+                      <PropField 
+                        label="H" 
+                        value={currentBeamDepth.toString()} 
+                        onChange={v => setCurrentBeamDepth(parseFloat(v) || 12)} 
+                        onBlur={() => {}} 
+                      />
+                    </div>
                   </div>
                 ) : <div className="w-full flex items-center justify-center text-slate-500 italic text-[8px] uppercase tracking-widest font-black">Select Object to View Properties</div>}
               </div>

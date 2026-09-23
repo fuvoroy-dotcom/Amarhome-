@@ -35,7 +35,7 @@ import {
 
 export type DesignObject = {
   id: string;
-  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair';
+  type: 'structure' | 'opening' | 'shape' | 'text' | 'pillar' | 'table' | 'stair' | 'furniture' | 'mep' | 'landscape';
   subType: string;
   x: number; y: number; w: number; h: number;
   label: string; 
