@@ -197,6 +197,17 @@ export function StructuralDetailingDialog({
     }
   };
 
+  // Higher Safety Rebar Design logic for sidebar (Active Contextual Info)
+  const getSidebarSafetyInfo = () => {
+    if (activeTab === 'footing') return { title: 'বেস রড ও পুরুত্ব', rebar: '16mm @ 5" c/c', extra: `বেস উচ্চতা: ${rebar.thick}"` };
+    if (activeTab === 'column') return { title: 'কলাম রড ও রিং', rebar: `${rebar.rodCount} টি ${rebar.rod}`, extra: `রিং: ${rebar.ringRod} @ 5" c/c` };
+    if (activeTab === 'beam') return { title: 'বিম মেইন রড', rebar: '5 টি 16mm রড', extra: 'L/3 এক্সট্রা টপ' };
+    if (activeTab === 'slab') return { title: 'ছাদ রড জালি', rebar: '10mm @ 5" c/c', extra: 'ক্র্যাঙ্ক বেন্ডিং (L/4)' };
+    if (activeTab === 'stair') return { title: 'সিঁড়ি রড বিন্যাস', rebar: '12mm @ 5" c/c', extra: '৫০ডি ল্যাপিং লেন্থ' };
+    return { title: 'মেইন রড সাইজ', rebar: rebar.rod, extra: `পুরুত্ব: ${rebar.thick}" ইঞ্চি` };
+  };
+  const safetyInfo = getSidebarSafetyInfo();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[95vw] h-[92vh] p-0 flex flex-col bg-slate-900 text-slate-100 border-slate-800 shadow-2xl rounded-2xl overflow-hidden print:size-auto print:bg-white print:text-slate-950 print:border-none print:shadow-none print:rounded-none">
@@ -295,16 +306,12 @@ export function StructuralDetailingDialog({
             <div className="p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/20 space-y-2 text-slate-300">
               <p className="font-bold text-emerald-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> উচ্চ নিরাপত্তায় রড ডিজাইন</p>
               <div className="flex justify-between py-1 border-b border-white/5">
-                <span>মেইন রড:</span>
-                <span className="text-white font-bold">{rebar.rod}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-white/5">
-                <span>রড সংখ্যা:</span>
-                <span className="text-white font-bold">{rebar.rodCount} টি</span>
+                <span>{safetyInfo.title}:</span>
+                <span className="text-white font-bold">{safetyInfo.rebar}</span>
               </div>
               <div className="flex justify-between pt-1">
-                <span>বেস পুরুত্ব:</span>
-                <span className="text-emerald-400 font-bold">{rebar.thick}" ইঞ্চি</span>
+                <span>অতিরিক্ত নোট:</span>
+                <span className="text-emerald-400 font-bold">{safetyInfo.extra}</span>
               </div>
             </div>
           </div>
@@ -926,7 +933,7 @@ export function StructuralDetailingDialog({
                   <Label className="text-[10px] uppercase font-bold text-slate-500">মেইন রড সংখ্যা (Count)</Label>
                   <Input 
                     type="number" 
-                    value={editingItem?.data.rodCount} 
+                    value={editingItem?.data.rodCount ?? 0} 
                     onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, rodCount: parseInt(e.target.value) || 0 } }))}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                   />
@@ -934,7 +941,7 @@ export function StructuralDetailingDialog({
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">রড সাইজ (Diameter)</Label>
                   <Select 
-                    value={editingItem?.data.rod} 
+                    value={editingItem?.data.rod ?? ''} 
                     onValueChange={v => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, rod: v } }))}
                   >
                     <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
@@ -954,7 +961,7 @@ export function StructuralDetailingDialog({
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-500">স্পেসিং / গ্যাপ (Spacing)</Label>
                   <Input 
-                    value={editingItem?.data.gap} 
+                    value={editingItem?.data.gap ?? ''} 
                     onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, gap: e.target.value } }))}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                     placeholder='e.g. 5" c/c'
@@ -965,7 +972,7 @@ export function StructuralDetailingDialog({
                   <Label className="text-[10px] uppercase font-bold text-slate-500">হুক/মাটন দৈর্ঘ্য (Hook In)</Label>
                   <Input 
                     type="number"
-                    value={editingItem?.data.hook} 
+                    value={editingItem?.data.hook ?? 0} 
                     onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, hook: parseInt(e.target.value) || 0 } }))}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                   />
@@ -975,7 +982,7 @@ export function StructuralDetailingDialog({
                   <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Thick In)</Label>
                   <Input 
                     type="number"
-                    value={editingItem?.data.thick} 
+                    value={editingItem?.data.thick ?? 0} 
                     onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, thick: parseInt(e.target.value) || 0 } }))}
                     className="h-9 bg-slate-800 border-slate-700 font-bold"
                   />
@@ -985,7 +992,7 @@ export function StructuralDetailingDialog({
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-slate-500">রিং রড সাইজ</Label>
                     <Select 
-                      value={editingItem?.data.ringRod} 
+                      value={editingItem?.data.ringRod ?? ''} 
                       onValueChange={v => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, ringRod: v } }))}
                     >
                       <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
