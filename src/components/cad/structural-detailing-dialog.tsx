@@ -6,10 +6,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -17,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Download, Layers, ShieldCheck, ZoomIn, ZoomOut, Building2, Boxes, Scissors, Info } from 'lucide-react';
+import { Download, Layers, ShieldCheck, ZoomIn, ZoomOut, Building2, Boxes, Scissors, Info, PencilLine, Save } from 'lucide-react';
 
 interface StructuralDetailingProps {
   open: boolean;
@@ -35,6 +37,10 @@ export function StructuralDetailingDialog({
   const [activeTab, setActiveTab] = useState('footing');
   const [scale, setScale] = useState(1);
   const [detailingStoreys, setDetailingStoreys] = useState(3);
+  
+  // State for manual overrides
+  const [itemOverrides, setItemOverrides] = useState<Record<string, any>>({});
+  const [editingItem, setEditingItem] = useState<{ id: string; type: string; data: any } | null>(null);
 
   // Helper: check if a point is inside a polygon area marker
   const isPointInPoly = (px: number, py: number, poly: { x: number; y: number }[]) => {
@@ -65,12 +71,12 @@ export function StructuralDetailingDialog({
 
   // Group columns by unique dimensions
   const uniquePillarGroups = useMemo(() => {
-    const groups: Record<string, { wIn: number; hIn: number; count: number }> = {};
+    const groups: Record<string, { wIn: number; hIn: number; count: number; id: string }> = {};
     mappedPillars.forEach(p => {
       const wIn = Math.max(10, Math.round(p.w * 12));
       const hIn = Math.max(10, Math.round(p.h * 12));
       const key = `${wIn}x${hIn}`;
-      if (!groups[key]) groups[key] = { wIn, hIn, count: 0 };
+      if (!groups[key]) groups[key] = { wIn, hIn, count: 0, id: key };
       groups[key].count++;
     });
     return Object.values(groups);
@@ -147,7 +153,12 @@ export function StructuralDetailingDialog({
   }, [designObjects]);
 
   // Structural Safety Logic for Column/Footing
-  const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10) => {
+  const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10, itemId?: string) => {
+    // Check for manual overrides first
+    if (itemId && itemOverrides[itemId]) {
+      return itemOverrides[itemId];
+    }
+
     let rodCount = 4;
     const maxSide = Math.max(wIn, hIn);
     
@@ -162,17 +173,28 @@ export function StructuralDetailingDialog({
 
     rodCount = Math.min(rodCount, 12);
 
-    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount };
-    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount };
-    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount };
-    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount };
-    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount };
+    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount, ringRod: "8mm", extraTop: 0 };
+    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount, ringRod: "8mm", extraTop: 0 };
+    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
+    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
+    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount, ringRod: "10mm", extraTop: 0 };
   };
 
   const rebar = getReinforcementInfo(detailingStoreys);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const openEditModal = (id: string, type: string, currentData: any) => {
+    setEditingItem({ id, type, data: { ...currentData } });
+  };
+
+  const saveEdit = () => {
+    if (editingItem) {
+      setItemOverrides(prev => ({ ...prev, [editingItem.id]: editingItem.data }));
+      setEditingItem(null);
+    }
   };
 
   return (
@@ -302,7 +324,7 @@ export function StructuralDetailingDialog({
                 {activeTab === 'footing' && (
                   <div className="flex flex-col gap-32 items-center">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
-                      const groupRebar = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn);
+                      const groupRebar = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn, `footing-${group.id}`);
                       const offset = detailingStoreys <= 2 ? 3.0 : (detailingStoreys + 1.5);
                       const fSize = Math.max(4, Math.ceil((group.wIn / 12 + offset) * 2) / 2);
                       const canvasW = 680;
@@ -310,9 +332,14 @@ export function StructuralDetailingDialog({
                       
                       return (
                         <div key={idx} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
-                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
-                             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">F{idx+1}</div>
-                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">ফাউন্ডেশন ডিটেইলস — {group.wIn}" x {group.hIn}" কলামের জন্য</span>
+                          <div className="flex items-center justify-between w-full bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">F{idx+1}</div>
+                               <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">ফাউন্ডেশন ডিটেইলস — {group.wIn}" x {group.hIn}" কলামের জন্য</span>
+                             </div>
+                             <Button variant="ghost" size="sm" onClick={() => openEditModal(`footing-${group.id}`, 'footing', groupRebar)} className="no-print h-8 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10">
+                                <PencilLine className="w-4 h-4" /> এডিট
+                             </Button>
                           </div>
 
                           <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
@@ -375,7 +402,7 @@ export function StructuralDetailingDialog({
                 {activeTab === 'column' && (
                   <div className="flex flex-col gap-32 items-center">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
-                      const groupRebar = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn);
+                      const groupRebar = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn, `column-${group.id}`);
                       const cW = group.wIn;
                       const cH = group.hIn;
                       const rCount = groupRebar.rodCount;
@@ -384,14 +411,19 @@ export function StructuralDetailingDialog({
                       const canvasW = 700;
                       const canvasH = 750;
                       
-                      const ringSpacing = detailingStoreys > 4 ? "4\"/8\"" : "5\"/10\"";
+                      const ringSpacing = groupRebar.gap || (detailingStoreys > 4 ? "4\"/8\"" : "5\"/10\"");
                       const totalRings = Math.ceil((10 * 12) / 6); 
 
                       return (
                         <div key={idx} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
-                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
-                             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">C{idx+1}</div>
-                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">কলাম সেকশন ও রিং ডিটেইলস — {cW}" x {cH}" ({rCount} টি রড)</span>
+                          <div className="flex items-center justify-between w-full bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">C{idx+1}</div>
+                               <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">কলাম সেকশন ও রিং ডিটেইলস — {cW}" x {cH}" ({rCount} টি রড)</span>
+                             </div>
+                             <Button variant="ghost" size="sm" onClick={() => openEditModal(`column-${group.id}`, 'column', groupRebar)} className="no-print h-8 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10">
+                                <PencilLine className="w-4 h-4" /> এডিট
+                             </Button>
                           </div>
 
                           <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
@@ -502,11 +534,12 @@ export function StructuralDetailingDialog({
                    <div className="flex flex-col gap-32 items-center">
                       {beamSpans.length > 0 ? beamSpans.map((span, idx) => {
                         const s = detailingStoreys;
-                        const botRodCount = s <= 3 ? 3 : 4;
-                        const topRodCount = s <= 3 ? 2 : 3;
+                        const defaultInfo = getReinforcementInfo(s, 10, 10, `beam-${span.id}`);
+                        const botRodCount = defaultInfo.rodCount > 6 ? 4 : 3;
+                        const topRodCount = defaultInfo.rodCount > 6 ? 3 : 2;
                         const mainRodCount = botRodCount + topRodCount;
-                        const extraTopCount = s <= 3 ? 2 : 3;
-                        const rodSize = s <= 3 ? "16mm (5 Suta)" : "20mm (6 Suta)";
+                        const extraTopCount = topRodCount;
+                        const rodSize = defaultInfo.rod;
                         const etLength = Math.round((span.length / 3) * 10) / 10;
                         const beamDepth = s <= 3 ? 12 : 15;
                         const beamWidth = 10;
@@ -515,11 +548,16 @@ export function StructuralDetailingDialog({
 
                         return (
                           <div key={span.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
-                            <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
-                               <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black text-lg">B{idx+1}</div>
-                               <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
-                                  বিম ডিটেইলিং — {span.orientation === 'H' ? 'অনুভূমিক' : 'উলম্ব'} স্প্যান ({span.length.toFixed(1)} ফুট)
-                               </span>
+                            <div className="flex items-center justify-between w-full bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                               <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black text-lg">B{idx+1}</div>
+                                 <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
+                                    বিম ডিটেইলিং — {span.orientation === 'H' ? 'অনুভূমিক' : 'উলম্ব'} স্প্যান ({span.length.toFixed(1)} ফুট)
+                                 </span>
+                               </div>
+                               <Button variant="ghost" size="sm" onClick={() => openEditModal(`beam-${span.id}`, 'beam', defaultInfo)} className="no-print h-8 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10">
+                                  <PencilLine className="w-4 h-4" /> এডিট
+                               </Button>
                             </div>
 
                             <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
@@ -564,7 +602,7 @@ export function StructuralDetailingDialog({
                                </g>
 
                                <g transform="translate(620, 150)">
-                                  <text x="80" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">CROSS-SECTION (রড বিন্যাস)</text>
+                                  <text x="80" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM CROSS-SECTION (রড বিন্যাস)</text>
                                   {/* Beam Body */}
                                   <rect x="0" y="0" width="160" height="200" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
                                   
@@ -632,13 +670,14 @@ export function StructuralDetailingDialog({
                    <div className="flex flex-col gap-32 items-center">
                       {slabAreas.length > 0 ? slabAreas.map((slab, idx) => {
                         const s = detailingStoreys;
+                        const defaultInfo = getReinforcementInfo(s, 10, 10, `slab-${slab.id}`);
                         const w = Math.round(slab.w * 10) / 10;
                         const l = Math.round(slab.h * 10) / 10;
                         const ratio = Math.max(w, l) / Math.min(w, l);
                         const isTwoWay = ratio <= 2;
                         const rodSize = "10mm (3 Suta)";
                         const spacing = s <= 3 ? 6 : 5;
-                        const thickness = s <= 3 ? 5 : 6;
+                        const thickness = defaultInfo.thick || (s <= 3 ? 5 : 6);
                         const crankLen = Math.round((Math.min(w, l) / 4) * 10) / 10;
                         
                         const canvasW = 850;
@@ -646,11 +685,16 @@ export function StructuralDetailingDialog({
 
                         return (
                           <div key={slab.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
-                            <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
-                               <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg">S{idx+1}</div>
-                               <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
-                                  ছাদ রড বিন্যাস (Slab Detail) — {w}' x {l}' ({isTwoWay ? 'Two-way' : 'One-way'})
-                               </span>
+                            <div className="flex items-center justify-between w-full bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                               <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg">S{idx+1}</div>
+                                 <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
+                                    ছাদ রড বিন্যাস (Slab Detail) — {w}' x {l}' ({isTwoWay ? 'Two-way' : 'One-way'})
+                                 </span>
+                               </div>
+                               <Button variant="ghost" size="sm" onClick={() => openEditModal(`slab-${slab.id}`, 'slab', defaultInfo)} className="no-print h-8 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10">
+                                  <PencilLine className="w-4 h-4" /> এডিট
+                               </Button>
                             </div>
 
                             <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
@@ -740,22 +784,28 @@ export function StructuralDetailingDialog({
                 {activeTab === 'stair' && (
                   <div className="flex flex-col gap-32 items-center">
                     {stairObjects.length > 0 ? stairObjects.map((stair, idx) => {
+                      const defaultInfo = getReinforcementInfo(detailingStoreys, 10, 10, `stair-${stair.id}`);
                       const sW = Math.round(stair.w * 10) / 10;
                       const sD = Math.round(stair.h * 10) / 10;
                       const steps = stair.stepCount || 14;
                       const riser = 6;
                       const tread = 10;
-                      const waist = 5;
+                      const waist = defaultInfo.thick || 5;
                       const canvasW = 850;
                       const canvasH = 750;
 
                       return (
                         <div key={stair.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
-                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
-                             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">ST{idx+1}</div>
-                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
-                                সিঁড়ি ডিটেইলিং ও রড বিন্যাস — {sW}' x {sD}' (Step Count: {steps})
-                             </span>
+                          <div className="flex items-center justify-between w-full bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">ST{idx+1}</div>
+                               <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
+                                  সিঁড়ি ডিটেইলিং ও রড বিন্যাস — {sW}' x {sD}' (Step Count: {steps})
+                               </span>
+                             </div>
+                             <Button variant="ghost" size="sm" onClick={() => openEditModal(`stair-${stair.id}`, 'stair', defaultInfo)} className="no-print h-8 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10">
+                                <PencilLine className="w-4 h-4" /> এডিট
+                             </Button>
                           </div>
 
                           <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
@@ -813,7 +863,7 @@ export function StructuralDetailingDialog({
                                 <rect x="0" y="0" width="650" height="110" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
                                 <text x="325" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং ডিটেইলস: সিঁড়ি (Staircase) রিইনফোর্সমেন্ট</text>
                                 <text x="325" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                   মেইন রড: 12mm (4 Suta) @ 5" c/c | ডিস্ট্রিবিউশন: 10mm (3 Suta) @ 6" c/c
+                                   মেইন রড: {defaultInfo.rod || "12mm"} @ {defaultInfo.gap || "5\" c/c"} | ডিস্ট্রিবিউশন: 10mm @ 6" c/c
                                 </text>
                                 <text x="325" y="78" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
                                    ওয়েস্ট স্ল্যাব পুরুত্ব: {waist}" ইঞ্চি | রাইজার: {riser}" | ট্রেড: {tread}"
@@ -859,6 +909,107 @@ export function StructuralDetailingDialog({
             </div>
           </div>
         </div>
+
+        {/* Edit Modal / Dialog */}
+        <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
+          <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PencilLine className="w-5 h-5 text-blue-400" /> ডিটেইলিং এডিট করুন
+              </DialogTitle>
+              <p className="text-xs text-slate-400">ম্যানুয়ালি রড সংখ্যা ও ডিজাইন পরিবর্তন করুন।</p>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">মেইন রড সংখ্যা (Count)</Label>
+                  <Input 
+                    type="number" 
+                    value={editingItem?.data.rodCount} 
+                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, rodCount: parseInt(e.target.value) || 0 } }))}
+                    className="h-9 bg-slate-800 border-slate-700 font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">রড সাইজ (Diameter)</Label>
+                  <Select 
+                    value={editingItem?.data.rod} 
+                    onValueChange={v => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, rod: v } }))}
+                  >
+                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                      <SelectItem value="10mm (3 Suta)">10mm (3 Suta)</SelectItem>
+                      <SelectItem value="12mm (4 Suta)">12mm (4 Suta)</SelectItem>
+                      <SelectItem value="16mm (5 Suta)">16mm (5 Suta)</SelectItem>
+                      <SelectItem value="20mm (6 Suta)">20mm (6 Suta)</SelectItem>
+                      <SelectItem value="22mm (7 Suta)">22mm (7 Suta)</SelectItem>
+                      <SelectItem value="25mm (8 Suta)">25mm (8 Suta)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">স্পেসিং / গ্যাপ (Spacing)</Label>
+                  <Input 
+                    value={editingItem?.data.gap} 
+                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, gap: e.target.value } }))}
+                    className="h-9 bg-slate-800 border-slate-700 font-bold"
+                    placeholder='e.g. 5" c/c'
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">হুক/মাটন দৈর্ঘ্য (Hook In)</Label>
+                  <Input 
+                    type="number"
+                    value={editingItem?.data.hook} 
+                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, hook: parseInt(e.target.value) || 0 } }))}
+                    className="h-9 bg-slate-800 border-slate-700 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Thick In)</Label>
+                  <Input 
+                    type="number"
+                    value={editingItem?.data.thick} 
+                    onChange={e => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, thick: parseInt(e.target.value) || 0 } }))}
+                    className="h-9 bg-slate-800 border-slate-700 font-bold"
+                  />
+                </div>
+
+                {editingItem?.type === 'column' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">রিং রড সাইজ</Label>
+                    <Select 
+                      value={editingItem?.data.ringRod} 
+                      onValueChange={v => setEditingItem(prev => ({ ...prev!, data: { ...prev!.data, ringRod: v } }))}
+                    >
+                      <SelectTrigger className="h-9 bg-slate-800 border-slate-700 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                        <SelectItem value="8mm">8mm</SelectItem>
+                        <SelectItem value="10mm">10mm</SelectItem>
+                        <SelectItem value="12mm">12mm</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingItem(null)} className="bg-transparent border-slate-700 text-slate-400">বাতিল</Button>
+              <Button onClick={saveEdit} className="bg-blue-600 hover:bg-blue-700 text-white gap-2 font-bold">
+                <Save className="w-4 h-4" /> সেভ করুন
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
