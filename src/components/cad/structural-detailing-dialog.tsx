@@ -492,12 +492,15 @@ export function StructuralDetailingDialog({
                    <div className="flex flex-col gap-32 items-center">
                       {beamSpans.length > 0 ? beamSpans.map((span, idx) => {
                         const s = detailingStoreys;
-                        const mainRodCount = s <= 3 ? 5 : 6; // 3 bot + 2/3 top
+                        const botRodCount = s <= 3 ? 3 : 4;
+                        const topRodCount = s <= 3 ? 2 : 3;
+                        const mainRodCount = botRodCount + topRodCount;
                         const extraTopCount = s <= 3 ? 2 : 3;
                         const rodSize = s <= 3 ? "16mm (5 Suta)" : "20mm (6 Suta)";
                         const etLength = Math.round((span.length / 3) * 10) / 10;
                         const beamDepth = s <= 3 ? 12 : 15;
-                        const canvasW = 800;
+                        const beamWidth = 10;
+                        const canvasW = 850;
                         const canvasH = 500;
 
                         return (
@@ -510,53 +513,83 @@ export function StructuralDetailingDialog({
                             </div>
 
                             <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
-                               <g transform="translate(100, 150)">
-                                  <text x="300" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM ELEVATION (বিম এলিভেশন ২ডি ভিউ)</text>
+                               <g transform="translate(60, 150)">
+                                  <text x="250" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM ELEVATION (বিম এলিভেশন ২ডি ভিউ)</text>
                                   
                                   {/* Beam Outline */}
-                                  <rect x="0" y="0" width="600" height="80" fill="#0f172a" stroke="#64748b" strokeWidth="2.5" />
+                                  <rect x="0" y="0" width="500" height="80" fill="#0f172a" stroke="#64748b" strokeWidth="2.5" />
                                   
                                   {/* Pillar Indicators */}
-                                  <rect x="-30" y="-40" width="40" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
-                                  <rect x="590" y="-40" width="40" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
-                                  <text x="-10" y="160" fill="#94a3b8" fontSize="10" textAnchor="middle">সাপোর্ট-১</text>
-                                  <text x="610" y="160" fill="#94a3b8" fontSize="10" textAnchor="middle">সাপোর্ট-২</text>
+                                  <rect x="-20" y="-40" width="30" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
+                                  <rect x="490" y="-40" width="30" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
 
                                   {/* Main Reinforcement Bottom */}
-                                  <path d="M 5 65 L 595 65" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
-                                  <path d="M 5 65 L 5 45 M 595 65 L 595 45" fill="none" stroke="#3b82f6" strokeWidth="4" />
-                                  <text x="300" y="95" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Bottom: 3 Nos ({rodSize})</text>
+                                  <path d="M 5 65 L 495 65" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
+                                  <path d="M 5 65 L 5 45 M 495 65 L 495 45" fill="none" stroke="#3b82f6" strokeWidth="4" />
+                                  <text x="250" y="95" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Bottom: {botRodCount} Nos ({rodSize})</text>
 
                                   {/* Main Reinforcement Top (Hanger) */}
-                                  <path d="M 5 15 L 595 15" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
-                                  <text x="300" y="-10" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Top: 2 Nos ({rodSize})</text>
+                                  <path d="M 5 15 L 495 15" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
+                                  <text x="250" y="-10" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Top: {topRodCount} Nos ({rodSize})</text>
 
                                   {/* Extra Top Reinforcement */}
                                   <g stroke="#facc15" strokeWidth="4" strokeLinecap="round">
-                                     <path d="M -15 15 L 180 15" strokeDasharray="6 3" />
-                                     <path d="M 420 15 L 615 15" strokeDasharray="6 3" />
+                                     <path d="M -10 15 L 150 15" strokeDasharray="6 3" />
+                                     <path d="M 350 15 L 510 15" strokeDasharray="6 3" />
                                   </g>
-                                  <text x="80" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ: {extraTopCount} Nos ({etLength}' ফুট)</text>
-                                  <text x="520" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ: {etLength}' ফুট</text>
+                                  <text x="70" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
+                                  <text x="430" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
 
                                   {/* Stirrups (Rings) */}
-                                  {[10, 30, 50, 80, 120, 180, 300, 420, 480, 520, 550, 570, 590].map(sx => (
+                                  {[10, 30, 50, 80, 120, 180, 250, 320, 380, 420, 450, 470, 490].map(sx => (
                                      <line key={sx} x1={sx} y1="5" x2={sx} y2="75" stroke="#94a3b8" strokeWidth="1" />
                                   ))}
                                   
                                   {/* Dimension Lines */}
                                   <g stroke="#10b981" strokeWidth="1.5">
-                                     <line x1="0" y1="120" x2="600" y2="120" />
-                                     <line x1="0" y1="110" x2="0" y2="130" /><line x1="600" y1="110" x2="600" y2="130" />
+                                     <line x1="0" y1="120" x2="500" y2="120" />
+                                     <line x1="0" y1="110" x2="0" y2="130" /><line x1="500" y1="110" x2="500" y2="130" />
                                   </g>
-                                  <text x="300" y="140" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ক্লিয়ার স্প্যান: {span.length.toFixed(1)}' ফুট (পিলার হতে পিলারের দূরত্ব)</text>
+                                  <text x="250" y="140" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ক্লিয়ার স্প্যান: {span.length.toFixed(1)}' ফুট</text>
+                               </g>
+
+                               <g transform="translate(620, 150)">
+                                  <text x="80" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">CROSS-SECTION (রড বিন্যাস)</text>
+                                  {/* Beam Body */}
+                                  <rect x="0" y="0" width="160" height="200" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
+                                  
+                                  {/* Ring */}
+                                  <rect x="15" y="15" width="130" height="170" fill="none" stroke="#f59e0b" strokeWidth="2.5" rx="5" />
+                                  
+                                  {/* Top Rebars */}
+                                  <g fill="#3b82f6">
+                                     <circle cx="25" cy="25" r="8" />
+                                     <circle cx="135" cy="25" r="8" />
+                                     {topRodCount > 2 && <circle cx="80" cy="25" r="8" />}
+                                  </g>
+                                  
+                                  {/* Bottom Rebars */}
+                                  <g fill="#3b82f6">
+                                     <circle cx="25" cy="175" r="8" />
+                                     <circle cx="135" cy="175" r="8" />
+                                     <circle cx="80" cy="175" r="8" />
+                                     {botRodCount > 3 && (
+                                       <>
+                                         <circle cx="52" cy="175" r="8" />
+                                         <circle cx="108" cy="175" r="8" />
+                                       </>
+                                     )}
+                                  </g>
+
+                                  <text x="80" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{beamWidth}" x {beamDepth}" BEAM</text>
+                                  <text x="80" y="255" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="black">মোট মেইন রড: {mainRodCount} Nos</text>
                                </g>
 
                                <g transform="translate(100, 380)">
                                   <rect x="0" y="0" width="600" height="85" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
                                   <text x="300" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: ১০" x {beamDepth}"</text>
                                   <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                     রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c | মোট রিং: {Math.ceil(span.length * 2) + 2} টি
+                                     মেইন রড: {mainRodCount} টি ({rodSize}) | রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c
                                   </text>
                                   <text x="300" y="72" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
                                      নির্দেশ: সাপোর্টে কলাম ফেস থেকে {etLength} ফুট পর্যন্ত এক্সট্রা টপ রড প্রদান করুন।
@@ -569,7 +602,7 @@ export function StructuralDetailingDialog({
                                <div className="space-y-2">
                                   <p className="text-indigo-200 font-bold text-sm uppercase tracking-wider print:text-indigo-800">বিম রিইনফোর্সমেন্ট গাইডলাইন:</p>
                                   <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
-                                     • <strong>এক্সট্রা টপ:</strong> বিমের সাপোর্টে টেনশন লোড সামলানোর জন্য L/3 বা L/4 মাপে রড বসানো হয়েছে।<br/>
+                                     • <strong>রড প্লেসমেন্ট:</strong> ক্রস-সেকশন অনুযায়ী মেইন রডগুলো সাজাতে হবে। বিমের নিচে {botRodCount}টি এবং উপরে {topRodCount}টি মেইন রড থাকবে।<br/>
                                      • <strong>ডেভেলপমেন্ট লেন্থ (Ld):</strong> বিমের রড কলামের ভেতরে কমপক্ষে ১২ ইঞ্চি অথবা ড্রয়িং অনুযায়ী এল-ব্যান্ড (L-hook) হয়ে ঢুকবে।
                                   </p>
                                </div>
