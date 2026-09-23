@@ -964,10 +964,12 @@ export function StructuralDetailingDialog({
                 )}
 
                 {/* Shared Properties: Thickness & Hooks */}
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Inches)</Label>
-                  <Input type="number" value={editingItem?.data.thick || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, thick: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
-                </div>
+                {['footing', 'beam', 'slab', 'stair'].includes(editingItem?.type || '') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">পুরুত্ব / গভীরতা (Inches)</Label>
+                    <Input type="number" value={editingItem?.data.thick || 0} onChange={e => setEditingItem(prev => prev ? ({ ...prev, data: { ...prev.data, thick: parseInt(e.target.value) || 0 } }) : null)} className="h-9 bg-slate-800 border-slate-700 font-bold" />
+                  </div>
+                )}
                 {['footing', 'column', 'beam'].includes(editingItem?.type || '') && (
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-slate-500">হুক / মাটন (Hook In)</Label>
