@@ -76,11 +76,13 @@ export function StructuralDetailingDialog({
     return Object.values(groups);
   }, [mappedPillars]);
 
-  // Structural Safety Logic (Requirement: Safety High - 16mm/20mm)
+  // Structural Safety Logic
   const getReinforcementInfo = (storeys: number) => {
-    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3 };
-    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4 };
-    return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4 };
+    if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount: 4 };
+    if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount: 6 };
+    if (storeys <= 4) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount: 8 };
+    if (storeys <= 5) return { rod: "20mm (6 Suta)", gap: "4.5\" c/c", thick: 24, hook: 4, rodCount: 10 };
+    return { rod: "20mm (6 Suta)", gap: "4\" c/c", thick: 24, hook: 4, rodCount: 12 };
   };
 
   const rebar = getReinforcementInfo(detailingStoreys);
@@ -92,43 +94,18 @@ export function StructuralDetailingDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[95vw] h-[92vh] p-0 flex flex-col bg-slate-900 text-slate-100 border-slate-800 shadow-2xl rounded-2xl overflow-hidden print:w-full print:h-full print:bg-white print:text-slate-950 print:border-none print:shadow-none print:rounded-none">
-        {/* Style block for precise print control */}
         <style jsx global>{`
           @media print {
             @page { margin: 0.5in !important; size: auto; }
             body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            /* Force UI container to be white and accessible */
-            .cad-canvas-print { 
-              background: white !important; 
-              color: black !important; 
-              position: relative !important; 
-              width: 100% !important; 
-              height: auto !important; 
-              transform: none !important; 
-              padding: 0 !important;
-              margin: 0 !important;
-              box-shadow: none !important;
-              border: none !important;
-            }
-            .cad-svg-print {
-              max-width: 100% !important;
-              height: auto !important;
-            }
-            /* Adjust colors for visibility on white paper */
-            .text-slate-200, .text-slate-400, .text-slate-300 { color: #1e293b !important; }
-            .bg-slate-900, .bg-slate-950, .bg-slate-900\/30 { background: white !important; border-color: #e2e8f0 !important; }
-            .text-38bdf8 { color: #0284c7 !important; }
-            .text-10b981 { color: #059669 !important; }
-            .bg-amber-600\/5 { background: #fffbeb !important; border-color: #fde68a !important; }
-            .text-amber-200 { color: #92400e !important; }
-            .bg-slate-900\/60 { background: white !important; }
+            .cad-canvas-print { background: white !important; color: black !important; transform: none !important; width: 100% !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
             .page-break-inside-avoid { page-break-inside: avoid !important; }
+            .text-slate-200, .text-slate-400, .text-slate-300 { color: #1e293b !important; }
+            .bg-slate-900, .bg-slate-950 { background: white !important; border: 1px solid #e2e8f0 !important; }
           }
         `}</style>
 
-        {/* Header - Hidden in Print */}
         <div className="flex items-center justify-between px-6 py-3.5 bg-slate-950 border-b border-slate-800 shrink-0 no-print">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
@@ -160,7 +137,6 @@ export function StructuralDetailingDialog({
           </div>
         </div>
 
-        {/* Tabs - Hidden in Print */}
         <div className="bg-slate-950/80 px-6 pt-2 border-b border-slate-800 shrink-0 no-print">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="bg-slate-900/90 p-1 border border-slate-800 h-auto flex flex-wrap gap-1">
@@ -176,63 +152,43 @@ export function StructuralDetailingDialog({
         </div>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Config Sidebar - Hidden in Print */}
           <div className="w-64 border-r border-slate-800 bg-slate-950 p-4 overflow-y-auto space-y-4 shrink-0 text-xs no-print">
             <div className="font-bold text-slate-300 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-800 flex items-center justify-between">
               <span>প্যারামিটার কন্ট্রোল</span>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
             </div>
 
-            {activeTab === 'footing' && (
-              <>
-                <div className="space-y-1.5">
-                  <Label className="text-slate-400">ফাউন্ডেশন / তলা সংখ্যা</Label>
-                  <Select value={detailingStoreys.toString()} onValueChange={(v) => setDetailingStoreys(parseInt(v))}>
-                    <SelectTrigger className="h-8 bg-slate-900 border-slate-700 text-white font-bold">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                      {[1,2,3,4,5,6].map(n => <SelectItem key={n} value={n.toString()}>{n} তলা ফাউন্ডেশন</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="p-3 bg-blue-600/10 rounded-lg border border-blue-500/20 space-y-2 text-slate-300">
-                  <p className="font-bold text-blue-400 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> ম্যাপড এরিয়া সামারি</p>
-                  <div className="flex justify-between py-1 border-b border-white/5">
-                    <span>রুম এরিয়া:</span>
-                    <span className="text-white font-bold">{selectedArea ? "শনাক্ত হয়েছে" : "ডিফল্ট"}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-white/5">
-                    <span>কলাম সংখ্যা:</span>
-                    <span className="text-white font-bold">{mappedPillars.length} টি</span>
-                  </div>
-                  <div className="flex justify-between pt-1">
-                    <span>ইউনিক কলাম টাইপ:</span>
-                    <span className="text-amber-400 font-bold">{uniquePillarGroups.length} প্রকার</span>
-                  </div>
-                </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-400">ভবনের তলা সংখ্যা</Label>
+              <Select value={detailingStoreys.toString()} onValueChange={(v) => setDetailingStoreys(parseInt(v))}>
+                <SelectTrigger className="h-8 bg-slate-900 border-slate-700 text-white font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                  {[1,2,3,4,5,6].map(n => <SelectItem key={n} value={n.toString()}>{n} তলা ভবন</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/20 space-y-1.5 text-slate-300">
-                  <p className="font-bold text-emerald-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> উচ্চ-নিরাপত্তা রড ডিজাইন:</p>
-                  <p>• মেইন রড: <strong>{rebar.rod}</strong></p>
-                  <p>• জালি স্পেসিং: <strong>{rebar.gap}</strong></p>
-                  <p>• রড হুক (Maton): <strong>{rebar.hook}" ইঞ্চি</strong></p>
-                  <p className="text-[10px] text-slate-400 border-t border-white/5 pt-1 mt-1">সফটওয়্যার স্বয়ংক্রিয়ভাবে শক্তিশালী রড নির্বাচন করেছে।</p>
-                </div>
-              </>
-            )}
-            
-            {activeTab !== 'footing' && (
-              <div className="p-8 text-center text-slate-500 italic uppercase font-black text-[10px] tracking-widest leading-relaxed">
-                {activeTab} ডিটেইলিং সেকশন লোড হচ্ছে...
+            <div className="p-3 bg-blue-600/10 rounded-lg border border-blue-500/20 space-y-2 text-slate-300">
+              <p className="font-bold text-blue-400 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> এরিয়া সামারি</p>
+              <div className="flex justify-between py-1 border-b border-white/5">
+                <span>রুম এরিয়া:</span>
+                <span className="text-white font-bold">{selectedArea ? "শনাক্ত হয়েছে" : "ডিফল্ট"}</span>
               </div>
-            )}
+              <div className="flex justify-between py-1 border-b border-white/5">
+                <span>কলাম সংখ্যা:</span>
+                <span className="text-white font-bold">{mappedPillars.length} টি</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span>ইউনিক কলাম:</span>
+                <span className="text-amber-400 font-bold">{uniquePillarGroups.length} প্রকার</span>
+              </div>
+            </div>
           </div>
 
-          {/* CAD Display Workspace - Only Area that Prints */}
-          <div className="flex-1 bg-slate-900/60 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 print:overflow-visible print:bg-white print:p-0">
-            <div className="min-h-full min-w-full flex flex-col items-center p-8 lg:p-16 print:p-0 print:m-0">
+          <div className="flex-1 bg-slate-900/60 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 print:bg-white print:p-0">
+            <div className="min-h-full min-w-full flex flex-col items-center p-8 lg:p-16 print:p-0">
               <div
                 className="inline-flex flex-col items-center justify-center relative border border-slate-800 rounded-2xl bg-slate-950 shadow-2xl overflow-visible p-12 cad-canvas-print"
                 style={{
@@ -244,7 +200,7 @@ export function StructuralDetailingDialog({
                 }}
               >
                 {activeTab === 'footing' && (
-                  <div className="flex flex-col gap-32 items-center print:gap-16">
+                  <div className="flex flex-col gap-32 items-center">
                     {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
                       const offset = detailingStoreys <= 2 ? 3.0 : (detailingStoreys + 1.5);
                       const fSize = Math.max(4, Math.ceil((group.wIn / 12 + offset) * 2) / 2);
@@ -252,109 +208,181 @@ export function StructuralDetailingDialog({
                       const canvasH = 540;
                       
                       return (
-                        <div key={idx} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 shadow-inner print:bg-white print:border-slate-200 print:shadow-none print:p-8 page-break-inside-avoid">
-                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800 print:bg-slate-100 print:border-slate-300">
+                        <div key={idx} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
+                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
                              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">F{idx+1}</div>
                              <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">ফাউন্ডেশন ডিটেইলস — {group.wIn}" x {group.hIn}" কলামের জন্য</span>
                           </div>
 
-                          <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible cad-svg-print">
-                            {/* 1. PLAN VIEW */}
+                          <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
                             <g transform="translate(40, 100)">
-                              <rect x="0" y="0" width="240" height="240" fill="#0f172a" stroke="#38bdf8" strokeWidth="4" className="print:fill-white print:stroke-blue-600" />
-                              <text x="120" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black" className="print:fill-blue-700">PLAN VIEW (রড জালি বিন্যাস)</text>
-                              
+                              <rect x="0" y="0" width="240" height="240" fill="#0f172a" stroke="#38bdf8" strokeWidth="4" />
+                              <text x="120" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">PLAN VIEW (রড জালি বিন্যাস)</text>
                               {[20, 55, 90, 120, 150, 185, 220].map(pos => (
                                 <g key={`rebar-${pos}`}>
                                   <line x1="5" y1={pos} x2="235" y2={pos} stroke="#ef4444" strokeWidth="2" />
                                   <line x1={pos} y1="5" x2={pos} y2="235" stroke="#ef4444" strokeWidth="2" />
                                 </g>
                               ))}
-
-                              <rect x="100" y="100" width="40" height="40" fill="#dc2626" stroke="#ffffff" strokeWidth="2" className="print:stroke-slate-900" />
-                              <text x="120" y="270" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold" className="print:fill-slate-600">{fSize}'-0" x {fSize}'-0" BASE SIZE</text>
+                              <rect x="100" y="100" width="40" height="40" fill="#dc2626" stroke="#ffffff" strokeWidth="2" />
+                              <text x="120" y="270" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{fSize}'-0" x {fSize}'-0" BASE SIZE</text>
                             </g>
 
-                            {/* 2. SECTIONAL VIEW */}
                             <g transform="translate(380, 100)">
-                              <text x="130" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black" className="print:fill-blue-700">SECTIONAL VIEW (কাটা দৃশ্য ও মাটন)</text>
-                              
-                              {/* Foundation Boundary */}
+                              <text x="130" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">SECTIONAL VIEW (কাটা দৃশ্য ও মাটন)</text>
                               <path d="M 30 220 L 30 320 L 250 320 L 250 220" fill="none" stroke="#64748b" strokeWidth="3" />
-                              <rect x="30" y="220" width="220" height="100" fill="#1e293b" fillOpacity="0.4" className="print:fill-slate-50" />
-
-                              {/* Horizontal rebar with hooks */}
+                              <rect x="30" y="220" width="220" height="100" fill="#1e293b" fillOpacity="0.4" />
                               <path d={`M 40 ${310 - rebar.hook*4} L 40 310 L 240 310 L 240 ${310 - rebar.hook*4}`} fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                              
-                              {/* Cross bars dots sitting ON the main bar */}
-                              {[55, 85, 115, 140, 165, 195, 225].map(dx => (
-                                <circle key={dx} cx={dx} cy="304" r="4" fill="#ef4444" />
-                              ))}
-
-                              {/* Column Main Rods with L-hooks */}
+                              {[55, 85, 115, 140, 165, 195, 225].map(dx => <circle key={dx} cx={dx} cy="304" r="4" fill="#ef4444" />)}
                               <g stroke="#ef4444" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M 125 40 L 125 310 L 105 310" />
-                                <path d="M 155 40 L 155 310 L 175 310" />
+                                <path d="M 125 40 L 125 310 L 105 310" /><path d="M 155 40 L 155 310 L 175 310" />
                               </g>
-                              
-                              {/* Column Shaft */}
-                              <rect x="115" y="40" width="50" height="180" fill="#0f172a" stroke="#ffffff" strokeWidth="2.5" className="print:fill-white print:stroke-slate-950" />
-                              <text x="140" y="30" fill="#ef4444" fontSize="12" textAnchor="middle" fontWeight="bold" className="print:fill-red-700">Column: {group.wIn}"x{group.hIn}"</text>
-
-                              {/* Dimensions labels with leader lines */}
-                              <path d="M 260 310 L 290 310" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrow)" className="print:stroke-slate-400" />
-                              <text x="295" y="315" fill="#94a3b8" fontSize="11" fontWeight="bold" className="print:fill-slate-600">হুক/মাটন: {rebar.hook}"</text>
-
-                              <path d="M 260 220 L 290 220" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrow)" className="print:stroke-slate-400" />
-                              <text x="295" y="225" fill="#94a3b8" fontSize="11" fontWeight="bold" className="print:fill-slate-600">বেস উচ্চতা: {rebar.thick}"</text>
+                              <rect x="115" y="40" width="50" height="180" fill="#0f172a" stroke="#ffffff" strokeWidth="2.5" />
+                              <text x="140" y="30" fill="#ef4444" fontSize="12" textAnchor="middle" fontWeight="bold">Column: {group.wIn}"x{group.hIn}"</text>
+                              <text x="295" y="315" fill="#94a3b8" fontSize="11" fontWeight="bold">হুক/মাটন: {rebar.hook}"</text>
+                              <text x="295" y="225" fill="#94a3b8" fontSize="11" fontWeight="bold">বেস উচ্চতা: {rebar.thick}"</text>
                             </g>
 
-                            <defs>
-                              <marker id="arrow" markerWidth="8" markerHeight="8" refX="0" refY="3" orientation="auto" markerUnits="strokeWidth">
-                                <path d="M0,0 L0,6 L7,3 z" fill="#94a3b8" />
-                              </marker>
-                            </defs>
-
-                            {/* Info Box */}
                             <g transform="translate(40, 440)">
-                              <rect x="0" y="0" width="600" height="70" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" className="print:fill-emerald-50 print:stroke-emerald-600" />
-                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black" className="print:fill-emerald-800">
-                                ইঞ্জিনিয়ারিং স্পেসিফিকেশন: {detailingStoreys} তলা ফাউন্ডেশন | রড সাইজ: {rebar.rod}
-                              </text>
-                              <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold" className="print:fill-slate-700">
-                                জালি স্পেসিং: {rebar.gap} c/c | ক্লিয়ার কভার: ৩" ইঞ্চি | হুক দৈর্ঘ্য: {rebar.hook}" ইঞ্চি | কংক্রিট গ্রেড: M20 (1:1.5:3)
-                              </text>
+                              <rect x="0" y="0" width="600" height="70" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
+                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং স্পেসিফিকেশন: {detailingStoreys} তলা ফাউন্ডেশন | রড সাইজ: {rebar.rod}</text>
+                              <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">জালি স্পেসিং: {rebar.gap} c/c | ক্লিয়ার কভার: ৩" ইঞ্চি | হুক দৈর্ঘ্য: {rebar.hook}" ইঞ্চি | কংক্রিট গ্রেড: M20</text>
                             </g>
                           </svg>
 
-                          {/* Guidelines at bottom */}
-                          <div className="w-full flex items-start gap-4 bg-amber-600/5 p-6 rounded-3xl border border-amber-600/20 print:bg-amber-50 print:border-amber-200">
-                             <Info className="w-6 h-6 text-amber-500 shrink-0 mt-0.5 print:text-amber-700" />
+                          <div className="w-full flex items-start gap-4 bg-amber-600/5 p-6 rounded-3xl border border-amber-600/20 print:bg-slate-50">
+                             <Info className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
                              <div className="space-y-2">
-                                <p className="text-amber-200 font-bold text-sm uppercase tracking-wider print:text-amber-800">রড বাইন্ডিং গাইডলাইন (নির্দেশনা):</p>
-                                <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700 font-medium">
-                                   • প্রতিটি রডের শেষে <strong>{rebar.hook} ইঞ্চি মাটন (৯০° হুক)</strong> বাধ্যতামূলক যা ২ডি ডিজাইনে লাল লাইনে দেখানো হয়েছে। এটি কংক্রিটের সাথে রডের বন্ড শক্তিশালী করে।<br/>
-                                   • কলামের রডগুলো বেসের নিচের জালি থেকে কমপক্ষে ৩ ইঞ্চি ক্লিয়ার কভার মেইনটেইন করবে এবং নিচে ৪ ইঞ্চি এল-ব্যান্ড (L-hook) হয়ে ড্রয়িং অনুযায়ী বসবে।<br/>
-                                   • কংক্রিট ঢালাইয়ের সময় ভাইব্রেটর ব্যবহার নিশ্চিত করতে হবে এবং ঢালাইয়ের পর ন্যূনতম ২১ দিন কিউরিং (পানি দেওয়া) বাধ্যতামূলক।
+                                <p className="text-amber-200 font-bold text-sm uppercase tracking-wider print:text-amber-800">রড বাইন্ডিং গাইডলাইন:</p>
+                                <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
+                                   • প্রতিটি রডের শেষে <strong>{rebar.hook} ইঞ্চি মাটন (৯০° হুক)</strong> বাধ্যতামূলক যা ২ডি ডিজাইনে লাল লাইনে দেখানো হয়েছে।<br/>
+                                   • কলামের রডগুলো বেসের নিচের জালি থেকে কমপক্ষে ৩ ইঞ্চি ক্লিয়ার কভার মেইনটেইন করবে এবং নিচে ৪ ইঞ্চি এল-ব্যান্ড (L-hook) হয়ে ড্রয়িং অনুযায়ী বসবে।
                                 </p>
                              </div>
                           </div>
                         </div>
                       );
                     }) : (
-                      <div className="flex flex-col items-center gap-8 py-48 no-print">
+                      <div className="flex flex-col items-center gap-8 py-48">
                          <Boxes className="w-24 h-24 text-slate-700 animate-pulse" />
-                         <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">
-                            ক্যানভাসে কোনো কলাম বা এরিয়া পাওয়া যায়নি<br/>
-                            <span className="text-sm lowercase tracking-normal font-normal opacity-60 mt-4 block">প্রথমে ক্যানভাসে পিলার বসান অথবা রুম এরিয়া সিলেক্ট করে রড ডিটেইলিং চেক করুন</span>
-                         </div>
+                         <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">ক্যানভাসে কোনো কলাম পাওয়া যায়নি</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'column' && (
+                  <div className="flex flex-col gap-32 items-center">
+                    {uniquePillarGroups.length > 0 ? uniquePillarGroups.map((group, idx) => {
+                      const cW = group.wIn;
+                      const cH = group.hIn;
+                      const rCount = rebar.rodCount;
+                      const masterRW = cW - 3; // Clear cover 1.5" * 2
+                      const masterRH = cH - 3;
+                      const canvasW = 700;
+                      const canvasH = 580;
+                      
+                      // Spacing logic based on height (usually 4" at ends, 6" at mid)
+                      const ringSpacing = detailingStoreys > 4 ? "4\"/8\"" : "5\"/10\"";
+                      const totalRings = Math.ceil((10 * 12) / 6); // Assuming 10ft height
+
+                      return (
+                        <div key={idx} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
+                          <div className="flex items-center gap-4 bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-lg">C{idx+1}</div>
+                             <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">কলাম সেকশন ও রিং ডিটেইলস — {cW}" x {cH}" ({rCount} Nos Rebar)</span>
+                          </div>
+
+                          <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
+                            {/* 1. COLUMN CROSS SECTION (PLAN VIEW) */}
+                            <g transform="translate(40, 100)">
+                              <text x="140" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">COLUMN CROSS-SECTION (রড বিন্যাস)</text>
+                              <rect x="0" y="0" width="280" height="200" fill="#0f172a" stroke="#475569" strokeWidth="3" />
+                              
+                              {/* Master Ring Plan */}
+                              <rect x="15" y="15" width="250" height="170" fill="none" stroke="#f59e0b" strokeWidth="2" rx="4" />
+                              
+                              {/* Rod dots logic for 4-12 rods */}
+                              <g fill="#ef4444">
+                                {/* Corners - always present */}
+                                <circle cx="15" cy="15" r="8" /><circle cx="265" cy="15" r="8" />
+                                <circle cx="15" cy="185" r="8" /><circle cx="265" cy="185" r="8" />
+                                
+                                {rCount >= 6 && <><circle cx="140" cy="15" r="8" /><circle cx="140" cy="185" r="8" /></>}
+                                {rCount >= 8 && <><circle cx="15" cy="100" r="8" /><circle cx="265" cy="100" r="8" /></>}
+                                {rCount >= 10 && <><circle cx="77" cy="15" r="8" /><circle cx="203" cy="15" r="8" /></>}
+                                {rCount >= 12 && <><circle cx="77" cy="185" r="8" /><circle cx="203" cy="185" r="8" /></>}
+                              </g>
+                              
+                              <text x="140" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{cW}" x {cH}" Column Size | {rebar.rod} রড</text>
+                            </g>
+
+                            {/* 2. RING / STIRRUP DETAIL */}
+                            <g transform="translate(380, 100)">
+                              <text x="130" y="-30" fill="#38bdf8" fontSize="16" textAnchor="middle" fontWeight="black">RING / STIRRUP DETAIL (রিং ডিজাইন)</text>
+                              
+                              {/* Master Ring Detailed Design */}
+                              <rect x="30" y="20" width="220" height="150" fill="none" stroke="#f59e0b" strokeWidth="4" rx="8" />
+                              {/* Stirrup Hooks (135 degree) */}
+                              <path d="M 30 28 L 15 15 M 30 28 L 45 43" fill="none" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
+                              
+                              <text x="140" y="195" fill="#f59e0b" fontSize="12" textAnchor="middle" fontWeight="bold">MASTER RING: {masterRW}" x {masterRH}"</text>
+                              <text x="140" y="215" fill="#94a3b8" fontSize="10" textAnchor="middle">Hooks: {rebar.hook}" (১৩৫° বেন্ড) | ৮ মিমি রড</text>
+
+                              {/* Inner Tie if rods > 4 */}
+                              {rCount > 4 && (
+                                <g transform="translate(0, 240)">
+                                  <path d="M 140 20 L 250 80 L 140 140 L 30 80 Z" fill="none" stroke="#fbbf24" strokeWidth="3" />
+                                  <text x="140" y="170" fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="bold">INNER TIE (ডায়মন্ড / লিঙ্ক রিং)</text>
+                                </g>
+                              )}
+                            </g>
+
+                            {/* Info Box */}
+                            <g transform="translate(50, 480)">
+                              <rect x="0" y="0" width="600" height="80" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
+                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং সামারি: {detailingStoreys} তলা ভবন | কলাম টাইপ: C{idx+1}</text>
+                              <text x="300" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
+                                রিং স্পেসিং: {ringSpacing} c/c | রিং সাইজ: {masterRW}"x{masterRH}" | মাস্তান (Binding Wire): ০.৮৫ কেজি/টন
+                              </text>
+                              <text x="300" y="72" fill="#64748b" fontSize="10" textAnchor="middle">প্রতি ১০ ফুট উচ্চতায় আনুমানিক {totalRings}টি রিং প্রয়োজন হবে।</text>
+                            </g>
+                          </svg>
+
+                          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div className="flex items-start gap-4 bg-blue-600/5 p-6 rounded-3xl border border-blue-600/20 print:bg-slate-50">
+                               <Boxes className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
+                               <div className="space-y-2">
+                                  <p className="text-blue-200 font-bold text-sm uppercase tracking-wider print:text-blue-800">রিং বসানোর নিয়ম:</p>
+                                  <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
+                                     • কলামের উপরের ও নিচের অংশ (L/4 জোন) এ ঘন রিং (৪" c/c) দিতে হবে।<br/>
+                                     • রিংয়ের হুকগুলো অবশ্যই রডের ভেতরের দিকে ১৩৫° কোণে থাকবে।
+                                  </p>
+                               </div>
+                             </div>
+                             <div className="flex items-start gap-4 bg-emerald-600/5 p-6 rounded-3xl border border-emerald-600/20 print:bg-slate-50">
+                               <ShieldCheck className="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" />
+                               <div className="space-y-2">
+                                  <p className="text-emerald-200 font-bold text-sm uppercase tracking-wider print:text-emerald-800">মাস্তান (Binding Wire) গাইড:</p>
+                                  <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
+                                     • ২২ গেজ জিআই তার ব্যবহার করতে হবে। প্রতিটি জয়েন্টে ২-৩ প্যাঁচ ডাবল তার দিয়ে শক্ত করে বাঁধতে হবে যেন ঢালাইয়ের সময় রড না নড়ে।
+                                  </p>
+                               </div>
+                             </div>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="flex flex-col items-center gap-8 py-48">
+                         <Building2 className="w-24 h-24 text-slate-700 animate-pulse" />
+                         <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">রুম এরিয়ার মধ্যে কোনো কলাম পাওয়া যায়নি</div>
                       </div>
                     )}
                   </div>
                 )}
                 
-                {activeTab !== 'footing' && (
-                  <div className="flex flex-col items-center justify-center p-48 gap-8 min-w-[700px] no-print">
+                {['beam', 'slab', 'stair', 'septic', 'lift'].includes(activeTab) && (
+                  <div className="flex flex-col items-center justify-center p-48 gap-8 min-w-[700px]">
                      <div className="p-10 rounded-full bg-slate-900 border border-slate-800 shadow-2xl">
                         <Scissors className="w-20 h-20 text-blue-500 opacity-20" />
                      </div>
