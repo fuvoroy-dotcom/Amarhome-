@@ -166,6 +166,10 @@ export default function EstimatorClient() {
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isEstimationDialogOpen, setIsEstimationDialogOpen] = useState(false);
 
+  // New state for CAD structural detailing persistence
+  const [detailingStoreys, setDetailingStoreys] = useState(3);
+  const [detailingOverrides, setDetailingOverrides] = useState<Record<string, any>>({});
+
   const gridConfig = useMemo(() => {
     if (zoom < 10) return { interval: 20, minor: 5, labelScale: 0.8 };
     if (zoom < 25) return { interval: 10, minor: 2, labelScale: 0.9 };
@@ -277,8 +281,9 @@ export default function EstimatorClient() {
       setLocalPropSteps((firstSelectedObject.stepCount || 10).toString());
       setLocalPropText(firstSelectedObject.textContent || "");
       setLocalPropFontSize((firstSelectedObject.fontSize || 14).toString());
+      setLocalPropDepth(((firstSelectedObject as any).depth || 12).toString());
     }
-  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, firstSelectedObject?.textContent, firstSelectedObject?.fontSize, unitSystem]);
+  }, [firstSelectedObject?.id, firstSelectedObject?.x, firstSelectedObject?.y, firstSelectedObject?.w, firstSelectedObject?.h, firstSelectedObject?.rotation, firstSelectedObject?.stepCount, (firstSelectedObject as any)?.depth, firstSelectedObject?.textContent, firstSelectedObject?.fontSize, unitSystem]);
 
   const saveToHistory = useCallback((newObjects: DesignObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -733,6 +738,10 @@ export default function EstimatorClient() {
       ledger: {
         materials: materialsLedger,
         labor: laborLedger
+      },
+      detailing: {
+        storeys: detailingStoreys,
+        overrides: detailingOverrides
       }
     };
     setDoc(docRef, data, { merge: true }).then(() => {
@@ -749,7 +758,7 @@ export default function EstimatorClient() {
       const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data });
       errorEmitter.emit('permission-error', permissionError);
     });
-  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, materialsLedger, laborLedger, user, toast]);
+  }, [designObjects, projectName, currentDesignId, foundations, columns, beams, slabs, stairs, brickworks, plasters, floorTiles, wallTiles, septicTanks, soakWells, prices, materialsLedger, laborLedger, detailingStoreys, detailingOverrides, user, toast]);
 
   const duplicateProject = useCallback(() => {
     const newId = Math.random().toString(36).substr(2, 9);
@@ -795,6 +804,8 @@ export default function EstimatorClient() {
     });
     setMaterialsLedger([]);
     setLaborLedger([]);
+    setDetailingStoreys(3);
+    setDetailingOverrides({});
     toast({ title: "নতুন পেজ", description: "ক্যানভাস এবং হিসাব পরিষ্কার করা হয়েছে।" });
   };
 
@@ -856,6 +867,10 @@ export default function EstimatorClient() {
           if (data.ledger.materials) setMaterialsLedger(data.ledger.materials);
           if (data.ledger.labor) setLaborLedger(data.ledger.labor);
         }
+        if (data.detailing) {
+          if (data.detailing.storeys) setDetailingStoreys(data.detailing.storeys);
+          if (data.detailing.overrides) setDetailingOverrides(data.detailing.overrides);
+        }
         setIsOpenDialogOpen(false);
         try {
           localStorage.setItem('last_saved_design_id', id);
@@ -872,9 +887,46 @@ export default function EstimatorClient() {
 
   const updateObject = (id: string, updates: Partial<DesignObject>, save = false) => {
     setDesignObjects(prev => {
-      const obj = prev.find(o => o.id === id);
-      if (!obj) return prev;
-      const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
+      const targetObj = prev.find(o => o.id === id);
+      if (!targetObj) return prev;
+      
+      let next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
+
+      // Map-based automatic labeling for pillars and beams
+      if (updates.w !== undefined || updates.h !== undefined || (updates as any).depth !== undefined) {
+        // Refresh Pillar Labels
+        const pSizes: {w: number, h: number}[] = [];
+        next.forEach(o => {
+          if (o.subType === 'pillar' || o.type === 'pillar') {
+            const found = pSizes.find(s => Math.abs(s.w - o.w) < 0.01 && Math.abs(s.h - o.h) < 0.01);
+            if (!found) pSizes.push({w: o.w, h: o.h});
+          }
+        });
+
+        // Refresh Beam Labels
+        const bSections: {h: number, depth: number}[] = [];
+        next.forEach(o => {
+          if (o.subType === 'beam') {
+            const d = (o as any).depth || 12;
+            const found = bSections.find(s => Math.abs(s.h - o.h) < 0.01 && Math.abs(s.depth - d) < 0.01);
+            if (!found) bSections.push({h: o.h, depth: d});
+          }
+        });
+
+        next = next.map(o => {
+          if (o.subType === 'pillar' || o.type === 'pillar') {
+            const idx = pSizes.findIndex(s => Math.abs(s.w - o.w) < 0.01 && Math.abs(s.h - o.h) < 0.01);
+            return { ...o, label: `C${idx + 1}` };
+          }
+          if (o.subType === 'beam') {
+            const d = (o as any).depth || 12;
+            const idx = bSections.findIndex(s => Math.abs(s.h - o.h) < 0.01 && Math.abs(s.depth - d) < 0.01);
+            return { ...o, label: `B${idx + 1}` };
+          }
+          return o;
+        });
+      }
+
       if (save) saveToHistory(next);
       return next;
     });
@@ -959,13 +1011,32 @@ export default function EstimatorClient() {
     };
 
     if (subType === 'pillar') {
-      const count = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar').length + 1;
-      newObj.label = `C${count}`;
+      const pList = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar');
+      const uniqueSizes: {w: number, h: number}[] = [];
+      pList.forEach(p => {
+        const match = uniqueSizes.find(s => Math.abs(s.w - p.w) < 0.01 && Math.abs(s.h - p.h) < 0.01);
+        if (!match) uniqueSizes.push({w: p.w, h: p.h});
+      });
+      const curW = (overrides as any).w ?? 1;
+      const curH = (overrides as any).h ?? 1;
+      const sizeIndex = uniqueSizes.findIndex(s => Math.abs(s.w - curW) < 0.01 && Math.abs(s.h - curH) < 0.01);
+      const pillarNum = sizeIndex !== -1 ? (sizeIndex + 1) : (uniqueSizes.length + 1);
+      newObj.label = `C${pillarNum}`;
       newObj.fillColor = '#000000';
     }
     if (subType === 'beam') {
-      const count = designObjects.filter(o => o.subType === 'beam').length + 1;
-      newObj.label = `B${count}`;
+      const bList = designObjects.filter(o => o.subType === 'beam');
+      const uniqueSections: {h: number, depth: number}[] = [];
+      bList.forEach(b => {
+        const d = (b as any).depth || 12;
+        const match = uniqueSections.find(s => Math.abs(s.h - b.h) < 0.01 && Math.abs(s.depth - d) < 0.01);
+        if (!match) uniqueSections.push({h: b.h, depth: d});
+      });
+      const curH = (overrides as any).h ?? currentBeamWidth;
+      const curDepth = (overrides as any).depth ?? currentBeamDepth;
+      const sizeIndex = uniqueSections.findIndex(s => Math.abs(s.h - curH) < 0.01 && Math.abs(s.depth - curDepth) < 0.01);
+      const beamNum = sizeIndex !== -1 ? (sizeIndex + 1) : (uniqueSections.length + 1);
+      newObj.label = `B${beamNum}`;
       newObj.color = '#2563eb';
       newObj.fillColor = '#3b82f622';
     }
@@ -975,21 +1046,18 @@ export default function EstimatorClient() {
     if (subType === 'stair-u') { newObj.w = 8; newObj.h = 10; newObj.stepCount = 15; }
     if (subType === 'stair-dogleg') { newObj.w = 6; newObj.h = 10; newObj.stepCount = 10; }
     
-    // Default Furniture sizes
     if (subType === 'furniture-bed') { newObj.w = 6.5; newObj.h = 5; }
     if (subType === 'furniture-sofa') { newObj.w = 6; newObj.h = 2.5; }
     if (subType === 'furniture-dining') { newObj.w = 4.5; newObj.h = 3.5; }
     if (subType === 'furniture-kitchen') { newObj.w = 6; newObj.h = 2; }
     if (subType === 'furniture-bath') { newObj.w = 2.5; newObj.h = 3; }
     
-    // MEP tools dimensions
     if (subType === 'mep-light') { newObj.w = 1.2; newObj.h = 1.2; }
     if (subType === 'mep-fan') { newObj.w = 2.5; newObj.h = 2.5; }
     if (subType === 'mep-socket') { newObj.w = 1.0; newObj.h = 1.0; }
     if (subType === 'mep-pipe') { newObj.w = 6; newObj.h = 0.5; }
     if (subType === 'mep-septic') { newObj.w = 8; newObj.h = 5; }
 
-    // Landscape tools dimensions
     if (subType === 'landscape-tree') { newObj.w = 4; newObj.h = 4; }
     if (subType === 'landscape-garden') { newObj.w = 10; newObj.h = 6; }
     if (subType === 'landscape-car') { newObj.w = 7; newObj.h = 14; }
@@ -998,7 +1066,7 @@ export default function EstimatorClient() {
     setDesignObjects(next);
     setSelectedObjectIds([newObj.id]);
     saveToHistory(next);
-  }, [designObjects, saveToHistory, currentWallThickness]);
+  }, [designObjects, saveToHistory, currentWallThickness, currentBeamWidth, currentBeamDepth]);
 
   const addRoomAt = useCallback((x: number, y: number) => {
     const w = 12, h = 10;
@@ -1155,8 +1223,7 @@ export default function EstimatorClient() {
         }
         if (selectedTool === 'room') addRoomAt(snappedX, snappedY);
         else if (selectedTool === 'pillar') {
-          const count = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar').length + 1;
-          addObjectAt('pillar', 'pillar', `C${count}`, snappedX, snappedY, { w: 1, h: 1, label: `C${count}` });
+          addObjectAt('pillar', 'pillar', 'Pillar', snappedX, snappedY, { w: 1, h: 1 });
         }
         else if (selectedTool === 'door-1') addObjectAt('opening', 'door-1', 'Door 1', snappedX, snappedY);
         else if (selectedTool === 'door-2') addObjectAt('opening', 'door-2', 'Door 2', snappedX, snappedY);
@@ -1175,19 +1242,19 @@ export default function EstimatorClient() {
         else if (selectedTool === 'room-label-mandir') addObjectAt('text', 'room-label-mandir', 'Mandir', snappedX, snappedY);
         else if (selectedTool === 'room-label-stair') addObjectAt('text', 'room-label-stair', 'Stair Room', snappedX, snappedY);
         else if (selectedTool === 'label') addObjectAt('text', 'label', 'Label', snappedX, snappedY, { textContent: 'Room Name', w: 4, h: 1 });
-        // Furniture tools
+        
         else if (selectedTool === 'furniture-bed') addObjectAt('furniture', 'furniture-bed', 'Bed', snappedX, snappedY);
         else if (selectedTool === 'furniture-sofa') addObjectAt('furniture', 'furniture-sofa', 'Sofa', snappedX, snappedY);
         else if (selectedTool === 'furniture-dining') addObjectAt('furniture', 'furniture-dining', 'Dining Table', snappedX, snappedY);
         else if (selectedTool === 'furniture-kitchen') addObjectAt('furniture', 'furniture-kitchen', 'Kitchen Set', snappedX, snappedY);
         else if (selectedTool === 'furniture-bath') addObjectAt('furniture', 'furniture-bath', 'Commode', snappedX, snappedY);
-        // MEP tools
+        
         else if (selectedTool === 'mep-light') addObjectAt('mep', 'mep-light', 'Light', snappedX, snappedY);
         else if (selectedTool === 'mep-fan') addObjectAt('mep', 'mep-fan', 'Fan', snappedX, snappedY);
         else if (selectedTool === 'mep-socket') addObjectAt('mep', 'mep-socket', 'Power Socket', snappedX, snappedY);
         else if (selectedTool === 'mep-pipe') addObjectAt('mep', 'mep-pipe', 'Water Pipe', snappedX, snappedY);
         else if (selectedTool === 'mep-septic') addObjectAt('mep', 'mep-septic', 'Septic Tank', snappedX, snappedY);
-        // Landscape tools
+        
         else if (selectedTool === 'landscape-tree') addObjectAt('landscape', 'landscape-tree', 'Tree', snappedX, snappedY);
         else if (selectedTool === 'landscape-garden') addObjectAt('landscape', 'landscape-garden', 'Lawn Garden', snappedX, snappedY);
         else if (selectedTool === 'landscape-car') addObjectAt('landscape', 'landscape-car', 'Parking Spot', snappedX, snappedY);
@@ -1301,10 +1368,10 @@ export default function EstimatorClient() {
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len > 0.5) {
           if (selectedTool === 'beam') {
-            const count = designObjects.filter(o => o.subType === 'beam').length + 1;
-            addObjectAt('structure', 'beam', `B${count}`, drawStart.x, drawStart.y, { 
+            addObjectAt('structure', 'beam', 'Beam', drawStart.x, drawStart.y, { 
               w: Math.round(len * 10) / 10, 
-              h: 0.833, 
+              h: currentBeamWidth, 
+              depth: currentBeamDepth,
               rotation: Math.round(Math.atan2(dy, dx) * (180 / Math.PI)),
               color: '#2563eb',
               fillColor: '#3b82f622'
@@ -1313,10 +1380,10 @@ export default function EstimatorClient() {
             addObjectAt('structure', 'wall', 'Wall', drawStart.x, drawStart.y, { w: len, h: currentWallThickness, rotation: Math.atan2(dy, dx) * (180 / Math.PI) });
           }
         } else if (selectedTool === 'beam') {
-          const count = designObjects.filter(o => o.subType === 'beam').length + 1;
-          addObjectAt('structure', 'beam', `B${count}`, drawStart.x, drawStart.y, { 
+          addObjectAt('structure', 'beam', 'Beam', drawStart.x, drawStart.y, { 
             w: 10, 
-            h: 0.833, 
+            h: currentBeamWidth, 
+            depth: currentBeamDepth,
             rotation: 0,
             color: '#2563eb',
             fillColor: '#3b82f622'
@@ -1336,7 +1403,6 @@ export default function EstimatorClient() {
     setActiveSnapGuides(null);
   };
 
-  // Persistence: Auto-load last saved project on mount/refresh
   useEffect(() => {
     let isMounted = true;
     const autoLoadLastProject = async () => {
@@ -1346,7 +1412,6 @@ export default function EstimatorClient() {
           const ok = await loadDesign(lastSavedId);
           if (ok) return;
         }
-        // If not found in localStorage or failed to load, automatically load the most recent saved project from database
         const designs = await fetchSavedDesigns();
         if (isMounted && designs && designs.length > 0) {
           await loadDesign(designs[0].id);
@@ -1477,8 +1542,7 @@ export default function EstimatorClient() {
       );
     }
     if (obj.subType === 'beam') {
-      const bIndex = designObjects.filter(o => o.subType === 'beam').findIndex(o => o.id === obj.id);
-      const beamLabel = obj.label && obj.label !== 'Beam' && obj.label !== 'BEAM' ? obj.label : `B${bIndex >= 0 ? bIndex + 1 : 1}`;
+      const beamLabel = obj.label || 'BEAM';
       return (
         <div className="w-full h-full flex items-center justify-center relative pointer-events-none select-none overflow-hidden">
           <div className="absolute inset-0 border border-dashed border-blue-500 bg-blue-500/15" />
@@ -1489,8 +1553,7 @@ export default function EstimatorClient() {
       );
     }
     if (obj.subType === 'pillar' || obj.type === 'pillar') {
-      const pIndex = designObjects.filter(o => o.subType === 'pillar' || o.type === 'pillar').findIndex(o => o.id === obj.id);
-      const pillarLabel = obj.label && obj.label !== 'Pillar' ? obj.label : `C${pIndex >= 0 ? pIndex + 1 : 1}`;
+      const pillarLabel = obj.label || 'C';
       return (
         <div className="w-full h-full flex items-center justify-center pointer-events-none select-none overflow-hidden">
           <span className="text-[10px] font-black text-white px-1 py-0.5 whitespace-nowrap leading-none drop-shadow-sm">
@@ -1546,7 +1609,7 @@ export default function EstimatorClient() {
       const flightW = (obj.w - railW) / 2; const midH = obj.h - landingH; const sCount = Math.floor(steps / 2); const oStepH = midH / sCount;
       return (
         <svg width="100%" height="100%" viewBox={`0 0 ${obj.w} ${obj.h}`} preserveAspectRatio="none" className="overflow-visible pointer-events-none">
-          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" stroke={obj.color} strokeWidth={sw * 2} />
+          <rect x="0" y="0" width={obj.w} height={obj.h} fill="white" strokeWidth={sw * 2} />
           <line x1="0" y1={landingH} x2={obj.w} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} /><line x1={flightW} y1={landingH} x2={flightW} y2={obj.h} stroke={obj.color} strokeWidth={sw * 2} /><line x1={obj.w - flightW} y1={landingH} x2={obj.w - flightW} y2={landingH} stroke={obj.color} strokeWidth={sw * 2} />
           {Array.from({ length: sCount }).map((_, i) => <line key={`dl-l-${i}`} x1="0" y1={landingH + (i+1) * oStepH} x2={flightW} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />)}
           {Array.from({ length: sCount }).map((_, i) => <line key={`dl-r-${i}`} x1={obj.w - flightW} y1={landingH + (i+1) * oStepH} x2={obj.w} y2={landingH + (i+1) * oStepH} stroke={obj.color} strokeWidth={sw} />)}
@@ -1845,7 +1908,7 @@ export default function EstimatorClient() {
                   </div>
                 ))}
                 {interactionMode === 'drawing' && drawStart && tempDrawEnd && (
-                  <div className={cn("absolute border-2 border-dashed", selectedTool === 'beam' ? "bg-blue-500/25 border-blue-600" : "bg-blue-500/20 border-blue-500")} style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: (selectedTool === 'beam' ? 0.833 : currentWallThickness) * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
+                  <div className={cn("absolute border-2 border-dashed", selectedTool === 'beam' ? "bg-blue-500/25 border-blue-600" : "bg-blue-500/20 border-blue-500")} style={{ left: drawStart.x * displayZoom + CANVAS_OFFSET, top: drawStart.y * displayZoom + CANVAS_OFFSET, width: Math.sqrt(Math.pow(tempDrawEnd.x - drawStart.x, 2) + Math.pow(tempDrawEnd.y - drawStart.y, 2)) * displayZoom, height: (selectedTool === 'beam' ? currentBeamWidth : currentWallThickness) * displayZoom, transformOrigin: '0 0', transform: `rotate(${Math.atan2(tempDrawEnd.y - drawStart.y, tempDrawEnd.x - drawStart.x) * (180 / Math.PI)}deg)` }} />
                 )}
                 {interactionMode === 'drawing-poly' && polyPoints.length > 0 && (
                    <div className="absolute inset-0 pointer-events-none" style={{ left: CANVAS_OFFSET, top: CANVAS_OFFSET }}>
@@ -2042,8 +2105,17 @@ export default function EstimatorClient() {
       <BnbcStructuralAuditDialog open={isBnbcAuditOpen} onOpenChange={setIsBnbcAuditOpen} designObjects={designObjects} projectName={projectName} />
       <DailySiteManagementDialog open={isSiteLedgerOpen} onOpenChange={setIsSiteLedgerOpen} projectName={projectName} currentDesignId={currentDesignId} grandTotalEstimatedCost={pdfReportPayload?.grandTotalCost || 0} materialsLedger={materialsLedger} setMaterialsLedger={setMaterialsLedger} laborLedger={laborLedger} setLaborLedger={setLaborLedger} onIntegratedSave={saveToFirestore} />
       
-      {/* 5 Specialized Architectural & Engineering CAD Modules */}
-      <StructuralDetailingDialog open={isStructuralDetailingOpen} onOpenChange={setIsStructuralDetailingOpen} designObjects={designObjects} projectName={projectName} onSave={saveToFirestore} />
+      <StructuralDetailingDialog 
+        open={isStructuralDetailingOpen} 
+        onOpenChange={setIsStructuralDetailingOpen} 
+        designObjects={designObjects} 
+        projectName={projectName} 
+        onSave={saveToFirestore}
+        externalStoreys={detailingStoreys}
+        setExternalStoreys={setDetailingStoreys}
+        externalOverrides={detailingOverrides}
+        setExternalOverrides={setDetailingOverrides}
+      />
       <SectionGeneratorDialog open={isSectionCutOpen} onOpenChange={setIsSectionCutOpen} designObjects={designObjects} projectName={projectName} />
       <SitePlanSetbackDialog open={isSitePlanSetbackOpen} onOpenChange={setIsSitePlanSetbackOpen} designObjects={designObjects} projectName={projectName} />
       <MepStudioDialog open={isMepStudioOpen} onOpenChange={setIsMepStudioOpen} designObjects={designObjects} projectName={projectName} />
@@ -2088,7 +2160,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
     const gid = () => Math.random().toString(36).substr(2, 9);
     const p = _getAutoParams(s, sqrtA);
 
-    // --- Read real pillars from canvas ---
     const canvasPillars = designObjects.filter(o => o.subType === 'pillar');
     const pillarGroups = new Map<string, any[]>();
     canvasPillars.forEach(pl => {
@@ -2102,7 +2173,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
     const xSpans = pillarXs.length > 1 ? pillarXs.slice(1).map((x, i) => Math.round((x - pillarXs[i]) * 10) / 10) : [];
     const ySpans = pillarYs.length > 1 ? pillarYs.slice(1).map((y, i) => Math.round((y - pillarYs[i]) * 10) / 10) : [];
 
-    // FOUNDATION
     if (canvasPillars.length > 0) {
       const footItems = Array.from(pillarGroups.entries()).map(([key, pls]) => {
         const [wIn, hIn] = key.split('x').map(Number);
@@ -2116,7 +2186,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setFoundations([{ id: gid(), count: p.numCols, len: p.ftSz, wid: p.ftSz, thick: p.ftTk, rodLong: Math.max(5, p.nbX + 2), rodWidth: Math.max(5, p.nbY + 2), rodFactor: 0.48, aggregateType: 'stone' }]);
     }
 
-    // COLUMN — separate item per unique pillar size group
     if (canvasPillars.length > 0) {
       const colItems = Array.from(pillarGroups.entries()).map(([key, pls]) => {
         const [wIn, hIn] = key.split('x').map(Number);
@@ -2128,7 +2197,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setColumns([{ id: gid(), count: p.numCols, len: p.colSz, wid: p.colSz, height: s * flH, rods: p.mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
     }
 
-    // BEAM — separate items per unique span direction
     const bmH = p.bmH; const bmW = p.bmW; const mRods = p.mRods;
     if (xSpans.length > 0 || ySpans.length > 0) {
       const beamItems: any[] = [];
@@ -2147,7 +2215,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setBeams([{ id: gid(), len: p.totalBmLen, height: bmH, wid: bmW, rods: mRods, rodFactor: 0.48, ringRodFactor: 0.12, ringGap: 6, aggregateType: 'stone' }]);
     }
 
-    // SLAB — one per area-marker per floor
     const slabTk = p.slabTk;
     if (detectedAreaMarkers.length > 0) {
       const slabItems: any[] = [];
@@ -2161,11 +2228,9 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setSlabs(Array.from({ length: s }, () => ({ id: gid(), len: p.slabSide, wid: p.slabSide, thick: slabTk, rodGap: 6, rodFactor: 0.30, aggregateType: 'stone' })));
     }
 
-    // STAIR — one stair block with s-1 flights (one per floor connection)
     const stairWid = 3.5; const stepsPerFlight = Math.round(flH * 12 / 7);
     setStairs([{ id: gid(), count: Math.max(1, s - 1), wLen: Math.round(stepsPerFlight * 10 / 12 * 10) / 10, wid: stairWid, thick: 5, steps: stepsPerFlight, riser: 7, tread: 10, lLen: stairWid + 0.5, lWid: stairWid, mainFactor: 0.30, distFactor: 0.19, mainGap: 5, distGap: 6, aggregateType: 'stone' }]);
 
-    // BRICKWORK — per area-marker per floor
     if (detectedAreaMarkers.length > 0) {
       const bwItems: any[] = [];
       detectedAreaMarkers.forEach(m => {
@@ -2177,7 +2242,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setBrickworks(Array.from({ length: s }, () => ({ id: gid(), len: perim, height: wlH, thick: 5 })));
     }
 
-    // PLASTER — per area-marker per floor (2 sides)
     if (detectedAreaMarkers.length > 0) {
       const plItems: any[] = [];
       detectedAreaMarkers.forEach(m => {
@@ -2189,7 +2253,6 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setPlasters(Array.from({ length: s }, () => ({ id: gid(), len: perim, height: wlH, thick: 0.5, sides: 2 })));
     }
 
-    // FLOOR TILES — per area-marker per floor
     if (totalDetectedArea > 0) {
       const ftItems: any[] = [];
       detectedAreaMarkers.forEach(m => {
@@ -2200,16 +2263,13 @@ function EstimationView({ designObjects, onBack, onSave, foundations, setFoundat
       setFloorTiles(ftItems);
     }
 
-    // WALL TILES — bathroom estimate (~10% of floor area) per floor
     const bathArea = Math.max(25, Math.round(totalDetectedArea * 0.1));
     const bathSide = Math.round(Math.sqrt(bathArea) * 10) / 10;
     setWallTiles(Array.from({ length: s }, () => ({ id: gid(), len: 2 * (bathSide + bathSide), height: Math.min(7, wlH), tLen: 12, tWid: 12, wastage: 15 })));
 
-    // SEPTIC TANK — 1 per building
     const sepLen = Math.max(3, Math.round(s * 0.8 + 2)); const sepWid = Math.max(2, Math.round(s * 0.5 + 1.5));
     setSepticTanks([{ id: gid(), count: 1, len: sepLen, wid: sepWid, depth: 5, aggregateType: 'stone' }]);
 
-    // SOAK WELL — 1 per building
     setSoakWells([{ id: gid(), count: 1, dia: 3, depth: Math.max(8, s * 2) }]);
 
     setTabStoreys({ foundation: 1, column: s, beam: s, slab: s, brickwork: s, plaster: s, stair: Math.max(1, s - 1), floorTiles: s, wallTiles: s });
@@ -2625,4 +2685,3 @@ function SymbolButton({ icon, label, onClick, active, color }: { icon: React.Rea
 function PropField({ label, value, onChange, onBlur, disabled }: { label: string, value: string, onChange: (v: string) => void, onBlur: () => void, disabled?: boolean }) {
   return (<div className="flex flex-col gap-0.5"><span className="text-[8px] font-black text-slate-400 uppercase tracking-tight min-w-[20px]">{label}</span><Input className="h-8 w-12 md:w-16 text-[11px] font-black text-center border-slate-700 bg-slate-800 text-white shadow-sm px-1 py-0 flex items-center justify-center leading-none" value={value} onChange={e => onChange(e.target.value)} disabled={disabled} onBlur={onBlur} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div>);
 }
-
