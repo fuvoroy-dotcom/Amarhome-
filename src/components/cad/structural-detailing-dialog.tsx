@@ -76,12 +76,11 @@ export function StructuralDetailingDialog({
     return Object.values(groups);
   }, [mappedPillars]);
 
-  // Structural Safety Logic - Updated to be dynamic based on size
+  // Structural Safety Logic
   const getReinforcementInfo = (storeys: number, wIn: number = 10, hIn: number = 10) => {
     let rodCount = 4;
     const maxSide = Math.max(wIn, hIn);
     
-    // Dynamic Rod Count calculation: higher storeys or larger sizes demand more rebars
     if (storeys <= 2) {
       rodCount = maxSide > 12 ? 6 : 4;
     } else if (storeys <= 4) {
@@ -91,7 +90,7 @@ export function StructuralDetailingDialog({
       rodCount = maxSide > 12 ? 12 : 10;
     }
 
-    rodCount = Math.min(rodCount, 12); // Clamped to 12 for SVG diagram constraints
+    rodCount = Math.min(rodCount, 12);
 
     if (storeys <= 2) return { rod: "16mm (5 Suta)", gap: "6\" c/c", thick: 15, hook: 3, rodCount };
     if (storeys <= 3) return { rod: "16mm (5 Suta)", gap: "5\" c/c", thick: 18, hook: 4, rodCount };
@@ -201,7 +200,6 @@ export function StructuralDetailingDialog({
               </div>
             </div>
 
-            {/* Safety Box Restored */}
             <div className="p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/20 space-y-2 text-slate-300">
               <p className="font-bold text-emerald-400 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> উচ্চ নিরাপত্তায় রড ডিজাইন</p>
               <div className="flex justify-between py-1 border-b border-white/5">
@@ -311,10 +309,10 @@ export function StructuralDetailingDialog({
                       const cW = group.wIn;
                       const cH = group.hIn;
                       const rCount = groupRebar.rodCount;
-                      const masterRW = cW - 3; // Clear cover 1.5" * 2
+                      const masterRW = cW - 3;
                       const masterRH = cH - 3;
                       const canvasW = 700;
-                      const canvasH = 580;
+                      const canvasH = 620;
                       
                       const ringSpacing = detailingStoreys > 4 ? "4\"/8\"" : "5\"/10\"";
                       const totalRings = Math.ceil((10 * 12) / 6); 
@@ -333,7 +331,6 @@ export function StructuralDetailingDialog({
                               
                               <rect x="15" y="15" width="250" height="170" fill="none" stroke="#f59e0b" strokeWidth="2" rx="4" />
                               
-                              {/* Integrated Inner Ties Drawing to show "Where and How" they stay */}
                               {rCount === 6 && (
                                 <line x1="140" y1="15" x2="140" y2="185" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2" />
                               )}
@@ -363,7 +360,6 @@ export function StructuralDetailingDialog({
 
                               {rCount > 4 && (
                                 <g transform="translate(0, 240)">
-                                  {/* Added ghost rebars to show ring placement logic */}
                                   <g fill="#475569" opacity="0.3">
                                     <circle cx="30" cy="20" r="5" /><circle cx="250" cy="20" r="5" />
                                     <circle cx="30" cy="140" r="5" /><circle cx="250" cy="140" r="5" />
@@ -377,26 +373,33 @@ export function StructuralDetailingDialog({
                                       <path d="M 140 20 L 130 10 M 140 20 L 150 30" fill="none" stroke="#fbbf24" strokeWidth="3" />
                                       <path d="M 140 140 L 130 150 M 140 140 L 150 130" fill="none" stroke="#fbbf24" strokeWidth="3" />
                                       <text x="140" y="170" fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="bold">LINK TIE (লিঙ্ক রিং)</text>
+                                      <text x="140" y="185" fill="#fbbf24" fontSize="10" textAnchor="middle" fontWeight="bold">মাপ: {masterRH}" ইঞ্চি (সোজা)</text>
                                     </g>
                                   ) : (
                                     <g>
                                       <path d="M 140 20 L 250 80 L 140 140 L 30 80 Z" fill="none" stroke="#fbbf24" strokeWidth="3" />
-                                      {/* Visual Hook for Diamond Tie */}
                                       <path d="M 140 20 L 125 5 M 140 20 L 155 35" fill="none" stroke="#fbbf24" strokeWidth="3" />
                                       <text x="140" y="170" fill="#fbbf24" fontSize="11" textAnchor="middle" fontWeight="bold">DIAMOND TIE (ডায়মন্ড রিং)</text>
+                                      <text x="140" y="185" fill="#fbbf24" fontSize="10" textAnchor="middle" fontWeight="bold">মাপ: {masterRW}" x {masterRH}" ইঞ্চি</text>
+                                      <text x="140" y="200" fill="#94a3b8" fontSize="9" textAnchor="middle">হুক: {groupRebar.hook}" ইঞ্চি (১৩৫° বেন্ডিং)</text>
                                     </g>
                                   )}
                                 </g>
                               )}
                             </g>
 
-                            <g transform="translate(50, 480)">
-                              <rect x="0" y="0" width="600" height="80" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
-                              <text x="300" y="30" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং সামারি: {detailingStoreys} তলা ভবন | কলাম টাইপ: C{idx+1} ({rCount} টি রড)</text>
-                              <text x="300" y="55" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                রিং স্পেসিং: {ringSpacing} c/c | রিং সাইজ: {masterRW}"x{masterRH}" | মাস্তান (Binding Wire): ০.৮৫ কেজি/টন
+                            <g transform="translate(50, 520)">
+                              <rect x="0" y="0" width="600" height="90" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
+                              <text x="300" y="25" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং সামারি: {detailingStoreys} তলা ভবন | কলাম টাইপ: C{idx+1} ({rCount} টি রড)</text>
+                              <text x="300" y="48" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">
+                                রিং স্পেসিং: {ringSpacing} c/c | রিং সাইজ: {masterRW}"x{masterRH}" | মাস্তান: ০.৮৫ কেজি/টন
                               </text>
-                              <text x="300" y="72" fill="#64748b" fontSize="10" textAnchor="middle">প্রতি ১০ ফুট উচ্চতায় আনুমানিক {totalRings}টি রিং প্রয়োজন হবে।</text>
+                              {rCount > 4 && (
+                                <text x="300" y="62" fill="#fbbf24" fontSize="10" textAnchor="middle" fontWeight="bold">
+                                  ইনার রিং নির্দেশ: {rCount === 6 ? `লিঙ্ক টাই (${masterRH}")` : `ডায়মন্ড টাই (${masterRW}" x ${masterRH}")`} রড অনুযায়ী নিখুঁতভাবে বসান।
+                                </text>
+                              )}
+                              <text x="300" y="78" fill="#64748b" fontSize="9" textAnchor="middle">প্রতি ১০ ফুট উচ্চতায় আনুমানিক {totalRings}টি রিং সেট (মাস্টার+ইনার) প্রয়োজন হবে।</text>
                             </g>
                           </svg>
 
