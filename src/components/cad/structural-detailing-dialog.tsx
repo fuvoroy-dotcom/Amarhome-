@@ -312,7 +312,7 @@ export function StructuralDetailingDialog({
                       const masterRW = cW - 3;
                       const masterRH = cH - 3;
                       const canvasW = 700;
-                      const canvasH = 620;
+                      const canvasH = 750;
                       
                       const ringSpacing = detailingStoreys > 4 ? "4\"/8\"" : "5\"/10\"";
                       const totalRings = Math.ceil((10 * 12) / 6); 
@@ -388,7 +388,7 @@ export function StructuralDetailingDialog({
                               )}
                             </g>
 
-                            <g transform="translate(50, 520)">
+                            <g transform="translate(50, 640)">
                               <rect x="0" y="0" width="600" height="90" rx="12" fill="#111827" stroke="#10b981" strokeWidth="2" />
                               <text x="300" y="25" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং সামারি: {detailingStoreys} তলা ভবন | কলাম টাইপ: C{idx+1} ({rCount} টি রড)</text>
                               <text x="300" y="48" fill="#94a3b8" fontSize="11" textAnchor="middle" fontWeight="bold">
