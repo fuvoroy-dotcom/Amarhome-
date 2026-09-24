@@ -28,6 +28,10 @@ interface StructuralDetailingProps {
   designObjects: any[];
   projectName?: string;
   onSave?: () => void;
+  externalStoreys?: number;
+  setExternalStoreys?: (v: number) => void;
+  externalOverrides?: Record<string, any>;
+  setExternalOverrides?: (v: any) => void;
 }
 
 export function StructuralDetailingDialog({
@@ -36,15 +40,38 @@ export function StructuralDetailingDialog({
   designObjects,
   projectName = 'AmarHome Project',
   onSave,
+  externalStoreys,
+  setExternalStoreys,
+  externalOverrides,
+  setExternalOverrides,
 }: StructuralDetailingProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('footing');
   const [scale, setScale] = useState(1);
-  const [detailingStoreys, setDetailingStoreys] = useState(3);
+  const [detailingStoreys, setDetailingStoreysState] = useState(externalStoreys || 3);
+  const setDetailingStoreys = (val: number) => {
+    setDetailingStoreysState(val);
+    if (setExternalStoreys) setExternalStoreys(val);
+  };
   
   // State for manual overrides
-  const [itemOverrides, setItemOverrides] = useState<Record<string, any>>({});
+  const [itemOverrides, setItemOverridesState] = useState<Record<string, any>>(externalOverrides || {});
+  const setItemOverrides = (val: React.SetStateAction<Record<string, any>>) => {
+    setItemOverridesState(prev => {
+      const next = typeof val === 'function' ? (val as (prevState: Record<string, any>) => Record<string, any>)(prev) : val;
+      if (setExternalOverrides) setExternalOverrides(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (externalStoreys !== undefined) setDetailingStoreysState(externalStoreys);
+  }, [externalStoreys]);
+
+  useEffect(() => {
+    if (externalOverrides !== undefined) setItemOverridesState(externalOverrides);
+  }, [externalOverrides]);
   const [editingItem, setEditingItem] = useState<{ id: string; type: string; data: any } | null>(null);
 
   useEffect(() => {
@@ -234,6 +261,123 @@ export function StructuralDetailingDialog({
     return spans;
   }, [mappedPillars, designObjects]);
 
+  // Group Beams by unique label (B1, B2, B3...) and calculate connected columns
+  const uniqueBeamGroups = useMemo(() => {
+    const canvasBeams = designObjects.filter(o => o.subType === 'beam');
+    
+    const isPillarOnBeam = (p: any, b: any) => {
+      const bLeft = b.x;
+      const bRight = b.x + (b.w || 10);
+      const bTop = b.y;
+      const bBottom = b.y + (b.h || 0.833);
+      return (
+        p.x <= bRight + 1.5 &&
+        p.x + (p.w || 1) >= bLeft - 1.5 &&
+        p.y <= bBottom + 1.5 &&
+        p.y + (p.h || 1) >= bTop - 1.5
+      );
+    };
+
+    if (canvasBeams.length > 0) {
+      const groupsMap: Record<string, {
+        label: string;
+        beamCount: number;
+        pillarCount: number;
+        avgLength: number;
+        widthInches: number;
+        depth: number;
+        orientation: 'H' | 'V';
+        beams: typeof canvasBeams;
+      }> = {};
+
+      canvasBeams.forEach((b, idx) => {
+        const rawLabel = (b.label || '').trim();
+        const label = rawLabel && rawLabel !== 'Beam' && rawLabel !== 'BEAM' ? rawLabel : `B${idx + 1}`;
+        if (!groupsMap[label]) {
+          groupsMap[label] = {
+            label,
+            beamCount: 0,
+            pillarCount: 0,
+            avgLength: 0,
+            widthInches: b.h > 0 ? Math.round(b.h * 12) : 10,
+            depth: (b as any).depth || 12,
+            orientation: (Math.abs(b.rotation || 0) % 180 >= 45 && Math.abs(b.rotation || 0) % 180 <= 135) ? 'V' : 'H',
+            beams: []
+          };
+        }
+        groupsMap[label].beamCount++;
+        groupsMap[label].beams.push(b);
+      });
+
+      Object.values(groupsMap).forEach(group => {
+        const connectedPillarIds = new Set<string>();
+        let totalLen = 0;
+
+        group.beams.forEach(b => {
+          totalLen += b.w > 0 ? b.w : 10;
+          mappedPillars.forEach(p => {
+            if (isPillarOnBeam(p, b)) {
+              connectedPillarIds.add(p.id);
+            }
+          });
+        });
+
+        group.avgLength = Math.round((totalLen / group.beamCount) * 10) / 10;
+        group.pillarCount = connectedPillarIds.size > 0 ? connectedPillarIds.size : Math.max(2, group.beamCount * 2);
+      });
+
+      return Object.values(groupsMap);
+    }
+
+    // Fallback: If no canvas beams, group from beamSpans
+    if (beamSpans.length > 0) {
+      const groupsMap: Record<string, {
+        label: string;
+        beamCount: number;
+        pillarCount: number;
+        avgLength: number;
+        widthInches: number;
+        depth: number;
+        orientation: 'H' | 'V';
+        beams: any[];
+      }> = {};
+
+      beamSpans.forEach((span, idx) => {
+        const label = (span as any).label || `B${idx + 1}`;
+        if (!groupsMap[label]) {
+          groupsMap[label] = {
+            label,
+            beamCount: 0,
+            pillarCount: 0,
+            avgLength: 0,
+            widthInches: (span as any).width || 10,
+            depth: (span as any).depth || 12,
+            orientation: span.orientation,
+            beams: []
+          };
+        }
+        groupsMap[label].beamCount++;
+        groupsMap[label].beams.push(span);
+      });
+
+      Object.values(groupsMap).forEach(group => {
+        const connectedPillars = new Set<string>();
+        let totalLen = 0;
+        group.beams.forEach(s => {
+          totalLen += s.length;
+          if (s.p1) connectedPillars.add(s.p1.id);
+          if (s.p2) connectedPillars.add(s.p2.id);
+        });
+        group.avgLength = Math.round((totalLen / group.beamCount) * 10) / 10;
+        group.pillarCount = connectedPillars.size > 0 ? connectedPillars.size : group.beamCount + 1;
+      });
+
+      return Object.values(groupsMap);
+    }
+
+    return [];
+  }, [designObjects, mappedPillars, beamSpans]);
+
   const slabAreas = useMemo(() => {
     return designObjects.filter(o => o.subType === 'area-marker');
   }, [designObjects]);
@@ -279,9 +423,9 @@ export function StructuralDetailingDialog({
       const info = getReinforcementInfo(detailingStoreys, group.wIn, group.hIn, `column-${group.id}`);
       return { title: 'কলাম রড ও রিং', rebar: `${info.rodCount} টি ${info.rod}`, extra: `রিং: ${info.ringRod || '8mm'} @ ${info.gap || '5" c/c'}` };
     }
-    if (activeTab === 'beam' && beamSpans.length > 0) {
-      const span = beamSpans[0];
-      const info = getReinforcementInfo(detailingStoreys, 10, 10, `beam-${span.id}`);
+    if (activeTab === 'beam' && (uniqueBeamGroups.length > 0 || beamSpans.length > 0)) {
+      const bKey = uniqueBeamGroups.length > 0 ? uniqueBeamGroups[0].label : (beamSpans[0]?.id || '1');
+      const info = getReinforcementInfo(detailingStoreys, 10, 10, `beam-${bKey}`);
       const bot = info.botRodCount || (info.rodCount > 6 ? 4 : 3);
       const top = info.topRodCount || (info.rodCount > 6 ? 3 : 2);
       return { title: 'বিম মেইন রড', rebar: `${bot + top} টি ${info.rod}`, extra: 'L/3 এক্সট্রা টপ' };
@@ -867,102 +1011,308 @@ export function StructuralDetailingDialog({
                 )}
 
                 {activeTab === 'beam' && (
-                   <div className="flex flex-col gap-32 items-center">
-                      {beamSpans.length > 0 ? beamSpans.map((span, idx) => {
+                   <div className="flex flex-col gap-24 items-center">
+                      {uniqueBeamGroups.length > 0 ? uniqueBeamGroups.map((group, idx) => {
                         const s = detailingStoreys;
-                        const defaultInfo = getReinforcementInfo(s, 10, 10, `beam-${span.id}`);
+                        const defaultInfo = getReinforcementInfo(s, 10, 10, `beam-${group.label}`);
                         const botRodCount = defaultInfo.botRodCount || (defaultInfo.rodCount > 6 ? 4 : 3);
                         const topRodCount = defaultInfo.topRodCount || (defaultInfo.rodCount > 6 ? 3 : 2);
+                        const extraTopRodCount = (defaultInfo as any).extraTopCount || 2;
                         const mainRodCount = botRodCount + topRodCount;
-                        const etLength = Math.round((span.length / 3) * 10) / 10;
-                        const beamDepth = (span as any).depth || defaultInfo.thick || (s <= 3 ? 12 : 15);
-                        const beamWidthInches = (span as any).width || 10;
-                        const beamLabel = (span as any).label || `B${idx+1}`;
+                        const etLength = Math.round((group.avgLength / 3) * 10) / 10;
+                        const beamDepth = group.depth || defaultInfo.thick || (s <= 3 ? 12 : 15);
+                        const beamWidthInches = group.widthInches || 10;
+                        const ringWidth = Math.max(6, beamWidthInches - 3);
+                        const ringDepth = Math.max(6, beamDepth - 3);
+                        const hookLength = 3;
                         const canvasW = 850;
-                        const canvasH = 600;
+                        const canvasH = 580;
 
                         return (
-                          <div key={span.id} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white">
-                            <div className="flex items-center justify-between w-full bg-slate-950/80 px-8 py-3 rounded-full border border-slate-800">
+                          <div key={group.label} className="flex flex-col items-center gap-10 bg-slate-900/30 p-10 rounded-[2.5rem] border border-white/5 page-break-inside-avoid print:bg-white w-full max-w-5xl">
+                            {/* Header Information Banner */}
+                            <div className="flex flex-col md:flex-row items-center justify-between w-full bg-slate-950/80 px-8 py-4 rounded-2xl border border-slate-800 gap-4">
                                <div className="flex items-center gap-4">
-                                 <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black text-lg">B{idx+1}</div>
-                                 <span className="text-slate-200 font-bold text-base uppercase tracking-widest print:text-slate-900">
-                                    বিম ডিটেইলিং — {span.orientation === 'H' ? 'অনুভূমিক' : 'উলম্ব'} স্প্যান ({span.length.toFixed(1)} ফুট)
-                                 </span>
+                                 <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-lg border border-indigo-400/30">
+                                   {group.label}
+                                 </div>
+                                 <div className="flex flex-col">
+                                   <div className="flex items-center gap-2">
+                                     <span className="text-white font-black text-lg tracking-wide print:text-slate-900">
+                                       বিম টাইপ: {group.label}
+                                     </span>
+                                     <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">
+                                       {group.orientation === 'H' ? 'অনুভূমিক' : 'উলম্ব'}
+                                     </span>
+                                   </div>
+                                   <div className="flex items-center gap-3 text-xs text-slate-400 font-medium mt-1 whitespace-nowrap overflow-x-auto">
+                                     <span className="text-emerald-400 font-bold whitespace-nowrap">মোট বিম সংখ্যা: {group.beamCount} টি</span>
+                                     <span className="text-slate-600">•</span>
+                                     <span className="text-cyan-400 font-bold whitespace-nowrap">সংযুক্ত কলাম: {group.pillarCount} টি</span>
+                                     <span className="text-slate-600">•</span>
+                                     <span className="whitespace-nowrap">সাইজ: {beamWidthInches}" × {beamDepth}"</span>
+                                     <span className="text-slate-600">•</span>
+                                     <span className="whitespace-nowrap">গড় ক্লিয়ার স্প্যান: {group.avgLength.toFixed(1)}' ফুট</span>
+                                   </div>
+                                 </div>
                                </div>
-                               <Button variant="ghost" size="sm" onClick={() => openEditModal(`beam-${span.id}`, 'beam', defaultInfo)} className="no-print h-8 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10">
-                                  <PencilLine className="w-4 h-4" /> এডিট
+                               <Button variant="ghost" size="sm" onClick={() => openEditModal(`beam-${group.label}`, 'beam', defaultInfo)} className="no-print h-9 px-4 gap-1.5 text-blue-400 font-bold hover:bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                                  <PencilLine className="w-4 h-4" /> রড সাইজ এডিট
                                </Button>
                             </div>
 
-                            <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible">
-                               <g transform="translate(60, 150)">
-                                  <text x="250" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM ELEVATION (বিম এলিভেশন ২ডি ভিউ)</text>
-                                  <rect x="0" y="0" width="500" height="80" fill="#0f172a" stroke="#64748b" strokeWidth="2.5" />
-                                  <rect x="-20" y="-40" width="30" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
-                                  <rect x="490" y="-40" width="30" height="180" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
-                                  <path d="M 5 65 L 495 65" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
-                                  <path d="M 5 65 L 5 45 M 495 65 L 495 45" fill="none" stroke="#3b82f6" strokeWidth="4" />
-                                  <text x="250" y="95" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Bottom: {botRodCount} Nos ({defaultInfo.rod})</text>
-                                  <path d="M 5 15 L 495 15" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
-                                  <text x="250" y="-10" fill="#3b82f6" fontSize="12" textAnchor="middle" fontWeight="bold">Main Top: {topRodCount} Nos ({defaultInfo.rod})</text>
+                            {/* 1. Main Beam 2D Elevation & 2. Cross-Section with Ring 135° Hook */}
+                            <svg width={canvasW} height={canvasH} viewBox={`0 0 ${canvasW} ${canvasH}`} className="text-slate-200 overflow-visible max-w-full">
+                               {/* Beam Elevation Group */}
+                               <g transform="translate(50, 140)">
+                                  <text x="240" y="-45" fill="#38bdf8" fontSize="17.85" textAnchor="middle" fontWeight="black">
+                                     ১. {group.label} বিম এলিভেশন ২ডি ভিউ (রড সাজানোর অটো ২ডি)
+                                  </text>
+                                  
+                                  {/* Beam Outline */}
+                                  <rect x="0" y="0" width="480" height="85" fill="#0f172a" stroke="#64748b" strokeWidth="2.5" />
+                                  
+                                  {/* Left Pillar Support */}
+                                  <rect x="-24" y="-35" width="28" height="170" fill="#1e293b" fillOpacity="0.6" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
+                                  <text x="-10" y="150" fill="#94a3b8" fontSize="9.45" textAnchor="middle" fontWeight="bold">কলাম</text>
+
+                                  {/* Right Pillar Support */}
+                                  <rect x="476" y="-35" width="28" height="170" fill="#1e293b" fillOpacity="0.6" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
+                                  <text x="490" y="150" fill="#94a3b8" fontSize="9.45" textAnchor="middle" fontWeight="bold">কলাম</text>
+
+                                  {/* Main Bottom Rebar (Blue) */}
+                                  <path d="M 5 70 L 475 70" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
+                                  <path d="M 5 70 L 5 48 M 475 70 L 475 48" fill="none" stroke="#3b82f6" strokeWidth="4" />
+                                  <text x="240" y="100" fill="#3b82f6" fontSize="12.6" textAnchor="middle" fontWeight="bold">
+                                     Main Bottom: {botRodCount} Nos ({defaultInfo.rod})
+                                  </text>
+
+                                  {/* Main Top Rebar (Blue) */}
+                                  <path d="M 5 16 L 475 16" fill="none" stroke="#3b82f6" strokeWidth="3.5" strokeLinecap="round" />
+                                  <text x="240" y="-8" fill="#3b82f6" fontSize="12.6" textAnchor="middle" fontWeight="bold">
+                                     Main Top: {topRodCount} Nos ({defaultInfo.rod})
+                                  </text>
+
+                                  {/* Extra Top Rebars on Supports (Yellow / Amber) */}
                                   <g stroke="#facc15" strokeWidth="4" strokeLinecap="round">
-                                     <path d="M -10 15 L 150 15" strokeDasharray="6 3" />
-                                     <path d="M 350 15 L 510 15" strokeDasharray="6 3" />
+                                     <path d="M -15 16 L 145 16" strokeDasharray="6 3" />
+                                     <path d="M 335 16 L 495 16" strokeDasharray="6 3" />
                                   </g>
-                                  <text x="70" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
-                                  <text x="430" y="38" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
-                                  {[10, 30, 50, 80, 120, 180, 250, 320, 380, 420, 450, 470, 490].map(sx => (
-                                     <line key={sx} x1={sx} y1="5" x2={sx} y2="75" stroke="#94a3b8" strokeWidth="1" />
+                                  <text x="70" y="38" fill="#facc15" fontSize="11.55" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
+                                  <text x="410" y="38" fill="#facc15" fontSize="11.55" textAnchor="middle" fontWeight="black">এক্সট্রা টপ ({etLength}' ফুট)</text>
+
+                                  {/* Stirrups Lines */}
+                                  {[10, 28, 48, 72, 105, 155, 215, 265, 325, 375, 408, 432, 452, 470].map(sx => (
+                                     <line key={sx} x1={sx} y1="6" x2={sx} y2="79" stroke="#94a3b8" strokeWidth="1.2" />
                                   ))}
+
+                                  {/* Clear Span Dimension */}
                                   <g stroke="#10b981" strokeWidth="1.5">
-                                     <line x1="0" y1="120" x2="500" y2="120" />
-                                     <line x1="0" y1="110" x2="0" y2="130" /><line x1="500" y1="110" x2="500" y2="130" />
+                                     <line x1="0" y1="125" x2="480" y2="125" />
+                                     <line x1="0" y1="115" x2="0" y2="135" />
+                                     <line x1="480" y1="115" x2="480" y2="135" />
                                   </g>
-                                  <text x="250" y="140" fill="#10b981" fontSize="14" textAnchor="middle" fontWeight="black">ক্লিয়ার স্প্যান: {span.length.toFixed(1)}' ফুট</text>
+                                  <text x="240" y="145" fill="#10b981" fontSize="13.65" textAnchor="middle" fontWeight="black">
+                                     ক্লিয়ার স্প্যান: {group.avgLength.toFixed(1)}' ফুট
+                                  </text>
                                </g>
-                               <g transform="translate(620, 150)">
-                                  <text x="80" y="-50" fill="#38bdf8" fontSize="18" textAnchor="middle" fontWeight="black">BEAM CROSS-SECTION (রড বিন্যাস)</text>
-                                  <rect x="0" y="0" width="160" height="200" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
-                                  <rect x="15" y="15" width="130" height="170" fill="none" stroke="#f59e0b" strokeWidth="2.5" rx="5" />
-                                  <g fill="#3b82f6">
-                                     <circle cx="25" cy="25" r="8" />
-                                     <circle cx="135" cy="25" r="8" />
-                                     {topRodCount > 2 && <circle cx="80" cy="25" r="8" />}
+
+                               {/* Beam Cross-Section & 135° Hook Ring Group */}
+                               <g transform="translate(590, 140)">
+                                  <text x="85" y="-45" fill="#38bdf8" fontSize="17.85" textAnchor="middle" fontWeight="black">
+                                     ২. বিম সেকশন ও রিং ডিজাইন
+                                  </text>
+                                  
+                                  {/* Concrete Outline */}
+                                  <rect x="0" y="0" width="170" height="210" fill="#0f172a" stroke="#64748b" strokeWidth="3" rx="4" />
+                                  
+                                  {/* Stirrup Ring (Orange) with 135° Hook */}
+                                  <rect x="18" y="18" width="134" height="174" fill="none" stroke="#f59e0b" strokeWidth="3" rx="6" />
+                                  
+                                  {/* 135 degree seismic hooks in upper corner */}
+                                  <g stroke="#f59e0b" strokeWidth="3" strokeLinecap="round">
+                                     <path d="M 28 20 L 48 40" />
+                                     <path d="M 20 28 L 40 48" />
                                   </g>
+                                  
+                                  {/* Top Longitudinal Rebars (Blue) */}
                                   <g fill="#3b82f6">
-                                     <circle cx="25" cy="175" r="8" />
-                                     <circle cx="135" cy="175" r="8" />
-                                     <circle cx="80" cy="175" r="8" />
-                                     {botRodCount > 3 && (
+                                     <circle cx="30" cy="30" r="8" />
+                                     <circle cx="140" cy="30" r="8" />
+                                     {topRodCount > 2 && <circle cx="85" cy="30" r="8" />}
+                                     {topRodCount > 3 && (
                                        <>
-                                         <circle cx="52" cy="175" r="8" />
-                                         <circle cx="108" cy="175" r="8" />
+                                         <circle cx="58" cy="30" r="8" />
+                                         <circle cx="112" cy="30" r="8" />
                                        </>
                                      )}
                                   </g>
-                                  <text x="80" y="235" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">{beamWidthInches}" x {beamDepth}" BEAM</text>
-                                  <text x="80" y="255" fill="#3b82f6" fontSize="11" textAnchor="middle" fontWeight="black">মোট মেইন রড: {mainRodCount} Nos</text>
-                               </g>
-                               <g transform="translate(100, 450)">
-                                  <rect x="0" y="0" width="600" height="85" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
-                                  <text x="300" y="30" fill="#38bdf8" fontSize="15" textAnchor="middle" fontWeight="black">ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: {beamWidthInches}" x {beamDepth}"</text>
-                                  <text x="300" y="52" fill="#94a3b8" fontSize="12" textAnchor="middle" fontWeight="bold">
-                                     মেইন রড: {mainRodCount} টি ({defaultInfo.rod}) | রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c
+
+                                  {/* Bottom Longitudinal Rebars (Blue) */}
+                                  <g fill="#3b82f6">
+                                     <circle cx="30" cy="180" r="8" />
+                                     <circle cx="140" cy="180" r="8" />
+                                     <circle cx="85" cy="180" r="8" />
+                                     {botRodCount > 3 && (
+                                       <>
+                                         <circle cx="58" cy="180" r="8" />
+                                         <circle cx="112" cy="180" r="8" />
+                                       </>
+                                     )}
+                                  </g>
+
+                                  {/* Hook Callout Arrow & Badge */}
+                                  <g stroke="#facc15" strokeWidth="1.2">
+                                     <line x1="48" y1="40" x2="85" y2="70" />
+                                     <circle cx="48" cy="40" r="2.5" fill="#facc15" />
+                                  </g>
+                                  <g transform="translate(80, 60)">
+                                     <rect x="0" y="0" width="125" height="28" rx="6" fill="#1e293b" stroke="#facc15" strokeWidth="1" />
+                                     <text x="62" y="13" fill="#facc15" fontSize="8.93" textAnchor="middle" fontWeight="black">১৩৫° সিসমিক হুক</text>
+                                     <text x="62" y="23" fill="#94a3b8" fontSize="8.4" textAnchor="middle" fontWeight="bold">হুকের মাপ: {hookLength}" (75mm)</text>
+                                  </g>
+
+                                  {/* Section Labels */}
+                                  <text x="85" y="240" fill="#94a3b8" fontSize="13.65" textAnchor="middle" fontWeight="bold">
+                                     {beamWidthInches}" × {beamDepth}" বিম সাইজ
                                   </text>
-                                  <text x="300" y="72" fill="#facc15" fontSize="11" textAnchor="middle" fontWeight="bold">
-                                     নির্দেশ: সাপোর্টে কলাম ফেস থেকে {etLength} ফুট পর্যন্ত এক্সট্রা টপ রড প্রদান করুন।
+                                  <text x="85" y="258" fill="#3b82f6" fontSize="11.55" textAnchor="middle" fontWeight="black">
+                                     মেইন রড: {mainRodCount} Nos ({topRodCount}T + {botRodCount}B)
+                                  </text>
+                                  <text x="85" y="274" fill="#f59e0b" fontSize="11.03" textAnchor="middle" fontWeight="bold">
+                                     রিং সাইজ: {ringWidth}" × {ringDepth}" ({defaultInfo.ringRod || '8mm'})
+                                  </text>
+                               </g>
+
+                               {/* Engineering Summary Banner */}
+                               <g transform="translate(60, 465)">
+                                  <rect x="0" y="0" width="730" height="85" rx="15" fill="#111827" stroke="#3b82f6" strokeWidth="2" />
+                                  <text x="365" y="28" fill="#38bdf8" fontSize="14.7" textAnchor="middle" fontWeight="black">
+                                     ইঞ্জিনিয়ারিং রিপোর্ট: {detailingStoreys} তলা ভবন | বিম সাইজ: {beamWidthInches}" × {beamDepth}" | টাইপ: {group.label} ({group.beamCount} টি)
+                                  </text>
+                                  <text x="365" y="50" fill="#94a3b8" fontSize="12.08" textAnchor="middle" fontWeight="bold">
+                                     মেইন রড: {mainRodCount} টি ({defaultInfo.rod}) | রিং স্পেসিং: সাপোর্টে ৪" c/c এবং মাঝে ৭" c/c | রিং এ হুক: ১৩৫° কোণে ৩"
+                                  </text>
+                                  <text x="365" y="70" fill="#facc15" fontSize="11.55" textAnchor="middle" fontWeight="bold">
+                                     নির্দেশ: কলাম ফেস থেকে {etLength} ফুট পর্যন্ত এক্সট্রা টপ রড ({extraTopRodCount} টি) প্রদান করুন।
                                   </text>
                                </g>
                             </svg>
+
+                            {/* 3. DEDICATED EXTRA TOP 2D DETAIL (এক্সট্রা টপের জন্য আলাদা ২ডি ডিজাইন) */}
+                            <div className="w-full flex flex-col items-center gap-5 bg-slate-950/80 p-7 rounded-3xl border border-amber-500/30 print:bg-slate-50">
+                               <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full border-b border-amber-500/20 pb-3 gap-2">
+                                   <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                                      <div className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 font-black text-xs uppercase tracking-wider border border-amber-500/40 whitespace-nowrap shrink-0">
+                                         ৩. {group.label} এক্সট্রা টপ আলাদা ২ডি ডিজাইন
+                                      </div>
+                                      <span className="text-slate-200 font-bold text-sm print:text-slate-800 whitespace-nowrap">
+                                         পিলারে এক্সট্রা টপ কীভাবে থাকবে ও তার সম্পূর্ণ মাপ
+                                      </span>
+                                   </div>
+                                   <div className="text-amber-400 font-mono font-bold text-xs bg-amber-950/70 px-3.5 py-1.5 rounded-full border border-amber-500/40 whitespace-nowrap shrink-0">
+                                      টপ এক্সট্রা রড: {extraTopRodCount} টি ({defaultInfo.rod}) | বিস্তার: {etLength}' ফুট (L/3)
+                                   </div>
+                                </div>
+
+                               <svg width="760" height="260" viewBox="0 0 760 260" className="text-slate-200 overflow-visible max-w-full">
+                                  <g transform="translate(30, 35)">
+                                     {/* Pillar Body Elevation */}
+                                     <rect x="0" y="0" width="130" height="190" fill="#1e293b" stroke="#64748b" strokeWidth="2.5" />
+                                     <line x1="65" y1="-20" x2="65" y2="210" stroke="#475569" strokeWidth="1.2" strokeDasharray="6 3" />
+                                     <text x="65" y="205" fill="#94a3b8" fontSize="11.55" textAnchor="middle" fontWeight="bold">কলাম / পিলার অক্ষ (Pillar C/L)</text>
+                                     <line x1="130" y1="-10" x2="130" y2="200" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="4 2" />
+                                     <text x="130" y="-14" fill="#38bdf8" fontSize="10.5" textAnchor="middle" fontWeight="black">কলাম ফেস (Face)</text>
+
+                                     {/* Beam Body Extending Out to the Right */}
+                                     <rect x="130" y="45" width="560" height="95" fill="#0f172a" stroke="#64748b" strokeWidth="2.5" />
+                                     <text x="410" y="98" fill="#475569" fontSize="15.75" textAnchor="middle" fontWeight="black" opacity="0.4">
+                                        বিম বডি ({beamWidthInches}" × {beamDepth}")
+                                     </text>
+
+                                     {/* Main Top Rebar (Blue) */}
+                                     <path d="M 20 60 L 685 60" fill="none" stroke="#3b82f6" strokeWidth="3" />
+                                     <text x="690" y="63" fill="#3b82f6" fontSize="11.03" textAnchor="start" fontWeight="bold">মেইন টপ রড ({topRodCount} টি)</text>
+
+                                     {/* Main Bottom Rebar (Blue) with End Hook */}
+                                     <path d="M 25 105 L 25 125 L 685 125" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
+                                     <text x="690" y="128" fill="#3b82f6" fontSize="11.03" textAnchor="start" fontWeight="bold">মেইন বটম রড ({botRodCount} টি)</text>
+
+                                     {/* EXTRA TOP REBAR (Golden Yellow, Prominently Highlighted) */}
+                                     <path d="M 35 115 L 35 70 L 410 70" fill="none" stroke="#facc15" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
+                                     <circle cx="35" cy="115" r="4.5" fill="#facc15" />
+
+                                     {/* Dimension Line 1: Development Length (Ld) Hook inside Column */}
+                                     <g stroke="#facc15" strokeWidth="1.5">
+                                        <line x1="18" y1="70" x2="18" y2="115" />
+                                        <line x1="12" y1="70" x2="24" y2="70" />
+                                        <line x1="12" y1="115" x2="24" y2="115" />
+                                     </g>
+                                     <text x="10" y="96" fill="#facc15" fontSize="11.55" textAnchor="end" fontWeight="black">
+                                        Ld হুক: ১২"
+                                     </text>
+
+                                     {/* Dimension Line 2: Extension Length (L/3) into Beam Span */}
+                                     <g stroke="#facc15" strokeWidth="1.5">
+                                        <line x1="130" y1="28" x2="410" y2="28" />
+                                        <line x1="130" y1="20" x2="130" y2="36" />
+                                        <line x1="410" y1="20" x2="410" y2="36" />
+                                     </g>
+                                     <text x="270" y="22" fill="#facc15" fontSize="12.6" textAnchor="middle" fontWeight="black">
+                                        কলাম ফেস থেকে বিস্তার: L/3 = {etLength}' ফুট ({Math.round(etLength * 12)}" ইঞ্চি)
+                                     </text>
+
+                                     {/* Callout Info Badge */}
+                                     <g transform="translate(250, 85)">
+                                        <rect x="0" y="0" width="240" height="46" rx="8" fill="#1e293b" stroke="#facc15" strokeWidth="1.5" />
+                                        <text x="120" y="19" fill="#facc15" fontSize="12.08" textAnchor="middle" fontWeight="black">
+                                           ★ এক্সট্রা টপ: {extraTopRodCount} টি ({defaultInfo.rod})
+                                        </text>
+                                        <text x="120" y="36" fill="#94a3b8" fontSize="9.97" textAnchor="middle" fontWeight="bold">
+                                           সাপোর্ট মোমেন্ট নিয়ন্ত্রণে কলাম ফেস থেকে L/3
+                                        </text>
+                                     </g>
+
+                                     {/* Stirrup Ties near support */}
+                                     {[140, 165, 190, 220, 255, 295, 340].map(cx => (
+                                        <line key={cx} x1={cx} y1="48" x2={cx} y2="137" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
+                                     ))}
+                                     <text x="210" y="152" fill="#94a3b8" fontSize="9.45" textAnchor="middle">সাপোর্টে ৪" c/c ঘন রিং</text>
+                                  </g>
+                               </svg>
+
+                               {/* 3 Detail Info Cards */}
+                               <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2 border-t border-white/5">
+                                  <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                     <span className="text-slate-400 font-bold block mb-1">১. রড সংখ্যা ও নির্বাচন:</span>
+                                     <span className="text-white font-bold leading-relaxed">
+                                        {group.label} বিমের প্রতি কলাম সাপোর্টে <strong>{extraTopRodCount} টি {defaultInfo.rod}</strong> এক্সট্রা টপ রড বাধ্যতামূলক।
+                                     </span>
+                                  </div>
+                                  <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                     <span className="text-amber-400 font-bold block mb-1">২. মাপ ও কাটিং লেন্থ (Cut Length):</span>
+                                     <span className="text-white font-bold leading-relaxed">
+                                        কলাম ফেস থেকে <strong>{etLength} ফুট ({Math.round(etLength * 12)} ইঞ্চি)</strong> বিস্তার + কলামের ভেতর ১২" এল-হুক (মোট কাটিং: {(etLength + 1).toFixed(1)} ফুট)।
+                                     </span>
+                                  </div>
+                                  <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                     <span className="text-cyan-400 font-bold block mb-1">৩. রিং এ হুক ও স্পেসিং:</span>
+                                     <span className="text-white font-bold leading-relaxed">
+                                        রিংয়ের হুক <strong>১৩৫° কোণে ৩" (75mm)</strong> বাঁকানো থাকবে। কলাম ফেস থেকে L/3 অংশে ৪" c/c ঘন রিং বাঁধতে হবে।
+                                     </span>
+                                  </div>
+                               </div>
+                            </div>
+
+                            {/* Guideline Footer */}
                             <div className="w-full flex items-start gap-4 bg-indigo-600/5 p-6 rounded-3xl border border-indigo-600/20 print:bg-slate-50">
                                <Scissors className="w-6 h-6 text-indigo-500 shrink-0 mt-0.5" />
                                <div className="space-y-2">
-                                  <p className="text-indigo-200 font-bold text-sm uppercase tracking-wider print:text-indigo-800">বিম রিইনফোর্সমেন্ট গাইডলাইন:</p>
+                                  <p className="text-indigo-200 font-bold text-sm uppercase tracking-wider print:text-indigo-800">বিম রিইনফোর্সমেন্ট ও সাইট এক্সিকিউশন গাইডলাইন:</p>
                                   <p className="text-slate-400 text-xs leading-relaxed print:text-slate-700">
-                                     • <strong>রড প্লেসমেন্ট:</strong> ক্রস-সেকশন অনুযায়ী মেইন রডগুলো সাজাতে হবে। বিমের নিচে {botRodCount}টি এবং উপরে {topRodCount}টি মেইন রড থাকবে।<br/>
-                                     • <strong>টপ এক্সট্রা ও রিং:</strong> কলাম ফেস থেকে ক্লিয়ার স্প্যানের L/3 বা L/4 অংশ পর্যন্ত এক্সট্রা টপ কাটতে হবে। সাপোর্টে ৪" c/c ঘন এবং মাঝে ৭" c/c রিং বাঁধতে হবে।<br/>
-                                     • <strong>ডেভেলপমেন্ট লেন্থ (Ld):</strong> বিমের রড কলামের ভেতরে কমপক্ষে ১২ ইঞ্চি এল-ব্যান্ড (L-hook) হয়ে ঢুকবে।
+                                     • <strong>গ্রুপ সারাংশ:</strong> এই আর্কিটেকচারাল লেআউটে মোট {group.beamCount}টি {group.label} বিম রয়েছে যা {group.pillarCount}টি কলামের সাথে যুক্ত। উপরে প্রদর্শিত ২ডি ড্রয়িং সকল {group.label} বিম ও কলামের জন্য সমানভাবে প্রযোজ্য।<br/>
+                                     • <strong>টপ এক্সট্রা প্লেসমেন্ট:</strong> মেইন টপ রডের পাশাপাশি এক্সট্রা টপ রডগুলো কলামের ফেস থেকে ক্লিয়ার স্প্যানের L/3 ({etLength} ফুট) পর্যন্ত বসাতে হবে এবং কলামের ভেতর ১২" এল-হুক নিশ্চিত করতে হবে।<br/>
+                                     • <strong>রিং ও ১৩৫° হুক:</strong> ভূমিকম্প সহনশীল করতে রিংয়ের দুই প্রান্ত ১৩৫° ভেতরের দিকে কমপক্ষে ৩ ইঞ্চি (75mm) বাঁকাতে হবে এবং প্রতিটি জয়েন্টে অল্টারনেট করে বাঁধতে হবে।
                                   </p>
                                </div>
                             </div>
@@ -971,7 +1321,7 @@ export function StructuralDetailingDialog({
                       }) : (
                         <div className="flex flex-col items-center gap-8 py-48">
                            <Scissors className="w-24 h-24 text-slate-700 animate-pulse" />
-                           <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">রুম এরিয়ার মধ্যে পর্যাপ্ত পিলার পাওয়া যায়নি</div>
+                           <div className="text-slate-500 font-black uppercase tracking-[0.3em] text-center text-lg">রুম এরিয়ার মধ্যে পর্যাপ্ত পিলার বা বিম পাওয়া যায়নি</div>
                         </div>
                       )}
                    </div>
