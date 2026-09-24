@@ -1786,6 +1786,59 @@ export function ThreeDViewDialog({
             </Button>
           </div>
 
+          {/* ========== Direct 3D Studio CAD Toolbar ========== */}
+          {isStudioMode && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-slate-900/95 border border-cyan-500/30 rounded-2xl px-2 py-1.5 shadow-2xl backdrop-blur-md">
+              {[
+                { key: 'select', label: 'Select', icon: '\u2B1C' },
+                { key: 'wall', label: 'Wall', icon: '\u25AC' },
+                { key: 'pillar', label: 'Pillar', icon: '\u25A0' },
+                { key: 'beam', label: 'Beam', icon: '\u2501' },
+                { key: 'room', label: 'Room', icon: '\u25A1' },
+                { key: 'door', label: 'Door', icon: '\uD83D\uDEAA' },
+                { key: 'window', label: 'Window', icon: '\u25A6' },
+                { key: 'stair', label: 'Stair', icon: '\u2261' },
+                { key: 'slab', label: 'Slab', icon: '\u25AC\u25AC' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setActive3DTool(t.key)}
+                  title={t.label}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-[10px] font-bold transition-all ${active3DTool === t.key ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                >
+                  <span className="text-base leading-none">{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+              <div className="w-px h-8 bg-slate-700 mx-1" />
+              <button onClick={undoStudio} title="Undo" className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-[10px] font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                <span className="text-base leading-none">\u21A9</span>
+                <span>Undo</span>
+              </button>
+              <button onClick={redoStudio} title="Redo" className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-[10px] font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+                <span className="text-base leading-none">\u21AA</span>
+                <span>Redo</span>
+              </button>
+              {onSave && (
+                <>
+                  <div className="w-px h-8 bg-slate-700 mx-1" />
+                  <button onClick={onSave} title="Save" className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all">
+                    <span className="text-base leading-none">💾</span>
+                    <span>Save</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Studio Toast */}
+          {studioToast && (
+            <div className="absolute top-32 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-cyan-500/40 text-cyan-300 text-xs font-bold px-4 py-2 rounded-xl shadow-xl backdrop-blur-md animate-pulse">
+              {studioToast}
+            </div>
+          )}
+
+
           <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
             <div className="flex flex-col gap-1 bg-slate-900/85 p-1.5 rounded-xl border border-slate-800 shadow-xl backdrop-blur-md">
               {/* Walkthrough Mode Toggle */}
