@@ -55,14 +55,18 @@ interface ThreeDViewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   designObjects: DesignObject[];
+  setDesignObjects?: React.Dispatch<React.SetStateAction<DesignObject[]>>; 
   projectName?: string;
+  onSave?: () => void;
 }
 
 export function ThreeDViewDialog({
   open,
   onOpenChange,
   designObjects,
-  projectName = "প্রজেক্ট"
+  setDesignObjects,
+  projectName = "প্রজেক্ট",
+  onSave
 }: ThreeDViewDialogProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -85,6 +89,58 @@ export function ThreeDViewDialog({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [currentView, setCurrentView] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
+
+  // Direct 3D Studio CAD States
+  const [isStudioMode, setIsStudioMode] = useState(true);
+  const [active3DTool, setActive3DTool] = useState<string>('select');
+  const [wallDrawStart, setWallDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number } | null>(null);
+  const [selected3DId, setSelected3DId] = useState<string | null>(null);
+  const [studioToast, setStudioToast] = useState<string | null>(null);
+  const [furnitureMenuOpen, setFurnitureMenuOpen] = useState(false);
+  const [studioHistory, setStudioHistory] = useState<DesignObject[][]>([designObjects]);
+  const [historyIdx, setHistoryIdx] = useState(0);
+
+  const active3DToolRef = useRef(active3DTool);
+  active3DToolRef.current = active3DTool;
+  const wallDrawStartRef = useRef(wallDrawStart);
+  wallDrawStartRef.current = wallDrawStart;
+  const isStudioModeRef = useRef(isStudioMode);
+  isStudioModeRef.current = isStudioMode;
+  const selected3DIdRef = useRef(selected3DId);
+  selected3DIdRef.current = selected3DId;
+  const designObjectsRef = useRef(designObjects);
+  designObjectsRef.current = designObjects;
+
+  const showStudioToast = useCallback((msg: string) => {
+    setStudioToast(msg);
+    setTimeout(() => setStudioToast(null), 3500);
+  }, []);
+
+  const saveToStudioHistory = useCallback((newObjs: DesignObject[]) => {
+    if (!setDesignObjects) return;
+    setDesignObjects(newObjs);
+    setStudioHistory(prev => [...prev.slice(0, historyIdx + 1), newObjs]);
+    setHistoryIdx(prev => prev + 1);
+  }, [setDesignObjects, historyIdx]);
+
+  const undoStudio = useCallback(() => {
+    if (historyIdx > 0 && setDesignObjects) {
+      const prevObjs = studioHistory[historyIdx - 1];
+      setHistoryIdx(historyIdx - 1);
+      setDesignObjects(prevObjs);
+      showStudioToast("পূর্বাবস্থায় ফেরানো হয়েছে (Undo)");
+    }
+  }, [historyIdx, studioHistory, setDesignObjects, showStudioToast]);
+
+  const redoStudio = useCallback(() => {
+    if (historyIdx < studioHistory.length - 1 && setDesignObjects) {
+      const nextObjs = studioHistory[historyIdx + 1];
+      setHistoryIdx(historyIdx + 1);
+      setDesignObjects(nextObjs);
+      showStudioToast("পুনরায় সম্পন্ন হয়েছে (Redo)");
+    }
+  }, [historyIdx, studioHistory, setDesignObjects, showStudioToast]);
   const boundsRef = useRef<{ bWidth: number; bDepth: number; centerX: number; centerZ: number }>({ bWidth: 30, bDepth: 30, centerX: 15, centerZ: 15 });
   const walkStateRef = useRef({
     keys: { forward: false, backward: false, left: false, right: false },
@@ -600,6 +656,25 @@ export function ThreeDViewDialog({
     canopy.rotation.y = Math.PI / 4;
     group.add(canopy);
 
+    return group;
+  };
+
+  // 7b. Realistic RCC Structural Beam
+  const createRCCBeam = (w: number, depth: number, wallH: number, beamDepthInches: number = 12, label: string = "B1") => {
+    const group = new THREE.Group();
+    const beamMat = new THREE.MeshStandardMaterial({ 
+      color: 0x475569, // Structural concrete dark slate
+      roughness: 0.7, 
+      metalness: 0.1 
+    });
+    const bHeight = (beamDepthInches || 12) / 12;
+    const bW = Math.max(w, 0.833);
+    const bD = Math.max(depth, 0.833);
+    const beamMesh = new THREE.Mesh(new THREE.BoxGeometry(bW, bHeight, bD), beamMat);
+    beamMesh.position.set(bW / 2, wallH - bHeight / 2, bD / 2);
+    beamMesh.castShadow = true;
+    beamMesh.receiveShadow = true;
+    group.add(beamMesh);
     return group;
   };
 
@@ -1305,6 +1380,10 @@ export function ThreeDViewDialog({
         objPivot.add(stair);
         wallsGroup.add(objPivot);
       }
+
+      objPivot.traverse(child => {
+        child.userData = { objectId: obj.id, objectData: obj };
+      });
 
       // F. ROOM LABELS & TEXT
       const isActualText = isText || obj.type === 'text' || obj.subType === 'label';

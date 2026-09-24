@@ -1807,7 +1807,7 @@ export default function EstimatorClient() {
           <div className="w-px h-7 bg-slate-800 mx-0.5 shrink-0" />
           <RibbonButton icon={<Magnet className="w-4 h-4" />} label={isSmartSnapEnabled ? "স্ন্যাপ: ON" : "স্ন্যাপ: OFF"} onClick={() => setIsSmartSnapEnabled(!isSmartSnapEnabled)} active={isSmartSnapEnabled} color="cyan" className="shrink-0" />
           <RibbonButton icon={<LayoutGrid />} label="All" onClick={selectAll} color="indigo" className="shrink-0" />
-          <RibbonButton icon={<Layers />} label="3D View" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0" />
+          <RibbonButton icon={<Layers className="w-4 h-4 text-cyan-400" />} label="৩ডি স্টুডিও" onClick={() => setIs3DViewOpen(true)} color="indigo" className="shrink-0 font-bold border border-cyan-500/30 shadow-sm" />
           <Trash2 className="w-4 h-4 text-red-500 cursor-pointer ml-1" onClick={deleteSelected} />
         </div>
 
@@ -2096,7 +2096,7 @@ export default function EstimatorClient() {
       </Dialog>
 
       <CloudGalleryDialog open={isCloudGalleryOpen} onOpenChange={setIsCloudGalleryOpen} />
-      <ThreeDViewDialog open={is3DViewOpen} onOpenChange={setIs3DViewOpen} designObjects={designObjects} projectName={projectName} />
+      <ThreeDViewDialog open={is3DViewOpen} onOpenChange={setIs3DViewOpen} designObjects={designObjects} setDesignObjects={setDesignObjects} projectName={projectName} onSave={saveToFirestore} />
       <Dialog open={isEstimationDialogOpen} onOpenChange={isEstimationDialogOpen ? setIsEstimationDialogOpen : undefined}><DialogContent className="max-w-[92vw] lg:max-w-5xl w-full h-[95vh] p-0 overflow-hidden rounded-xl border shadow-2xl bg-white [&>button]:hidden"><EstimationView designObjects={designObjects} onBack={() => setIsEstimationDialogOpen(false)} onSave={saveToFirestore} foundations={foundations} setFoundations={setFoundations} columns={columns} setColumns={setColumns} beams={beams} setBeams={setBeams} slabs={slabs} setSlabs={setSlabs} stairs={stairs} setStairs={setStairs} brickworks={brickworks} setBrickworks={setBrickworks} plasters={plasters} setPlasters={setPlasters} floorTiles={floorTiles} setFloorTiles={setFloorTiles} wallTiles={wallTiles} setWallTiles={setWallTiles} septicTanks={septicTanks} setSepticTanks={setSepticTanks} soakWells={soakWells} setSoakWells={setSoakWells} prices={prices} setPrices={setPrices} unitSystem={unitSystem} onOpenMarketSync={() => setIsMarketSyncOpen(true)} onOpenAdvancedPdfReport={(total, grandTotal) => { setPdfReportPayload({ total, grandTotalCost: grandTotal }); setIsAdvancedPdfReportOpen(true); }} /></DialogContent></Dialog>
       <MarketPriceSyncDialog open={isMarketSyncOpen} onOpenChange={setIsMarketSyncOpen} currentPrices={prices} onApplyPrices={(newPrices) => setPrices(newPrices)} />
       <AdvancedPdfReportDialog open={isAdvancedPdfReportOpen} onOpenChange={setIsAdvancedPdfReportOpen} projectName={projectName} total={pdfReportPayload?.total || { cement: 0, sand: 0, stone: 0, chips: 0, rod: 0, bricks: 0, floorTiles: 0, wallTiles: 0, labor: 0, doors: 0, windows: 0 }} prices={prices} grandTotalCost={pdfReportPayload?.grandTotalCost || 0} unitSystem={unitSystem} foundationsCount={foundations.length} columnsCount={columns.length} />
